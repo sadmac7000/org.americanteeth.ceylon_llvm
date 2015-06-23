@@ -1,0 +1,5 @@
+[compiler]
+suppresswarning=ceylonNamespace
+
+[defaults]
+encoding=UTF-8
