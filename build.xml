@@ -25,11 +25,11 @@
     </reposet>
 
     <moduleset id="modules.source">
-        <module name="ceylon.llvm"/>
+        <module name="org.americanteeth.ceylon_llvm"/>
     </moduleset>
     
     <moduleset id="modules.test">
-        <module name="test.ceylon.llvm"/>
+        <module name="test.org.americanteeth.ceylon_llvm"/>
     </moduleset>
 
     <moduleset id="modules.all">
@@ -43,7 +43,7 @@
     </target>
     
     <target name="compile-source"
-            description="Compiles the ceylon.parse module">
+            description="Compiles the org.americanteeth.ceylon_llvm module">
         <ceylon-compile executable="${ceylon.executable}"
             verbose="${ceylon.verbosity}"
             encoding="UTF-8"
@@ -73,7 +73,7 @@
 
     <!-- Compiling both modules in one go is faster than depending on compile-source,compile-test -->
     <target name="compile"
-        description="Compiles the ceylon.parse and test modules">
+        description="Compiles the org.americanteeth.ceylon_llvm and test modules">
         <ceylon-compile executable="${ceylon.executable}"
             src="${test-sources}"
             out="${out.repo}"
@@ -92,7 +92,7 @@
     </target>
 
     <target name="doc" 
-            description="Documents the ceylon.parse module">
+            description="Documents the org.americanteeth.ceylon_llvm module">
         
         <ceylon-doc executable="${ceylon.executable}"
             includesourcecode="true"
@@ -107,10 +107,10 @@
     </target>
 
     <target name="publish" depends="compile-source"
-            description="Copies the ceylon.parse module to the user's repository">
+            description="Copies the org.americanteeth.ceylon_llvm module to the user's repository">
         <copy todir="${ceylon.repo.dir}" overwrite="true">
             <fileset dir="${out.repo}">
-                <include name="ceylon/parse/**"/>
+		 <include name="org/americanteeth/ceylon/llvm/**"/>
             </fileset>
         </copy>
     </target>
