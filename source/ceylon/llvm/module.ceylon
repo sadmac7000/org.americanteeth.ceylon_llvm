@@ -1,0 +1,10 @@
+native("jvm") module ceylon.llvm "0.0.1" {
+    import com.redhat.ceylon.typechecker "1.1.1";
+    import ceylon.io "1.1.1";
+    import ceylon.formatter "1.1.1";
+    import ceylon.ast.core "1.1.1";
+    import ceylon.ast.create "1.1.1";
+    import ceylon.ast.redhat "1.1.1";
+    import ceylon.interop.java "1.1.1";
+    import ceylon.collection "1.1.1";
+}
