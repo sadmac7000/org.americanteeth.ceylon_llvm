@@ -1,4 +1,4 @@
-native("jvm") module ceylon.llvm "0.0.1" {
+native("jvm") module org.americanteeth.ceylon_llvm "0.0.1" {
     import com.redhat.ceylon.typechecker "1.1.1";
     import ceylon.io "1.1.1";
     import ceylon.formatter "1.1.1";

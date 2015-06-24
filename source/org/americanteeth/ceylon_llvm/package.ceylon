@@ -1,1 +1,1 @@
-shared package ceylon.llvm;
+shared package org.americanteeth.ceylon_llvm;
