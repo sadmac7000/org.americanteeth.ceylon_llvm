@@ -114,14 +114,7 @@ void run() {
         print("========================");
         print("== LLVM");
         print("========================");
-        /*try {
-            /*value ctx = CompilationContext(phasedUnit.unit, CeylonList(phasedUnit.tokens));
-            ctx.init();
-            value visitor = DartBackendVisitor(ctx);
-            unit.visit(visitor);
-            print(ctx.result);*/
-        } catch (CompilerBug b) {
-            //process.writeError("Compiler bug:\n" + b.message);
-        }*/
+        value visitor = LLVMBackendVisitor();
+        unit.visit(visitor);
     }
 }
