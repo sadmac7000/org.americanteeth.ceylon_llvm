@@ -16,6 +16,14 @@ import ceylon.io.charset {
     utf8
 }
 
+import ceylon.file {
+    parsePath,
+    lines,
+    createFileIfNil,
+    File,
+    Nil
+}
+
 import com.redhat.ceylon.compiler.typechecker {
     TypeCheckerBuilder
 }
@@ -53,7 +61,29 @@ void printNodeAsCode(Node node) {
 
 shared
 void run() {
-    value listing = "void probeFunc() {} \n void run() { probeFunc(); }";
+    String listing;
+
+    if (process.arguments.size != 1) {
+        if (process.arguments.empty) {
+            process.writeErrorLine("No file given");
+        } else {
+            process.writeErrorLine("Too many arguments");
+        }
+
+        process.exit(1);
+        return;
+    }
+
+    assert(exists path = process.arguments.first);
+
+    if (is File file = parsePath(path).resource) {
+        listing = lines(file).fold("")((x,y) => x + y);
+    } else {
+        process.writeErrorLine("Could not find file");
+        process.exit(1);
+        return;
+    }
+
     value virtualFile = object satisfies VirtualFile {
         shared actual
         List<out VirtualFile> children
@@ -116,6 +146,13 @@ void run() {
         print("========================");
         value visitor = LLVMBackendVisitor();
         unit.visit(visitor);
-        print(unit.get(llvmData));
+        value result = unit.get(llvmData);
+        assert(exists result);
+        print(result);
+
+        assert(is File|Nil f = parsePath("./out.ll").resource);
+        try (w = createFileIfNil(f).Overwriter()) {
+            w.write(result.string);
+        }
     }
 }

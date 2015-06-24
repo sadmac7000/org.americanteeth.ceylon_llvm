@@ -1,6 +1,8 @@
 native("jvm") module org.americanteeth.ceylon_llvm "0.0.1" {
     import com.redhat.ceylon.typechecker "1.1.1";
     import ceylon.io "1.1.1";
+    import ceylon.file "1.1.1";
+    import ceylon.process "1.1.1";
     import ceylon.formatter "1.1.1";
     import ceylon.ast.core "1.1.1";
     import ceylon.ast.create "1.1.1";
