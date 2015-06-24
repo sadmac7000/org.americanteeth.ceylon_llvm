@@ -53,7 +53,7 @@ void printNodeAsCode(Node node) {
 
 shared
 void run() {
-    value listing = "void run() {}";
+    value listing = "void probeFunc() {} \n void run() { probeFunc(); }";
     value virtualFile = object satisfies VirtualFile {
         shared actual
         List<out VirtualFile> children
@@ -116,5 +116,6 @@ void run() {
         print("========================");
         value visitor = LLVMBackendVisitor();
         unit.visit(visitor);
+        print(unit.get(llvmData));
     }
 }
