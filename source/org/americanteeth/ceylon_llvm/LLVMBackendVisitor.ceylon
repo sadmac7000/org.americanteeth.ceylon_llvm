@@ -29,12 +29,12 @@ class LLVMBackendVisitor() satisfies Visitor {
 
         for (str->id in strings) {
             result += "@.str``id``.data = private unnamed_addr constant \
-                       [``str.size`` x i8] c\"``str``\"\n";
-            result += "@.str``id``.object = private unnamed_addr constant \
+                       [``str.size`` x i8] c\"``str``\"
+                       @.str``id``.object = private unnamed_addr constant \
                        [3 x i64] [i64 0, i64 ``str.size``, \
                        i64 ptrtoint([``str.size`` x i8]* \
-                       @.str``id``.data to i64)]\n";
-            result += "@.str``id`` = alias i64* \
+                       @.str``id``.data to i64)]
+                       @.str``id`` = alias i64* \
                        bitcast([3 x i64]* @.str``id``.object to i64*)\n";
         }
 
