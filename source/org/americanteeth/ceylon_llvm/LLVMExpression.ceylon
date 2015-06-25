@@ -27,7 +27,7 @@ class LLVMExpression([String|LLVMVariable|LLVMExpression +] input) {
             value expr = i.assigning;
             preamble.addAll(expr.preamble);
             preamble.add(expr);
-            processed.add(i.output);
+            processed.add(expr.output);
         }
     }
 
