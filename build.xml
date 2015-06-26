@@ -2,6 +2,7 @@
 
     <property file="build.properties" />
     <property name="ceylon.verbosity" value="false"/>
+    <property name="ceylon.base.version" value="1.1.1"/>
     <property name="ceylon.executable" value="${dist.bin.dir}/ceylon"/>
     <property name="out.repo" location="modules"/>
     
@@ -13,6 +14,7 @@
 
     <!-- Local repository -->
     <property name="ceylon.repo.dir" location="${user.home}/.ceylon/repo" />
+    <property name="ceylon.bin.dir" location="${user.home}/.ceylon/bin" />
     
     <path id="ant-tasks">
         <pathelement location="${ceylon.ant.lib}"/>
@@ -110,8 +112,13 @@
             description="Copies the org.americanteeth.ceylon_llvm module to the user's repository">
         <copy todir="${ceylon.repo.dir}" overwrite="true">
             <fileset dir="${out.repo}">
-		 <include name="org/americanteeth/ceylon/llvm/**"/>
+		 <include name="org/americanteeth/ceylon_llvm/**"/>
             </fileset>
+        </copy>
+        <copy todir="${ceylon.bin.dir}" file="ceylon-compile-native.plugin" overwrite="true">
+            <filterset>
+                <filter token="ceylon-version" value="${ceylon.base.version}"/>
+            </filterset>
         </copy>
     </target>
 
