@@ -23,6 +23,9 @@ class LLVMBackendVisitor() satisfies Visitor {
         return nextString++;
     }
 
+    shared actual void visitModuleCompilationUnit(ModuleCompilationUnit m) {}
+    shared actual void visitPackageCompilationUnit(PackageCompilationUnit m) {}
+
     shared actual void visitCompilationUnit(CompilationUnit c) {
         c.visitChildren(this);
         variable String result = "declare i64* @print(i64*)\n";

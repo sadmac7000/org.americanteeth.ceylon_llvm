@@ -3,22 +3,18 @@ import ceylon.ast.core {
 }
 
 import ceylon.ast.redhat {
-    compilationUnitToCeylon,
+    anyCompilationUnitToCeylon,
     RedHatTransformer,
     SimpleTokenFactory
 }
 import ceylon.interop.java {
-    createJavaByteArray,
     CeylonIterable,
-    CeylonList
-}
-import ceylon.io.charset {
-    utf8
+    JavaList,
+    javaString
 }
 
 import ceylon.file {
     parsePath,
-    lines,
     createFileIfNil,
     File,
     Nil
@@ -30,9 +26,14 @@ import com.redhat.ceylon.compiler.typechecker {
 import com.redhat.ceylon.compiler.typechecker.tree {
     TCNode=Node
 }
-import com.redhat.ceylon.compiler.typechecker.io {
-    VirtualFile
+import com.redhat.ceylon.common {
+    Backend
 }
+import com.redhat.ceylon.common.tool {
+    argument,
+    option
+}
+
 import com.redhat.ceylon.common.tools {
     CeylonTool,
     SourceArgumentsResolver
@@ -52,12 +53,14 @@ import java.io {
     ByteArrayInputStream,
     JFile=File
 }
-import java.util {
-    List,
-    ArrayList,
-    HashSet
-}
 
+import java.util { List, ArrayList }
+import java.lang { JString = String }
+
+"Options for formatting code output"
+FormattingOptions formatOpts = FormattingOptions {
+    maxLineLength = 80;
+};
 
 "Recover the source from the AST"
 void printNodeAsCode(Node node) {
@@ -66,79 +69,35 @@ void printNodeAsCode(Node node) {
             RedHatTransformer(
                 SimpleTokenFactory()));
 
-    value fo = FormattingOptions {
-        maxLineLength = 80;
-    };
-    print(format(tcNode(node), fo));
+    print(format(tcNode(node), formatOpts));
 }
 
 "Compiler utility for LLVM compilation"
 shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
+    variable List<JString> moduleOrFile_ = ArrayList<JString>();
+    shared List<JString> moduleOrFile => moduleOrFile_;
+
+    argument{argumentName = "moduleOrFile"; multiplicity = "*";}
+    assign moduleOrFile { moduleOrFile_ = moduleOrFile; }
+
     shared actual void initialize(CeylonTool mt) {}
+
     shared actual void run() {
-        String listing;
+        value roots = DefaultToolOptions.compilerSourceDirs;
+        value resources = DefaultToolOptions.compilerResourceDirs;
+        value resolver = SourceArgumentsResolver(roots, resources, ".ceylon");
 
-        if (process.arguments.size != 1) {
-            if (process.arguments.empty) {
-                process.writeErrorLine("No module given");
-            } else {
-                process.writeErrorLine("Too many arguments");
-            }
-
-            process.exit(1);
-            return;
-        }
-
-        value resolver =
-            SourceArgumentsResolver(DefaultToolOptions.getCompilerSourceDirs(null),
-                    DefaultToolOptions.getCompilerResourceDirs(null), ".ceylon");
-
-        assert(exists path = process.arguments.first);
-
-        if (is File file = parsePath(path).resource) {
-            listing = lines(file).fold("")((x,y) => x + y);
-        } else {
-            process.writeErrorLine("Could not find file");
-            process.exit(1);
-            return;
-        }
-
-        value virtualFile = object satisfies VirtualFile {
-            shared actual
-            List<out VirtualFile> children
-                =>  ArrayList();
-
-            shared actual
-            Integer compareTo(VirtualFile other)
-                =>  switch (path.compare(other.path))
-                    case (smaller) -1
-                    case (larger) 1
-                    case (equal) 0;
-
-            shared actual
-            Boolean folder
-                =>  false;
-
-            shared actual
-            InputStream inputStream
-                =>  ByteArrayInputStream(
-                        createJavaByteArray(
-                            utf8.encode(listing)));
-
-            shared actual
-            String name
-                =>  "virtual.ceylon";
-
-            shared actual
-            String path
-                =>  name;
-        };
-
+        resolver.cwd(cwd).expandAndParse(moduleOrFile, Backend.\iNone);
         value builder = TypeCheckerBuilder();
-        builder.addSrcDirectory(virtualFile);
+
+        for (root in CeylonIterable(roots)) {
+            builder.addSrcDirectory(root);
+        }
+
+        builder.setSourceFiles(resolver.sourceFiles);
 
         value typeChecker = builder.typeChecker;
-        typeChecker.process();
+        typeChecker.process(true);
 
         // print typechecker messages
         CeylonIterable(typeChecker.messages).each(
@@ -148,26 +107,15 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
                 typeChecker.phasedUnits.phasedUnits);
 
         for (phasedUnit in phasedUnits) {
-            value unit = compilationUnitToCeylon(
-                    phasedUnit.compilationUnit,
-                    augmentNode);
-            printNodeAsCode(unit);
-            print("========================");
-            print("== TC-AST");
-            print("========================");
-            print(phasedUnit.compilationUnit);
-            print("========================");
-            print("== AST");
-            print("========================");
-            print(unit);
-            print("========================");
-            print("== LLVM");
-            print("========================");
+            value unit = anyCompilationUnitToCeylon(
+                    phasedUnit.compilationUnit/*,
+                    augmentNode*/);
+
             value visitor = LLVMBackendVisitor();
             unit.visit(visitor);
             value result = unit.get(llvmData);
+            if (! exists result) { continue; }
             assert(exists result);
-            print(result);
 
             assert(is File|Nil f = parsePath("./out.ll").resource);
             try (w = createFileIfNil(f).Overwriter()) {
