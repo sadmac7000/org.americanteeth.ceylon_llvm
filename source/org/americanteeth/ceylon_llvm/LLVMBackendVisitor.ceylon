@@ -4,8 +4,6 @@ import ceylon.collection { HashMap }
 
 class UnsupportedNode(String s) extends Exception(s) {}
 
-Key<Object> llvmData = ScopedKey<Object>(`module`, "llvmData");
-
 class LLVMBackendVisitor() satisfies Visitor {
     "The string table"
     value strings = HashMap<String,Integer>();
@@ -42,19 +40,20 @@ class LLVMBackendVisitor() satisfies Visitor {
         }
 
         for (child in c.children) {
-            if (exists data = child.get(llvmData)) {
+            if (exists data = child.get(keys.llvmData)) {
                 result += "``data``\n";
             }
         }
 
-        c.put(llvmData, result);
+        c.put(keys.llvmData, result);
     }
 
     shared actual void visitFunctionDefinition(FunctionDefinition f) {
         f.definition.visit(this);
-        assert(exists body = f.definition.get(llvmData));
-        f.put(llvmData, "define i64* @``f.name.name``() {\n``body``\n\
-                         ret i64* null\n}");
+        assert(exists body = f.definition.get(keys.llvmData));
+        f.put(keys.llvmData, "define i64* @``f.name.name``() {
+                              ``body``
+                              ret i64* null\n}");
     }
 
     shared actual void visitBlock(Block b) {
@@ -62,18 +61,18 @@ class LLVMBackendVisitor() satisfies Visitor {
         variable String result = "";
 
         for (child in b.children) {
-            if (exists data = child.get(llvmData)) {
+            if (exists data = child.get(keys.llvmData)) {
                 result += "``data``\n";
             }
         }
 
-        b.put(llvmData, result);
+        b.put(keys.llvmData, result);
     }
 
     shared actual void visitInvocationStatement(InvocationStatement i) {
         i.expression.visit(this);
-        assert(exists d = i.expression.get(llvmData));
-        i.put(llvmData, d);
+        assert(exists d = i.expression.get(keys.llvmData));
+        i.put(keys.llvmData, d);
     }
 
     shared actual void visitInvocation(Invocation i) {
@@ -84,7 +83,7 @@ class LLVMBackendVisitor() satisfies Visitor {
         assert(is MemberNameWithTypeArguments m = b.nameAndArgs);
 
         i.arguments.visit(this);
-        assert(is [Anything*] args = i.arguments.get(llvmData));
+        assert(is [Anything*] args = i.arguments.get(keys.llvmData));
 
         value name = m.name.name;
         value spreadable =
@@ -94,7 +93,7 @@ class LLVMBackendVisitor() satisfies Visitor {
                 .withLeading("call i64* @``name``(");
 
         value expr = LLVMExpression(spreadable);
-        i.put(llvmData, expr);
+        i.put(keys.llvmData, expr);
     }
 
     shared actual void visitPositionalArguments(PositionalArguments p) {
@@ -103,11 +102,11 @@ class LLVMBackendVisitor() satisfies Visitor {
         value args = p.argumentList.listedArguments;
 
         for (arg in args) { arg.visit(this); }
-        p.put(llvmData, [ for (arg in args) arg.get(llvmData) ]);
+        p.put(keys.llvmData, [ for (arg in args) arg.get(keys.llvmData) ]);
     }
 
     shared actual void visitStringLiteral(StringLiteral s) {
-        s.put(llvmData, "@.str``getStringID(s.text)``");
+        s.put(keys.llvmData, "@.str``getStringID(s.text)``");
     }
 
     shared actual void visitNode(Node that) {

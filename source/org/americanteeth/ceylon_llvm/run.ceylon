@@ -113,7 +113,7 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
 
             value visitor = LLVMBackendVisitor();
             unit.visit(visitor);
-            value result = unit.get(llvmData);
+            value result = unit.get(keys.llvmData);
             if (! exists result) { continue; }
             assert(exists result);
 

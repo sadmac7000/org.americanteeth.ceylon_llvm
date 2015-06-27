@@ -17,4 +17,8 @@ object keys {
     Key<String> location
         =   ScopedKey<String>(`value keys`,
                 "location");
+
+    shared
+    Key<Object> llvmData = ScopedKey<Object>(`module`, "llvmData");
+
 }
