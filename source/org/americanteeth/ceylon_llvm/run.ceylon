@@ -108,8 +108,8 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
 
         for (phasedUnit in phasedUnits) {
             value unit = anyCompilationUnitToCeylon(
-                    phasedUnit.compilationUnit/*,
-                    augmentNode*/);
+                    phasedUnit.compilationUnit,
+                    augmentNode);
 
             value visitor = LLVMBackendVisitor();
             unit.visit(visitor);
