@@ -110,6 +110,6 @@ class LLVMBackendVisitor() satisfies Visitor {
     }
 
     shared actual void visitNode(Node that) {
-        throw UnsupportedNode(that.string);
+        throw UnsupportedNode(type(that).string);
     }
 }

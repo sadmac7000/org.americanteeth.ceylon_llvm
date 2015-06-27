@@ -54,7 +54,7 @@ import java.io {
     JFile=File
 }
 
-import java.util { List, ArrayList }
+import java.util { List, JArrayList = ArrayList }
 import java.lang { JString = String }
 
 "Options for formatting code output"
@@ -74,7 +74,7 @@ void printNodeAsCode(Node node) {
 
 "Compiler utility for LLVM compilation"
 shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
-    variable List<JString> moduleOrFile_ = ArrayList<JString>();
+    variable List<JString> moduleOrFile_ = JArrayList<JString>();
     shared List<JString> moduleOrFile => moduleOrFile_;
 
     argument{argumentName = "moduleOrFile"; multiplicity = "*";}
@@ -95,13 +95,10 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
         }
 
         builder.setSourceFiles(resolver.sourceFiles);
+        builder.setRepositoryManager(repositoryManager);
 
         value typeChecker = builder.typeChecker;
-        typeChecker.process(true);
-
-        // print typechecker messages
-        CeylonIterable(typeChecker.messages).each(
-                compose(process.writeErrorLine, Object.string));
+        typeChecker.process();
 
         value phasedUnits = CeylonIterable(
                 typeChecker.phasedUnits.phasedUnits);
