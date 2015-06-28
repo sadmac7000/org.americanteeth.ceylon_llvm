@@ -35,7 +35,7 @@ class LLVMBackendVisitor() satisfies Visitor {
                        [3 x i64] [i64 0, i64 ``str.size``, \
                        i64 ptrtoint([``str.size`` x i8]* \
                        @.str``id``.data to i64)]
-                       @.str``id`` = alias i64* \
+                       @.str``id`` = alias private i64* \
                        bitcast([3 x i64]* @.str``id``.object to i64*)\n";
         }
 
