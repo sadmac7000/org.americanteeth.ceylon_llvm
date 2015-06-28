@@ -28,12 +28,13 @@ class LLVMBackendVisitor() satisfies Visitor {
         c.visitChildren(this);
         variable String result = "declare i64* @print(i64*)\n";
 
-        for (str->id in strings) {
+        for (strIn->id in strings) {
+            value [str, sz] = processEscapes(strIn);
             result += "@.str``id``.data = private unnamed_addr constant \
-                       [``str.size`` x i8] c\"``str``\"
+                       [``sz`` x i8] c\"``str``\"
                        @.str``id``.object = private unnamed_addr constant \
-                       [3 x i64] [i64 0, i64 ``str.size``, \
-                       i64 ptrtoint([``str.size`` x i8]* \
+                       [3 x i64] [i64 0, i64 ``sz``, \
+                       i64 ptrtoint([``sz`` x i8]* \
                        @.str``id``.data to i64)]
                        @.str``id`` = alias private i64* \
                        bitcast([3 x i64]* @.str``id``.object to i64*)\n";
