@@ -16,6 +16,7 @@ import ceylon.interop.java {
     CeylonList
 }
 
+"Get the name prefix for items in a given package"
 String namePrefix(Package p) {
     value v = p.\imodule.version;
     value pkg = CeylonList(p.name)
@@ -23,9 +24,8 @@ String namePrefix(Package p) {
     assert(exists pkg);
 
     return "c" + utf8.decode(encodeUrl(utf8.encode(v)))
-            .replace("_", "__")
-            .replace("=", "_e")
-            .replace("-", "_h") + ".``pkg``";
+            .replace("=", "")
+            .replace("-", "$") + ".``pkg``";
 }
 
 class UnsupportedNode(String s) extends Exception(s) {}
@@ -47,29 +47,14 @@ class LLVMBackendVisitor() satisfies Visitor {
         return nextString++;
     }
 
-    "Name of the module we're visiting"
-    variable String mod = "default";
-
-    "Version of the module we're visiting"
-    variable String? version = null;
-
     "Entry point (the run function)"
     variable String? entry = null;
 
-    "Identifier-safe version"
-    String encodedVersion
-        => if (exists v=version)
-        then utf8.decode(encodeUrl(utf8.encode(v)))
-            .replace("_", "__")
-            .replace("=", "_e")
-            .replace("-", "_h")
-        else "";
-
-    "Name of the package we're visiting"
-    variable String pkg = "default";
-
     "Symbol prefix for module isolation"
-    String symPrefix => "c``encodedVersion``.``pkg``";
+    variable String symPrefix = "";
+
+    "Whether we're in the root package of this module"
+    variable Boolean inRoot = false;
 
     shared actual void visitModuleCompilationUnit(ModuleCompilationUnit m) {}
     shared actual void visitPackageCompilationUnit(PackageCompilationUnit m) {}
@@ -77,20 +62,14 @@ class LLVMBackendVisitor() satisfies Visitor {
     shared actual void visitCompilationUnit(CompilationUnit c) {
         assert(is Tree.CompilationUnit tc = c.get(keys.tcNode));
 
-        value pkgNode = tc.unit.\ipackage;
-        value modNode = pkgNode.\imodule;
+        assert(is Package pkgNode = tc.unit.\ipackage);
+        symPrefix = namePrefix(pkgNode);
 
-        mod = CeylonList(modNode.name).reduce<String>((x, y) => x.string +
-                ".``y.string``")?.string
-            else "";
-        version = modNode.version;
-        pkg = CeylonList(pkgNode.name).reduce<String>((x, y) => x.string +
-                ".``y.string``")?.string
-            else "";
+        inRoot = pkgNode.\imodule.rootPackage == pkgNode;
 
         c.visitChildren(this);
         variable String result = "declare i64* @print(i64*)
-                                  define private i64* @cMS4xLjE_e.ceylon.language.print\
+                                  define private i64* @cMS4xLjE.ceylon.language.print\
                                   (i64* %val) {
                                       %r = call i64* @print(i64* %val)
                                       ret i64* %r
@@ -128,7 +107,7 @@ class LLVMBackendVisitor() satisfies Visitor {
         f.definition.visit(this);
         value name = "``symPrefix``.``f.name.name``";
 
-        if (f.name.name == "run", pkg == mod) {
+        if (f.name.name == "run", inRoot) {
             entry = name;
         }
 
