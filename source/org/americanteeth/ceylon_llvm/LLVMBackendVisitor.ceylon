@@ -8,8 +8,24 @@ import com.redhat.ceylon.compiler.typechecker.tree {
     Tree
 }
 
+import com.redhat.ceylon.model.typechecker.model {
+    Package
+}
+
 import ceylon.interop.java {
     CeylonList
+}
+
+String namePrefix(Package p) {
+    value v = p.\imodule.version;
+    value pkg = CeylonList(p.name)
+        .reduce<String>((x, y) => x.string + ".``y.string``")?.string;
+    assert(exists pkg);
+
+    return "c" + utf8.decode(encodeUrl(utf8.encode(v)))
+            .replace("_", "__")
+            .replace("=", "_e")
+            .replace("-", "_h") + ".``pkg``";
 }
 
 class UnsupportedNode(String s) extends Exception(s) {}
@@ -73,7 +89,12 @@ class LLVMBackendVisitor() satisfies Visitor {
             else "";
 
         c.visitChildren(this);
-        variable String result = "declare i64* @print(i64*)\n";
+        variable String result = "declare i64* @print(i64*)
+                                  define private i64* @cMS4xLjE_e.ceylon.language.print\
+                                  (i64* %val) {
+                                      %r = call i64* @print(i64* %val)
+                                      ret i64* %r
+                                  }\n";
 
         for (strIn->id in strings) {
             value [str, sz] = processEscapes(strIn);
@@ -81,8 +102,7 @@ class LLVMBackendVisitor() satisfies Visitor {
                        [``sz`` x i8] c\"``str``\"
                        @.str``id``.object = private unnamed_addr constant \
                        [3 x i64] [i64 0, i64 ``sz``, \
-                       i64 ptrtoint([``sz`` x i8]* \
-                       @.str``id``.data to i64)]
+                       i64 ptrtoint([``sz`` x i8]* @.str``id``.data to i64)]
                        @.str``id`` = alias private i64* \
                        bitcast([3 x i64]* @.str``id``.object to i64*)\n";
         }
@@ -113,7 +133,7 @@ class LLVMBackendVisitor() satisfies Visitor {
         }
 
         assert(exists body = f.definition.get(keys.llvmData));
-        f.put(keys.llvmData, "define i64* @\"``name``\"() {
+        f.put(keys.llvmData, "define i64* @``name``() {
                               ``body``
                               ret i64* null\n}");
     }
@@ -140,6 +160,9 @@ class LLVMBackendVisitor() satisfies Visitor {
     shared actual void visitInvocation(Invocation i) {
         "We don't support expression callables yet"
         assert(is BaseExpression b = i.invoked);
+        assert(is Tree.BaseMemberExpression bt = b.get(keys.tcNode));
+        assert(is Package callPkg = bt.declaration.container);
+        value prefix = namePrefix(callPkg);
 
         "We don't support expression callables yet"
         assert(is MemberNameWithTypeArguments m = b.nameAndArgs);
@@ -148,11 +171,12 @@ class LLVMBackendVisitor() satisfies Visitor {
         assert(is [Anything*] args = i.arguments.get(keys.llvmData));
 
         value name = m.name.name;
+
         value spreadable =
             args.narrow<LLVMExpression|String>().map((x) => ["i64* ", x])
                 .fold<[LLVMExpression|String *]>([])((x,y) => x.append(y))
                 .withTrailing(")")
-                .withLeading("call i64* @``name``(");
+                .withLeading("call i64* @``prefix``.``name``(");
 
         value expr = LLVMExpression(spreadable);
         i.put(keys.llvmData, expr);
