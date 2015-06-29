@@ -1,6 +1,16 @@
 import ceylon.ast.core { ... }
 import ceylon.language.meta { type }
 import ceylon.collection { HashMap }
+import ceylon.io.base64 { encodeUrl }
+import ceylon.io.charset { utf8 }
+
+import com.redhat.ceylon.compiler.typechecker.tree {
+    Tree
+}
+
+import ceylon.interop.java {
+    CeylonList
+}
 
 class UnsupportedNode(String s) extends Exception(s) {}
 
@@ -21,10 +31,47 @@ class LLVMBackendVisitor() satisfies Visitor {
         return nextString++;
     }
 
+    "Name of the module we're visiting"
+    variable String mod = "default";
+
+    "Version of the module we're visiting"
+    variable String? version = null;
+
+    "Entry point (the run function)"
+    variable String? entry = null;
+
+    "Identifier-safe version"
+    String encodedVersion
+        => if (exists v=version)
+        then utf8.decode(encodeUrl(utf8.encode(v)))
+            .replace("_", "__")
+            .replace("=", "_e")
+            .replace("-", "_h")
+        else "";
+
+    "Name of the package we're visiting"
+    variable String pkg = "default";
+
+    "Symbol prefix for module isolation"
+    String symPrefix => "c``encodedVersion``.``pkg``";
+
     shared actual void visitModuleCompilationUnit(ModuleCompilationUnit m) {}
     shared actual void visitPackageCompilationUnit(PackageCompilationUnit m) {}
 
     shared actual void visitCompilationUnit(CompilationUnit c) {
+        assert(is Tree.CompilationUnit tc = c.get(keys.tcNode));
+
+        value pkgNode = tc.unit.\ipackage;
+        value modNode = pkgNode.\imodule;
+
+        mod = CeylonList(modNode.name).reduce<String>((x, y) => x.string +
+                ".``y.string``")?.string
+            else "";
+        version = modNode.version;
+        pkg = CeylonList(pkgNode.name).reduce<String>((x, y) => x.string +
+                ".``y.string``")?.string
+            else "";
+
         c.visitChildren(this);
         variable String result = "declare i64* @print(i64*)\n";
 
@@ -40,6 +87,14 @@ class LLVMBackendVisitor() satisfies Visitor {
                        bitcast([3 x i64]* @.str``id``.object to i64*)\n";
         }
 
+        if (! strings.empty) {
+            result += "\n";
+        }
+
+        if (exists e = entry) {
+            result += "@ceylon_run = alias i64*()* @``e``\n\n";
+        }
+
         for (child in c.children) {
             if (exists data = child.get(keys.llvmData)) {
                 result += "``data``\n";
@@ -51,8 +106,14 @@ class LLVMBackendVisitor() satisfies Visitor {
 
     shared actual void visitFunctionDefinition(FunctionDefinition f) {
         f.definition.visit(this);
+        value name = "``symPrefix``.``f.name.name``";
+
+        if (f.name.name == "run", pkg == mod) {
+            entry = name;
+        }
+
         assert(exists body = f.definition.get(keys.llvmData));
-        f.put(keys.llvmData, "define i64* @``f.name.name``() {
+        f.put(keys.llvmData, "define i64* @\"``name``\"() {
                               ``body``
                               ret i64* null\n}");
     }
