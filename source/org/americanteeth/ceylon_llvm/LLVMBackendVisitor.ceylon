@@ -103,6 +103,30 @@ class LLVMBackendVisitor() satisfies Visitor {
         c.put(keys.llvmData, result);
     }
 
+    shared actual void visitValueDefinition(ValueDefinition v) {
+        assert(is Tree.AttributeDeclaration tv = v.get(keys.tcNode));
+        assert(is Package pkg = tv.declarationModel.container);
+
+        value name = "``namePrefix(pkg)``.``tv.identifier.text``";
+
+        assert(is Specifier s = v.definition);
+        s.expression.visit(this);
+        assert(exists assignment = s.expression.get(keys.llvmData));
+        v.put(keys.llvmData, "@``name`` = global i64* ``assignment``
+                              define i64* @``name``$get() {
+                                  %_ = load i64** @``name``
+                                  ret i64* %_
+                              }\n");
+    }
+
+    shared actual void visitBaseExpression(BaseExpression b) {
+        assert(is Tree.BaseMemberExpression tb = b.get(keys.tcNode));
+        assert(is Package pkg = tb.declaration.container);
+
+        b.put(keys.llvmData,
+                LLVMExpression(["call i64* @``namePrefix(pkg)``.``tb.identifier.text``$get()"]));
+    }
+
     shared actual void visitFunctionDefinition(FunctionDefinition f) {
         f.definition.visit(this);
         value name = "``symPrefix``.``f.name.name``";
