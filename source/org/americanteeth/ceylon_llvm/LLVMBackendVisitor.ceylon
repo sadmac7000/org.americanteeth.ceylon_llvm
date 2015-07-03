@@ -1,6 +1,6 @@
 import ceylon.ast.core { ... }
 import ceylon.language.meta { type }
-import ceylon.collection { HashMap }
+import ceylon.collection { HashMap, ArrayList }
 import ceylon.io.base64 { encodeUrl }
 import ceylon.io.charset { utf8 }
 
@@ -9,7 +9,9 @@ import com.redhat.ceylon.compiler.typechecker.tree {
 }
 
 import com.redhat.ceylon.model.typechecker.model {
-    Package
+    Scope,
+    Package,
+    TypeDeclaration
 }
 
 import ceylon.interop.java {
@@ -17,7 +19,13 @@ import ceylon.interop.java {
 }
 
 "Get the name prefix for items in a given package"
-String namePrefix(Package p) {
+String namePrefix(Scope p) {
+    if (is TypeDeclaration p) {
+        return namePrefix(p.container) + ".$``p.name``";
+    }
+
+    assert(is Package p);
+
     value v = p.\imodule.version;
     value pkg = CeylonList(p.name)
         .reduce<String>((x, y) => x.string + ".``y.string``")?.string;
@@ -47,6 +55,9 @@ class LLVMBackendVisitor() satisfies Visitor {
         return nextString++;
     }
 
+    "Type info blocks"
+    value typeInfos = ArrayList<String>();
+
     "Entry point (the run function)"
     variable String? entry = null;
 
@@ -73,7 +84,13 @@ class LLVMBackendVisitor() satisfies Visitor {
                                   (i64* %val) {
                                       %r = call i64* @print(i64* %val)
                                       ret i64* %r
-                                  }\n";
+                                  }\n\n";
+
+        for (t in typeInfos) {
+            result += "``t``\n";
+        }
+
+        if (! typeInfos.empty) { result += "\n"; }
 
         for (strIn->id in strings) {
             value [str, sz] = processEscapes(strIn);
@@ -96,7 +113,7 @@ class LLVMBackendVisitor() satisfies Visitor {
 
         for (child in c.children) {
             if (exists data = child.get(keys.llvmData)) {
-                result += "``data``\n";
+                result += "``data``\n\n";
             }
         }
 
@@ -105,7 +122,7 @@ class LLVMBackendVisitor() satisfies Visitor {
 
     shared actual void visitValueDefinition(ValueDefinition v) {
         assert(is Tree.AttributeDeclaration tv = v.get(keys.tcNode));
-        assert(is Package pkg = tv.declarationModel.container);
+        value pkg = tv.declarationModel.container;
 
         value name = "``namePrefix(pkg)``.``tv.identifier.text``";
 
@@ -121,10 +138,30 @@ class LLVMBackendVisitor() satisfies Visitor {
 
     shared actual void visitBaseExpression(BaseExpression b) {
         assert(is Tree.BaseMemberExpression tb = b.get(keys.tcNode));
-        assert(is Package pkg = tb.declaration.container);
+        value pkg = tb.declaration.container;
 
         b.put(keys.llvmData,
                 LLVMExpression(["call i64* @``namePrefix(pkg)``.``tb.identifier.text``$get()"]));
+    }
+
+    shared actual void visitClassDefinition(ClassDefinition c) {
+        assert(is Tree.ClassDefinition tc = c.get(keys.tcNode));
+        value name = namePrefix(tc.declarationModel);
+
+        value typeInfo = "@``name``$typeInfo = global i64 0";
+        typeInfos.add(typeInfo);
+
+        c.body.visitChildren(this);
+
+        variable String result = "";
+
+        for (i in c.body.children) {
+            if (exists r = i.get(keys.llvmData)) {
+                result += "``r``\n";
+            }
+        }
+
+        c.put(keys.llvmData, result);
     }
 
     shared actual void visitFunctionDefinition(FunctionDefinition f) {
@@ -138,18 +175,21 @@ class LLVMBackendVisitor() satisfies Visitor {
         assert(exists body = f.definition.get(keys.llvmData));
         f.put(keys.llvmData, "define i64* @``name``() {
                               ``body``
-                              ret i64* null\n}");
+                                  ret i64* null\n}");
     }
 
     shared actual void visitBlock(Block b) {
         b.visitChildren(this);
-        variable String result = "";
+        variable String result = "    ";
 
         for (child in b.children) {
             if (exists data = child.get(keys.llvmData)) {
                 result += "``data``\n";
             }
         }
+
+        result = result.replace("\n", "\n    ").replace("    \n", "\n");
+        result = result[...result.size - 5];
 
         b.put(keys.llvmData, result);
     }
@@ -164,7 +204,7 @@ class LLVMBackendVisitor() satisfies Visitor {
         "We don't support expression callables yet"
         assert(is BaseExpression b = i.invoked);
         assert(is Tree.BaseMemberExpression bt = b.get(keys.tcNode));
-        assert(is Package callPkg = bt.declaration.container);
+        value callPkg = bt.declaration.container;
         value prefix = namePrefix(callPkg);
 
         "We don't support expression callables yet"
