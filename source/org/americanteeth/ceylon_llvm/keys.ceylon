@@ -19,6 +19,6 @@ object keys {
                 "location");
 
     shared
-    Key<Object> llvmData = ScopedKey<Object>(`module`, "llvmData");
+    Key<Code> llvmData = ScopedKey<Code>(`module`, "llvmData");
 
 }
