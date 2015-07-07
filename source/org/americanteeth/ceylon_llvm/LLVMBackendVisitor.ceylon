@@ -81,6 +81,13 @@ class LLVMBackendVisitor() satisfies Visitor {
                 llvmVariableUsage("``namePrefix(pkg)``.``tb.identifier.text``"));
     }
 
+    shared actual void visitReturn(Return r) {
+        r.result?.visit(this);
+        value val = r.result?.get(keys.llvmData) else llvmNull;
+        assert(is LLVMExpression val);
+        r.put(keys.llvmData, llvmReturn(val));
+    }
+
     shared actual void visitClassDefinition(ClassDefinition c) {
         assert(is Tree.ClassDefinition tc = c.get(keys.tcNode));
         value name = tc.declarationModel.name;

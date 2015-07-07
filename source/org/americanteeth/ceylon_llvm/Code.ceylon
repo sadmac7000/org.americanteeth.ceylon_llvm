@@ -333,6 +333,7 @@ class LLVMClass(String name, Code[] decls) extends Code(decls) {
     shared actual String containerName
         => (parent?.containerName else "") + ".$``name``";
 
+    "Our type info struct"
     value typeInfo => "@``containerName``$typeInfo = global i64 0";
     shared actual String string => typeInfo + "\n\n" +
         super.string.trimTrailing(Character.whitespace) + "\n";
@@ -386,4 +387,8 @@ LLVMReturn llvmReturn(LLVMExpression val) {
     value ret = LLVMReturn(val);
     ret.init();
     return ret;
+}
+
+object llvmNull extends LLVMLiteral() {
+    shared actual String template => "null";
 }
