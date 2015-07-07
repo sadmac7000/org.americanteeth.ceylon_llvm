@@ -2,7 +2,7 @@ import ceylon.collection { HashMap, ArrayList }
 
 interface Allocation {
     "Get LLVM load instruction"
-    shared formal String load;
+    shared formal LLVMExpression load;
 
     "Get LLVM store instruction"
     shared formal String store(Code val);
@@ -102,8 +102,16 @@ class Code(shared Code[] children = []) {
     shared default Allocation newAllocation(String shortName, Code? definition)
         => parent?.newAllocation(shortName, definition)
         else object satisfies Allocation {
-            shared actual String load
-                => "load i64** @``containerName``.``shortName``";
+            shared actual LLVMExpression load {
+                object ret extends LLVMExpression() {
+                    shared actual String template =>
+                        "load i64** @``containerName``.``shortName``";
+                }
+
+                ret.init();
+                return ret;
+            }
+
             shared actual String store(Code val) => "";
         };
 }
@@ -150,12 +158,13 @@ class LLVMCompilationUnit(shared actual String containerName,
         Code[] defs)
     extends Code(defs) {
 
-    value allocations = ArrayList<String>();
+    value allocations = HashMap<String,[Allocation,Code?]>();
 
     shared actual Allocation newAllocation(String shortName, Code? definition) {
+        if (exists h = allocations[shortName]) { return h.first; }
         value ret = super.newAllocation(shortName, definition);
         value def = definition?.string else "null";
-        allocations.add("@``containerName``.``shortName`` = global i64* ``def``");
+        allocations.put(shortName, [ret, definition]);
         return ret;
     }
 
@@ -173,8 +182,10 @@ class LLVMCompilationUnit(shared actual String containerName,
             result += "@ceylon_run = alias i64*()* @``e.name``\n\n";
         }
 
-        for (allocation in allocations) {
-            result += "``allocation``\n";
+        for (shortName->[alloc, defMaybe] in allocations) {
+            value def = defMaybe else "null";
+            result
+                += "@``containerName``.``shortName`` = global i64* ``def``\n";
         }
 
         if (!allocations.empty) { result += "\n"; }
@@ -214,7 +225,7 @@ class LLVMMethodDef(String shortName, String[] arguments, Code[] body)
             then arguments.withLeading("this")
             else arguments;
 
-        ret += ", ".join(fullArgs);
+        ret += ", ".join(fullArgs.map((x) => "i64* %``x``"));
         ret += ") {\n";
 
         for (b in body) {
@@ -283,14 +294,14 @@ class LLVMValueDefinition(String shortName, Code definition)
         definition.onReparent();
     }
 
-    "Context variable for LLVM code"
-    String llvmCtx => contained then "i64* %this" else "";
+    shared LLVMMethodDef getter {
+        value ret = llvmMethodDef("``shortName``$get", [],
+                [llvmReturn(allocation.load)]);
+        ret.parent = this;
+        return ret;
+    }
 
-    shared actual String string
-        => "define i64* @``containerName``.``shortName``$get(``llvmCtx``) {
-                %_ = ``allocation.load``
-                ret i64* %_
-            }\n";
+    shared actual String string => getter.string;
 }
 
 LLVMValueDefinition llvmValueDefinition(String shortName, Code definition) {
@@ -306,6 +317,73 @@ class LLVMVariableUsage(String qualifiedName)
 
 LLVMVariableUsage llvmVariableUsage(String qualifiedName) {
     value ret = LLVMVariableUsage(qualifiedName);
+    ret.init();
+    return ret;
+}
+
+class LLVMClass(String name, Code[] decls) extends Code(decls) {
+    shared actual Boolean contained = true;
+
+    "Next word we can allocate in this class"
+    variable Integer nextWord = 1;
+
+    "Allocation list"
+    value allocations = HashMap<String,Allocation>();
+
+    shared actual String containerName
+        => (parent?.containerName else "") + ".$``name``";
+
+    value typeInfo => "@``containerName``$typeInfo = global i64 0";
+    shared actual String string => typeInfo + "\n\n" +
+        super.string.trimTrailing(Character.whitespace) + "\n";
+
+    shared actual Allocation newAllocation(String shortName, Code? definition) {
+        if (exists a = allocations[shortName]) { return a; }
+
+        value myWord = nextWord++;
+        object gep extends LLVMExpression() {
+            shared actual String template
+                = "getelementptr i64* %this, i64 ``myWord``";
+        }
+
+        gep.init();
+
+        value ret = object satisfies Allocation {
+            shared actual LLVMExpression load {
+                object expr extends LLVMExpression([gep]) {
+                    shared actual String template = "load i64* {}";
+                }
+                expr.init();
+
+                object expr2 extends LLVMExpression([expr]) {
+                    shared actual String template = "inttoptr i64 {} to i64*";
+                }
+                expr2.init();
+
+                return expr2;
+            }
+
+            shared actual String store(Code val) => "";
+        };
+
+        allocations.put(shortName, ret);
+
+        return ret;
+    }
+}
+
+LLVMClass llvmClass(String name, Code[] decls) {
+    value ret = LLVMClass(name, decls);
+    ret.init();
+    return ret;
+}
+
+class LLVMReturn(LLVMExpression val) extends LLVMExpression([val]) {
+    shared actual String template = "ret i64* {}";
+}
+
+LLVMReturn llvmReturn(LLVMExpression val) {
+    value ret = LLVMReturn(val);
     ret.init();
     return ret;
 }

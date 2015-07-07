@@ -82,23 +82,17 @@ class LLVMBackendVisitor() satisfies Visitor {
     }
 
     shared actual void visitClassDefinition(ClassDefinition c) {
-        /*assert(is Tree.ClassDefinition tc = c.get(keys.tcNode));
-        value name = namePrefix(tc.declarationModel);
-
-        value typeInfo = "@``name``$typeInfo = global i64 0";
-        typeInfos.add(typeInfo);
+        assert(is Tree.ClassDefinition tc = c.get(keys.tcNode));
+        value name = tc.declarationModel.name;
 
         c.body.visitChildren(this);
 
-        variable String result = "";
+        value decls = [ for (i in c.body.children)
+                            if (exists r = i.get(keys.llvmData))
+                                r
+                      ];
 
-        for (i in c.body.children) {
-            if (exists r = i.get(keys.llvmData)) {
-                result += "``r``\n";
-            }
-        }
-
-        c.put(keys.llvmData, result);*/
+        c.put(keys.llvmData, llvmClass(name, decls));
     }
 
     shared actual void visitFunctionDefinition(FunctionDefinition f) {
