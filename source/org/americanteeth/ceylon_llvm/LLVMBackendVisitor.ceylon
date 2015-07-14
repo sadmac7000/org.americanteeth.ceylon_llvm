@@ -67,7 +67,7 @@ class LLVMBackendVisitor() satisfies Visitor {
         assert(is Specifier s = v.definition);
 
         s.expression.visit(this);
-        assert(exists assignment = s.expression.get(keys.llvmData));
+        assert(is LLVMExpression assignment = s.expression.get(keys.llvmData));
 
         v.put(keys.llvmData, llvmValueDefinition(tv.identifier.text,
                     assignment));
