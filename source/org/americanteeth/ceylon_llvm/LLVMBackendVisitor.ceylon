@@ -61,9 +61,29 @@ class LLVMBackendVisitor() satisfies Visitor {
         c.put(keys.llvmData, result);
     }
 
+    shared actual void visitQualifiedExpression(QualifiedExpression q) {
+        "We don't support the fancy member operators yet"
+        assert(q.memberOperator is MemberOperator);
+
+        "We don't support type arguments yet"
+        assert(! q.nameAndArgs.typeArguments exists);
+
+        value nameIdentifier = q.nameAndArgs.name;
+        value nameText = nameIdentifier.name;
+
+        value shortName = if (is UIdentifier nameIdentifier) then
+            "$``nameText``" else nameText;
+
+        q.receiverExpression.visit(this);
+        assert(is LLVMExpression it = q.receiverExpression.get(keys.llvmData));
+        assert(is Tree.Term trq = q.receiverExpression.get(keys.tcNode));
+        value name = "``namePrefix(trq.typeModel.declaration)``.``shortName``";
+
+        q.put(keys.llvmData, llvmQualifiedExpression(name, it));
+    }
+
     shared actual void visitValueDefinition(ValueDefinition v) {
         assert(is Tree.AttributeDeclaration tv = v.get(keys.tcNode));
-        value pkg = tv.declarationModel.container;
         assert(is Specifier s = v.definition);
 
         s.expression.visit(this);
@@ -130,12 +150,11 @@ class LLVMBackendVisitor() satisfies Visitor {
     shared actual void visitInvocation(Invocation i) {
         "We don't support expression callables yet"
         assert(is BaseExpression b = i.invoked);
-        assert(is Tree.BaseMemberExpression bt = b.get(keys.tcNode));
+        assert(is Tree.BaseMemberExpression|Tree.BaseTypeExpression bt = b.get(keys.tcNode));
         value callPkg = bt.declaration.container;
         value prefix = namePrefix(callPkg);
 
-        "We don't support expression callables yet"
-        assert(is MemberNameWithTypeArguments m = b.nameAndArgs);
+        value m = b.nameAndArgs;
 
         "We don't support named arguments yet"
         assert(is PositionalArguments pa = i.arguments);
@@ -153,7 +172,10 @@ class LLVMBackendVisitor() satisfies Visitor {
                     a
         ];
 
-        i.put(keys.llvmData, llvmInvocation("``prefix``.``m.name.name``", args));
+        value name = if (is TypeNameWithTypeArguments m) then "$``m.name.name``"
+            else m.name.name;
+
+        i.put(keys.llvmData, llvmInvocation("``prefix``.``name``", args));
     }
 
     shared actual void visitStringLiteral(StringLiteral s) {

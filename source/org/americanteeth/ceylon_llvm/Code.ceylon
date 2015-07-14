@@ -366,6 +366,19 @@ LLVMVariableUsage llvmVariableUsage(String qualifiedName) {
     return ret;
 }
 
+class LLVMQualifiedExpression(String qualifiedName, LLVMExpression it)
+        extends LLVMExpression([it]) {
+    shared actual String template
+        => "call i64* @``qualifiedName``$get(i64* {})";
+}
+
+LLVMQualifiedExpression llvmQualifiedExpression(String qualifiedName,
+        LLVMExpression it) {
+    value ret = LLVMQualifiedExpression(qualifiedName, it);
+    ret.init();
+    return ret;
+}
+
 class LLVMClass(String name, Code[] decls) extends Code(decls) {
     shared actual Boolean contained = true;
 
