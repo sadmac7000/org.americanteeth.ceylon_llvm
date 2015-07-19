@@ -157,7 +157,7 @@ abstract class LLVMExpression(LLVMExpression[] args = [])
     }
 
     shared default [String,String] assigned {
-        value var = "%_``newTemporaryID()``";
+        value var = "%$``newTemporaryID()``";
         return [apply("``var`` = "), var];
     }
 
