@@ -14,14 +14,7 @@ interface Allocation {
 }
 
 "A chunk of LLVM code"
-class Code(shared Code[] children = []) {
-    "callback for changes on reparent"
-    shared default void onReparent() {
-        for (c in children) {
-            c.onReparent();
-        }
-    }
-
+class Code(shared default Code[] children = []) {
     "Internal variable for parent"
     variable Code? _parent = null;
 
@@ -130,6 +123,13 @@ class Code(shared Code[] children = []) {
 
             shared actual LLVMExpression initialValue => definition;
         };
+
+    "callback for changes on reparent"
+    shared default void onReparent() {
+        for (c in children) {
+            c.onReparent();
+        }
+    }
 }
 
 Code code(Code[] children = []) {
@@ -379,7 +379,7 @@ LLVMQualifiedExpression llvmQualifiedExpression(String qualifiedName,
     return ret;
 }
 
-class LLVMClass(String name, Code[] decls) extends Code(decls) {
+class LLVMClass(String name, Code[] decls) extends Code() {
     shared actual Boolean contained = true;
 
     "Next word we can allocate in this class"
@@ -392,8 +392,8 @@ class LLVMClass(String name, Code[] decls) extends Code(decls) {
         => (parent?.containerName else "") + ".$``name``";
 
     "All our initializer statements"
-    value initializers => allocations.items.map((x) =>
-                x.storeDefault()).chain({llvmReturn(llvmLocalUsage("this"))});
+    value initializers => decls.map((x) => if (is LLVMValueDefinition x) then
+            x.allocation.storeDefault() else x).chain({llvmReturn(llvmLocalUsage("this"))});
 
     "Get the allocation code for this object"
     value alloc {
@@ -415,9 +415,12 @@ class LLVMClass(String name, Code[] decls) extends Code(decls) {
         return ret;
     }
 
+    shared actual Code[] children => [constructor, *decls.select((x) => x is
+            LLVMValueDefinition)];
+
     "Our type info struct"
     value typeInfo => "@``containerName``$typeInfo = global i64 0";
-    shared actual String string => typeInfo + "\n\n" + constructor.string + "\n\n" +
+    shared actual String string => typeInfo + "\n\n" +
         super.string.trimTrailing(Character.whitespace) + "\n";
 
     shared actual Allocation allocationFor(String shortName,
