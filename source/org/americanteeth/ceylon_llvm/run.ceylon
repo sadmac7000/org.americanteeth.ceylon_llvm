@@ -57,6 +57,16 @@ import java.io {
 import java.util { List, JArrayList = ArrayList }
 import java.lang { JString = String }
 
+import ceylon.process {
+    createProcess,
+    currentOutput,
+    currentError
+}
+
+import ceylon.collection {
+    ArrayList
+}
+
 "Options for formatting code output"
 FormattingOptions formatOpts = FormattingOptions {
     maxLineLength = 80;
@@ -103,6 +113,9 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
         value phasedUnits = CeylonIterable(
                 typeChecker.phasedUnits.phasedUnits);
 
+        variable value tmpIdx = 0;
+        variable value args = ArrayList<String>{"-shared", "-fPIC", "-lceylon", "-otest.so"};
+
         for (phasedUnit in phasedUnits) {
             value unit = anyCompilationUnitToCeylon(
                     phasedUnit.compilationUnit,
@@ -114,10 +127,22 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
             if (! exists result) { continue; }
             assert(exists result);
 
-            assert(is File|Nil f = parsePath("./out.ll").resource);
+            value file = "/tmp/tmp``tmpIdx++``.ll";
+            assert(is File|Nil f = parsePath("``file``").resource);
+
+            args.add(file);
             try (w = createFileIfNil(f).Overwriter()) {
                 w.write(result.string);
             }
         }
+
+        if (tmpIdx == 0) { return; }
+
+        createProcess {
+            command = "/usr/bin/clang";
+            arguments = args;
+            output = currentOutput;
+            error = currentError;
+        }.waitForExit();
     }
 }
