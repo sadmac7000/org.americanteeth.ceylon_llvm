@@ -100,10 +100,8 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
     variable String triple_ = "";
     shared JString triple => javaString(triple_);
 
-    /* FIXME */
     optionArgument{longName = "triple"; argumentName = "target-triple";}
-    description("Specify output target triple. WARNING: Not yet fully
-                 implemented")
+    description("Specify output target triple")
     assign triple { triple_ = triple.string; }
 
     shared actual void initialize(CeylonTool mt) {}
@@ -164,7 +162,7 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
                 argList.add(file);
             } else {
                 argsMap.put(mod, ArrayList{
-                    "-shared", "-fPIC", "-lceylon",
+                    "-target", triple_, "-shared", "-fPIC", "-lceylon",
                     "-o/tmp/``mod.nameAsString``-``mod.version``.cso.``triple``",
                     file
                 });
