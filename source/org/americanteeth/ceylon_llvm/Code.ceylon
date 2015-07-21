@@ -1,4 +1,4 @@
-import ceylon.collection { HashMap, ArrayList }
+import ceylon.collection { HashMap, HashSet, ArrayList, SingletonSet }
 
 interface Allocation {
     "Get LLVM load instruction"
@@ -95,6 +95,14 @@ class Code(shared default Code[] children = []) {
             if (exists r = c.runMethod) { _runMethod = r; }
         }
     }
+
+    "Names defined in this code"
+    shared default Set<String> definedNames =>
+        children.fold(HashSet<String>() of Set<String>)((x, y) => x | y.definedNames);
+
+    "Names used in this code"
+    shared default Set<String> usedNames =>
+        children.fold(HashSet<String>() of Set<String>)((x, y) => x | y.usedNames);
 
     "A new allocation for variable backing"
     shared default Allocation allocationFor(String shortName,
@@ -193,6 +201,15 @@ class LLVMCompilationUnit(shared actual String containerName,
                                       ret i64* %r
                                   }\n\n";
 
+        value externs = usedNames ~ definedNames;
+
+        for (e in externs) {
+            if (e.includes("print")) { continue; }
+            result += "define linkonce i64* @``e``() {
+                           ret i64* null
+                       }\n\n";
+        }
+
         result += stringTable;
 
         if (exists e = runMethod, inRoot) {
@@ -255,6 +272,9 @@ abstract class LLVMCallableDef(String[] arguments, Code[] body)
         ret += "    ret i64* null\n}\n";
         return ret;
     }
+
+    shared actual Set<String> definedNames
+        => SingletonSet(name) | super.definedNames;
 }
 
 "A method definition"
@@ -312,6 +332,8 @@ class LLVMInvocation(String qualifiedName, LLVMExpression[] args)
         extends LLVMExpression(args) {
     value argList = ", ".join({"i64* {}"}.repeat(args.size));
     shared actual String template => "call i64* @``qualifiedName``(``argList``)";
+    shared actual Set<String> usedNames => SingletonSet(qualifiedName) |
+        super.usedNames;
 }
 
 LLVMInvocation llvmInvocation(String qualifiedName, LLVMExpression[] args) {
@@ -324,6 +346,8 @@ class LLVMValueDefinition(String shortName, LLVMExpression definition)
         extends Code([definition]) {
     "Backing for allocation member"
     variable Allocation? _allocation = null;
+
+    shared actual Code[] children => [getter, definition];
 
     "The memory allocation backing this definition"
     shared Allocation allocation {
@@ -357,6 +381,8 @@ LLVMValueDefinition llvmValueDefinition(String shortName,
 
 class LLVMVariableUsage(String qualifiedName)
         extends LLVMExpression() {
+    shared actual Set<String> usedNames
+        => SingletonSet("``qualifiedName``$get") | super.usedNames;
     shared actual String template => "call i64* @``qualifiedName``$get()";
 }
 
@@ -368,6 +394,8 @@ LLVMVariableUsage llvmVariableUsage(String qualifiedName) {
 
 class LLVMQualifiedExpression(String qualifiedName, LLVMExpression it)
         extends LLVMExpression([it]) {
+    shared actual Set<String> usedNames
+        => SingletonSet(qualifiedName) | super.usedNames;
     shared actual String template
         => "call i64* @``qualifiedName``$get(i64* {})";
 }
@@ -422,6 +450,9 @@ class LLVMClass(String name, Code[] decls) extends Code() {
     value typeInfo => "@``containerName``$typeInfo = global i64 0";
     shared actual String string => typeInfo + "\n\n" +
         super.string.trimTrailing(Character.whitespace) + "\n";
+
+    shared actual Set<String> definedNames
+        => SingletonSet("``containerName``$typeInfo") | super.definedNames;
 
     shared actual Allocation allocationFor(String shortName,
             LLVMExpression definition) {
