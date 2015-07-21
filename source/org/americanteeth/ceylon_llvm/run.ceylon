@@ -17,6 +17,7 @@ import ceylon.file {
     parsePath,
     createFileIfNil,
     File,
+    Reader,
     Nil
 }
 
@@ -26,12 +27,17 @@ import com.redhat.ceylon.compiler.typechecker {
 import com.redhat.ceylon.compiler.typechecker.tree {
     TCNode=Node
 }
+import com.redhat.ceylon.model.typechecker.model {
+    Module
+}
 import com.redhat.ceylon.common {
     Backend
 }
 import com.redhat.ceylon.common.tool {
     argument,
-    option
+    option,
+    optionArgument,
+    description
 }
 
 import com.redhat.ceylon.common.tools {
@@ -45,14 +51,12 @@ import com.redhat.ceylon.cmr.ceylon {
     OutputRepoUsingTool
 }
 
+import com.redhat.ceylon.cmr.api {
+    ArtifactContext
+}
+
 import ceylon.formatter { format }
 import ceylon.formatter.options { FormattingOptions }
-
-import java.io {
-    InputStream,
-    ByteArrayInputStream,
-    JFile=File
-}
 
 import java.util { List, JArrayList = ArrayList }
 import java.lang { JString = String }
@@ -64,8 +68,11 @@ import ceylon.process {
 }
 
 import ceylon.collection {
-    ArrayList
+    ArrayList,
+    HashMap
 }
+
+import java.io { JFile = File }
 
 "Options for formatting code output"
 FormattingOptions formatOpts = FormattingOptions {
@@ -90,12 +97,35 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
     argument{argumentName = "moduleOrFile"; multiplicity = "*";}
     assign moduleOrFile { moduleOrFile_ = moduleOrFile; }
 
+    variable String triple_ = "";
+    shared JString triple => javaString(triple_);
+
+    /* FIXME */
+    optionArgument{longName = "triple"; argumentName = "target-triple";}
+    description("Specify output target triple. WARNING: Not yet fully
+                 implemented")
+    assign triple { triple_ = triple.string; }
+
     shared actual void initialize(CeylonTool mt) {}
 
     shared actual void run() {
         value roots = DefaultToolOptions.compilerSourceDirs;
         value resources = DefaultToolOptions.compilerResourceDirs;
         value resolver = SourceArgumentsResolver(roots, resources, ".ceylon");
+
+        if (triple_ == "") {
+            value confProc = createProcess {
+                command = "/usr/bin/llvm-config";
+                arguments = ["--host-target"];
+                error = currentError;
+            };
+
+            confProc.waitForExit();
+
+            assert(is Reader r = confProc.output);
+            assert(exists result = r.readLine()?.trim(Character.whitespace));
+            triple_ = result;
+        }
 
         resolver.cwd(cwd).expandAndParse(moduleOrFile, Backend.\iNone);
         value builder = TypeCheckerBuilder();
@@ -114,12 +144,15 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
                 typeChecker.phasedUnits.phasedUnits);
 
         variable value tmpIdx = 0;
-        variable value args = ArrayList<String>{"-shared", "-fPIC", "-lceylon", "-otest.so"};
+
+        value argsMap = HashMap<Module, ArrayList<String>>();
 
         for (phasedUnit in phasedUnits) {
             value unit = anyCompilationUnitToCeylon(
                     phasedUnit.compilationUnit,
                     augmentNode);
+            value mod = phasedUnit.\ipackage.\imodule;
+            value file = "/tmp/tmp``tmpIdx++``.ll";
 
             value visitor = LLVMBackendVisitor();
             unit.visit(visitor);
@@ -127,10 +160,18 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
             if (! exists result) { continue; }
             assert(exists result);
 
-            value file = "/tmp/tmp``tmpIdx++``.ll";
+            if (exists argList = argsMap[mod]) {
+                argList.add(file);
+            } else {
+                argsMap.put(mod, ArrayList{
+                    "-shared", "-fPIC", "-lceylon",
+                    "-o/tmp/``mod.nameAsString``-``mod.version``.cso.``triple``",
+                    file
+                });
+            }
+
             assert(is File|Nil f = parsePath("``file``").resource);
 
-            args.add(file);
             try (w = createFileIfNil(f).Overwriter()) {
                 w.write(result.string);
             }
@@ -138,11 +179,17 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
 
         if (tmpIdx == 0) { return; }
 
-        createProcess {
-            command = "/usr/bin/clang";
-            arguments = args;
-            output = currentOutput;
-            error = currentError;
-        }.waitForExit();
+        for (mod -> args in argsMap) {
+            createProcess {
+                command = "/usr/bin/clang";
+                arguments = args;
+                output = currentOutput;
+                error = currentError;
+            }.waitForExit();
+
+            outputRepositoryManager.putArtifact(ArtifactContext(mod.nameAsString,
+                        mod.version, ".cso.``triple``"),
+                    JFile("/tmp/``mod.nameAsString``-``mod.version``.cso.``triple``"));
+        }
     }
 }
