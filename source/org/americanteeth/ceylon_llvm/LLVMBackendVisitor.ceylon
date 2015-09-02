@@ -41,6 +41,7 @@ class UnsupportedNode(String s) extends Exception(s) {}
 class LLVMBackendVisitor() satisfies Visitor {
     shared actual void visitModuleCompilationUnit(ModuleCompilationUnit m) {}
     shared actual void visitPackageCompilationUnit(PackageCompilationUnit m) {}
+    shared actual void visitImport(Import i) {}
 
     shared actual void visitCompilationUnit(CompilationUnit c) {
         "Java AST node for compilation unit should be a compilation unit node"
