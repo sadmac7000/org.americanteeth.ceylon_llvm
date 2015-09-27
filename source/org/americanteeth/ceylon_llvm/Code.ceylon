@@ -1,4 +1,4 @@
-import ceylon.collection { HashMap, HashSet, ArrayList, SingletonSet }
+import ceylon.collection { HashMap, HashSet, SingletonSet }
 
 interface Allocation {
     "Get LLVM load instruction"

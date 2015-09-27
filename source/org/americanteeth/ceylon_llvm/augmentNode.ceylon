@@ -1,13 +1,9 @@
 import ceylon.ast.core {
     Node
 }
-import ceylon.interop.java {
-    CeylonList
-}
 
 import com.redhat.ceylon.compiler.typechecker.tree {
-    TcNode=Node,
-    Tree
+    TcNode=Node
 }
 
 void augmentNode(TcNode tcNode, Node node) {

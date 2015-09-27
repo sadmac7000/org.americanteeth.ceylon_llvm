@@ -1,6 +1,5 @@
 import ceylon.ast.core { ... }
 import ceylon.language.meta { type }
-import ceylon.collection { ArrayList }
 import ceylon.io.base64 { encodeUrl }
 import ceylon.io.charset { utf8 }
 

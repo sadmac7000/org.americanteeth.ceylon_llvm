@@ -9,7 +9,6 @@ import ceylon.ast.redhat {
 }
 import ceylon.interop.java {
     CeylonIterable,
-    JavaList,
     javaString
 }
 
@@ -35,7 +34,6 @@ import com.redhat.ceylon.common {
 }
 import com.redhat.ceylon.common.tool {
     argument,
-    option,
     optionArgument,
     description
 }

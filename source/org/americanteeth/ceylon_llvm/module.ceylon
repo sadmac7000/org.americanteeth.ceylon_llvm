@@ -12,5 +12,5 @@ native("jvm") module org.americanteeth.ceylon_llvm "1.1.1" {
     import com.redhat.ceylon.model "1.1.1";
     shared import com.redhat.ceylon.common "1.1.1";
     shared import "com.redhat.ceylon.module-resolver" "1.1.1";
-    shared import java.base "7";
+    shared import java.base "8";
 }
