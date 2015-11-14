@@ -1,23 +1,19 @@
 <project name="Ceylon LLVM compiler" basedir="." default="test">
+	<property environment="env"/>
+    <property name="ceylon.home" value="${env.CEYLON_HOME}"/>
+    <property name="ceylon.ant.lib" value="${ceylon.home}/lib/ceylon-ant.jar"/>
 
-    <property file="build.properties" />
     <property name="ceylon.verbosity" value="false"/>
-    <property name="ceylon.base.version" value="1.1.1"/>
-    <property name="ceylon.executable" value="${dist.bin.dir}/ceylon"/>
+    <property name="ceylon.base.version" value="1.2.0"/>
+    <property name="ceylon.executable" value="${ceylon.home}/bin/ceylon"/>
     <property name="out.repo" location="modules"/>
     
-    <taskdef resource="net/sf/antcontrib/antcontrib.properties">
-        <classpath>
-            <pathelement location="${dist.root.dir}/lib/ant-contrib-1.0b3.jar"/>
-        </classpath>
-    </taskdef>
-
     <!-- Local repository -->
     <property name="ceylon.repo.dir" location="${user.home}/.ceylon/repo" />
     <property name="ceylon.bin.dir" location="${user.home}/.ceylon/bin" />
     
     <path id="ant-tasks">
-        <pathelement location="${ceylon.ant.lib}"/>
+		<pathelement location="${ceylon.ant.lib}"/>
     </path>
     
     <typedef resource="com/redhat/ceylon/ant/antlib.xml" classpathref="ant-tasks"/>
