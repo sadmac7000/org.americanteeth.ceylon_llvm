@@ -149,6 +149,10 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
                 => NativeModuleSourceMapper(c, m);
         });
 
+        if (!resolver.sourceModules.empty) {
+            builder.setModuleFilters(resolver.sourceModules);
+        }
+
         value typeChecker = builder.typeChecker;
         typeChecker.process();
 
