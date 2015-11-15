@@ -20,17 +20,26 @@ import ceylon.file {
     Nil
 }
 
+import com.redhat.ceylon.compiler.typechecker.analyzer {
+    ModuleSourceMapper
+}
 import com.redhat.ceylon.compiler.typechecker {
     TypeCheckerBuilder
+}
+import com.redhat.ceylon.compiler.typechecker.context {
+    Context
 }
 import com.redhat.ceylon.compiler.typechecker.tree {
     TCNode=Node
 }
+import com.redhat.ceylon.compiler.typechecker.util {
+    ModuleManagerFactory
+}
 import com.redhat.ceylon.model.typechecker.model {
     Module
 }
-import com.redhat.ceylon.common {
-    Backend
+import com.redhat.ceylon.model.typechecker.util {
+    ModuleManager
 }
 import com.redhat.ceylon.common.tool {
     argument,
@@ -123,7 +132,7 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
             triple_ = result;
         }
 
-        resolver.cwd(cwd).expandAndParse(moduleOrFile, Backend.\iNone);
+        resolver.cwd(cwd).expandAndParse(moduleOrFile, backend);
         value builder = TypeCheckerBuilder();
 
         for (root in CeylonIterable(roots)) {
@@ -132,6 +141,13 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
 
         builder.setSourceFiles(resolver.sourceFiles);
         builder.setRepositoryManager(repositoryManager);
+        builder.moduleManagerFactory(object satisfies ModuleManagerFactory {
+            shared actual ModuleManager createModuleManager(Context c) =>
+                NativeModuleManager();
+            shared actual ModuleSourceMapper createModuleManagerUtil(Context c,
+                    ModuleManager m)
+                => NativeModuleSourceMapper(c, m);
+        });
 
         value typeChecker = builder.typeChecker;
         typeChecker.process();
@@ -154,13 +170,12 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
             unit.visit(visitor);
             value result = unit.get(keys.llvmData);
             if (! exists result) { continue; }
-            assert(exists result);
 
             if (exists argList = argsMap[mod]) {
                 argList.add(file);
             } else {
                 argsMap.put(mod, ArrayList{
-                    "-target", triple_, "-shared", "-fPIC", "-lceylon",
+                    "-target", triple_, "-shared", "-fPIC", "-g", "-lceylon",
                     "-o/tmp/``mod.nameAsString``-``mod.version``.cso.``triple``",
                     file
                 });

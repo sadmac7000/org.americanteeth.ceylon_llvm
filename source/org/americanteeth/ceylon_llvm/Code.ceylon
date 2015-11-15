@@ -193,23 +193,17 @@ class LLVMCompilationUnit(shared actual String containerName,
     }
 
     shared actual String string {
-        variable String result = "declare i64* @print(i64*)
-                                  declare i64* @malloc(i64)
-                                  define private i64* @cMS4xLjE.ceylon.language.print\
-                                  (i64* %val) {
-                                      %r = call i64* @print(i64* %val)
-                                      ret i64* %r
-                                  }\n\n";
+        variable String result = "declare i64* @malloc(i64)\n\n";
 
         value externs = usedNames ~ definedNames;
 
         for (e in externs) {
-            if (e.includes("print")) { continue; }
-            result += "define linkonce i64* @``e``() {
-                           ret i64* null
-                       }\n\n";
+            variable value args = "";
+            if (e.includes("print")) { args = "i64*"; }
+            result += "declare i64* @``e``(``args``);\n";
         }
 
+        result += "\n";
         result += stringTable;
 
         if (exists e = runMethod, inRoot) {
