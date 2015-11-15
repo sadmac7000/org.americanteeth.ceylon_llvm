@@ -207,7 +207,7 @@ class LLVMCompilationUnit(shared actual String containerName,
         result += stringTable;
 
         if (exists e = runMethod, inRoot) {
-            result += "@ceylon_run = alias i64*()* @``e.name``\n\n";
+            result += "@__ceylon_run = alias i64*()* @``e.name``\n\n";
         }
 
         for (shortName->alloc in allocations) {
