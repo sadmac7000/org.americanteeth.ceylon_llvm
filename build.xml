@@ -116,6 +116,11 @@
                 <filter token="ceylon-version" value="${ceylon.base.version}"/>
             </filterset>
         </copy>
+        <copy todir="${ceylon.bin.dir}" file="ceylon-run-native.plugin" overwrite="true">
+            <filterset>
+                <filter token="ceylon-version" value="${ceylon.base.version}"/>
+            </filterset>
+        </copy>
     </target>
 
     <target name="publish-herd">

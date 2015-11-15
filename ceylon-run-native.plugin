@@ -1,0 +1,5 @@
+; Plugin definition for the "ceylon compile-native" tool
+summary=Executes a Ceylon program
+module=org.americanteeth.ceylon_llvm/@ceylon-version@
+class=org.americanteeth.ceylon_llvm.NativeRunTool
+
