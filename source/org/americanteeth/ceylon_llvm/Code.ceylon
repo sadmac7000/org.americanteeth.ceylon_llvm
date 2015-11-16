@@ -424,7 +424,7 @@ class LLVMClass(String name, Code[] decls) extends Code() {
     value alloc {
         value ret = object extends Code() {
             shared actual String string =
-                "%this = call i64* @malloc(i64 ``allocations.size + 1``)";
+                "%this = call i64* @malloc(i64 ``allocations.size * 8 + 8``)";
         };
 
         ret.init();
