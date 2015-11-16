@@ -131,6 +131,27 @@ class LLVMBackendVisitor() satisfies Visitor {
         f.put(keys.llvmData, llvmMethodDef(f.name.name, [], [body]));
     }
 
+    shared actual void
+    visitFunctionShortcutDefinition(FunctionShortcutDefinition f) {
+        f.definition.visit(this);
+
+        "Definition visit should create a body"
+        assert(exists body = f.definition.get(keys.llvmData));
+
+        f.put(keys.llvmData, llvmMethodDef(f.name.name, [], [body]));
+    }
+
+    shared actual void visitLazySpecifier(LazySpecifier l) {
+        l.expression.visit(this);
+
+        "Specifier visit should create an expression"
+        assert(is LLVMExpression body = l.expression.get(keys.llvmData));
+
+        l.put(keys.llvmData, llvmReturn(body));
+    }
+
+    shared actual void visitFunctionDeclaration(FunctionDeclaration f) {}
+
     shared actual void visitBlock(Block b) {
         b.visitChildren(this);
 

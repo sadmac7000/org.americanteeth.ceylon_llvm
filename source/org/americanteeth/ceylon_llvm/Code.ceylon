@@ -414,8 +414,11 @@ class LLVMClass(String name, Code[] decls) extends Code() {
         => (parent?.containerName else "") + ".$``name``";
 
     "All our initializer statements"
-    value initializers => decls.map((x) => if (is LLVMValueDefinition x) then
-            x.allocation.storeDefault() else x).chain({llvmReturn(llvmLocalUsage("this"))});
+    value initializers => decls.select((x) => ! x is LLVMMethodDef)
+            .map((x) => if (is LLVMValueDefinition x)
+                        then x.allocation.storeDefault()
+                        else x)
+            .chain({llvmReturn(llvmLocalUsage("this"))});
 
     "Get the allocation code for this object"
     value alloc {
@@ -438,7 +441,7 @@ class LLVMClass(String name, Code[] decls) extends Code() {
     }
 
     shared actual Code[] children => [constructor, *decls.select((x) => x is
-            LLVMValueDefinition)];
+            LLVMValueDefinition|LLVMMethodDef)];
 
     "Our type info struct"
     value typeInfo => "@``containerName``$typeInfo = global i64 0";
