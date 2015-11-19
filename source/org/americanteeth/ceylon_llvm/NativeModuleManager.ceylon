@@ -34,7 +34,7 @@ import ceylon.interop.java {
     javaString
 }
 
-Backend backend = Backend.registerBackend("Bare Metal", "metal");
+Backend backend = Backend.registerBackend("Bare Metal", "cpu");
 
 class NativeModuleSourceMapper(Context c, ModuleManager m)
         extends ModuleSourceMapper(c, m) {}
