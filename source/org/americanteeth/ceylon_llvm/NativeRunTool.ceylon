@@ -7,7 +7,7 @@ import com.redhat.ceylon.common {
 }
 
 import com.redhat.ceylon.cmr.api {
-    ArtifactContext,
+    //ArtifactContext,
     ModuleQuery
 }
 
