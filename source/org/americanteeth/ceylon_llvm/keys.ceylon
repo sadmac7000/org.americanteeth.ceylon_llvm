@@ -8,17 +8,6 @@ import com.redhat.ceylon.compiler.typechecker.tree {
 }
 
 object keys {
-    shared
-    Key<TcNode> tcNode
-        =   ScopedKey<TcNode>(`value keys`,
-                "tcNode");
-
-    shared
-    Key<String> location
-        =   ScopedKey<String>(`value keys`,
-                "location");
-
-    shared
-    Key<Code> llvmData = ScopedKey<Code>(`module`, "llvmData");
-
+    shared Key<TcNode> tcNode = ScopedKey<TcNode>(`value keys`, "tcNode");
+    shared Key<String> location = ScopedKey<String>(`value keys`, "location");
 }

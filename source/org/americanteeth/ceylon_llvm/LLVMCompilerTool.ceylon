@@ -170,10 +170,9 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
             value mod = phasedUnit.\ipackage.\imodule;
             value file = "/tmp/tmp``tmpIdx++``.ll";
 
-            value visitor = LLVMBackendVisitor();
-            unit.visit(visitor);
-            value result = unit.get(keys.llvmData);
-            if (! exists result) { continue; }
+            value bld = LLVMBuilder();
+            unit.visit(bld);
+            value result = bld.string;
 
             if (exists argList = argsMap[mod]) {
                 argList.add(file);

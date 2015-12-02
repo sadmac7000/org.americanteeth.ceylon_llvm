@@ -53,12 +53,11 @@ class NativeModuleManager() extends ModuleManager() {
         if (!(mod.nameAsString == Module.\iDEFAULT_MODULE_NAME
                 || mod.nameAsString == Module.\iLANGUAGE_MODULE_NAME)) {
 
-            value languageModule
-                =   findLoadedModule(Module.\iLANGUAGE_MODULE_NAME, null)
-                    else modules.languageModule;
+            value languageModule =
+                findLoadedModule(Module.\iLANGUAGE_MODULE_NAME, null)
+                else modules.languageModule;
 
-            value moduleImport
-                =   ModuleImport(languageModule, false, false);
+            value moduleImport = ModuleImport(languageModule, false, false);
 
             mod.addImport(moduleImport);
             mod.languageModule = languageModule;
