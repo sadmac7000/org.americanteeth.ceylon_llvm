@@ -88,6 +88,7 @@ class LLVMBuilder() satisfies Visitor {
                 result.append("$get()\n");
             }
         }
+
         result.append("\n");
         return result.string;
     }
@@ -243,8 +244,16 @@ class LLVMBuilder() satisfies Visitor {
         "TODO: support multiple parameter lists"
         assert(that.parameterLists.size == 1);
 
+        value firstParameterList = tc.declarationModel.firstParameterList;
+
         declaredItems.add(tc.declarationModel);
         push(FunctionScope(tc.declarationModel));
+
+        for (parameter in CeylonList(firstParameterList.parameters)) {
+            assert(is ValueModel v = parameter.model);
+            scope.allocate(v, "%``parameter.name``");
+        }
+
         that.definition?.visit(this);
         pop();
     }
@@ -269,6 +278,12 @@ class LLVMBuilder() satisfies Visitor {
         assert(! pa.argumentList.sequenceArgument exists);
 
         variable Boolean first = true;
+
+        if (exists f = scope.getFrameFor(bt.declaration)) {
+            instruction.append("i64* ``f``");
+            first = false;
+        }
+
         for (arg in pa.argumentList.listedArguments) {
             arg.visit(this);
 

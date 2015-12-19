@@ -170,6 +170,7 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
             value mod = phasedUnit.\ipackage.\imodule;
             value file = "/tmp/tmp``tmpIdx++``.ll";
 
+            unit.visit(captureVisitor);
             value bld = LLVMBuilder();
             unit.visit(bld);
             value result = bld.string;
