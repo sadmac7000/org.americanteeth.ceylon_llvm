@@ -15,7 +15,7 @@ import com.redhat.ceylon.model.typechecker.model {
 }
 
 "A scope containing instructions"
-abstract class Scope(FunctionModel|ValueModel? model = null) {
+abstract class Scope() of CallableScope|UnitScope {
     value currentValues = HashMap<ValueModel,String>();
     value allocations = HashMap<ValueModel,Integer>();
     variable value allocationBlock = 0;
@@ -24,6 +24,9 @@ abstract class Scope(FunctionModel|ValueModel? model = null) {
     shared HashSet<ValueModel> usedItems = HashSet<ValueModel>();
 
     value instructions = ArrayList<String>();
+
+    "Is there an allocation for this value in the frame for this scope"
+    shared Boolean allocates(ValueModel v) => allocations.defines(v);
 
     "Allocate a new temporary label"
     shared String allocateTemporary() => "%.``nextTemporary++``";
@@ -36,44 +39,7 @@ abstract class Scope(FunctionModel|ValueModel? model = null) {
     shared Boolean hasInstructions => !instructions.empty;
 
     "Get the frame variable for a nested declaration"
-    shared default String? getFrameFor(DeclarationModel declaration) {
-        "Default getFrameFor must be overriden for top level"
-        assert(exists model);
-
-        if (allocations.defines(declaration)) {
-            return "%.frame";
-        }
-
-        if (declaration.toplevel) {
-            return null;
-        }
-
-        value container = declaration.container;
-
-        if (container == model) {
-            return "%.frame";
-        }
-
-        variable Anything visitedContainer = (model of DeclarationModel).container;
-        variable String context = "%.context";
-
-        while (is DeclarationModel v = visitedContainer, v != container) {
-            value fetch = allocateTemporary();
-            value cast = allocateTemporary();
-
-            addInstruction("``fetch`` = load i64,i64* ``context``");
-            addInstruction("``cast`` = inttoptr i64 ``fetch`` to i64*");
-            context = cast;
-
-            visitedContainer = v.container;
-        }
-
-        "We should always find a parent scope. We'll get to a 'Package' if we
-         don't"
-        assert(container is DeclarationModel);
-
-        return context;
-    }
+    shared default String? getFrameFor(DeclarationModel declaration) => null;
 
     "Add instructions to fetch an allocated element"
     shared default GetterScope getterFor(ValueModel model) {
@@ -133,6 +99,9 @@ abstract class Scope(FunctionModel|ValueModel? model = null) {
     "LLVM return type"
     shared default String returnType = "i64*";
 
+    "Whether this scope is a nested function/class/etc."
+    shared default Boolean nestedScope = false;
+
     "Access a declaration"
     shared String access(ValueModel declaration) {
         if (exists cached = currentValues[declaration]) {
@@ -167,9 +136,6 @@ abstract class Scope(FunctionModel|ValueModel? model = null) {
         result.append(" @");
         result.append(definitionName);
         result.append("(");
-
-        value nestedScope = if (is ValueModel model) then !model.toplevel
-        else if (is FunctionModel model) then !model.toplevel else false;
 
         if (nestedScope) {
             result.append("i64* %.context");
@@ -214,18 +180,58 @@ abstract class Scope(FunctionModel|ValueModel? model = null) {
     }
 }
 
+abstract class CallableScope(DeclarationModel model) extends Scope() {
+    shared actual Boolean nestedScope = !model.toplevel;
+
+    shared actual String? getFrameFor(DeclarationModel declaration) {
+        if (is ValueModel declaration, allocates(declaration)) {
+            return "%.frame";
+        }
+
+        if (declaration.toplevel) {
+            return null;
+        }
+
+        value container = declaration.container;
+
+        if (container == model) {
+            return "%.frame";
+        }
+
+        variable Anything visitedContainer = model.container;
+        variable String context = "%.context";
+
+        while (is DeclarationModel v = visitedContainer, v != container) {
+            value fetch = allocateTemporary();
+            value cast = allocateTemporary();
+
+            addInstruction("``fetch`` = load i64,i64* ``context``");
+            addInstruction("``cast`` = inttoptr i64 ``fetch`` to i64*");
+            context = cast;
+
+            visitedContainer = v.container;
+        }
+
+        "We should always find a parent scope. We'll get to a 'Package' if we
+         don't"
+        assert(container is DeclarationModel);
+
+        return context;
+    }
+}
+
 "Scope of a getter method"
-class GetterScope(ValueModel model) extends Scope(model) {
+class GetterScope(ValueModel model) extends CallableScope(model) {
     shared actual String definitionName => declarationName(model) + "$get";
 }
 
 "Scope of a setter method"
-class SetterScope(ValueModel model) extends Scope(model) {
+class SetterScope(ValueModel model) extends CallableScope(model) {
     shared actual String definitionName => declarationName(model) + "$set";
 }
 
 "The scope of a function"
-class FunctionScope(FunctionModel model) extends Scope(model) {
+class FunctionScope(FunctionModel model) extends CallableScope(model) {
     shared actual String definitionName => declarationName(model);
     shared actual String postfix => "    ret i64* null\n";
     shared actual String arguments {
