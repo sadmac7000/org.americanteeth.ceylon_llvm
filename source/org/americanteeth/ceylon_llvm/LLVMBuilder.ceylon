@@ -28,7 +28,7 @@ class LLVMBuilder() satisfies Visitor {
     alias StandardNode => ClassBody|ExpressionStatement|Block|CompilationUnit|InvocationStatement;
 
     "Nodes to ignore completely"
-    alias IgnoredNode => Import|ModuleCompilationUnit|PackageCompilationUnit;
+    alias IgnoredNode => Import|ModuleCompilationUnit|PackageCompilationUnit|Annotations;
 
     "The next string literal ID available"
     variable value nextStringLiteral = 0;
@@ -85,6 +85,7 @@ class LLVMBuilder() satisfies Visitor {
             } else if (is ValueModel model) {
                 result.append("declare i64* @");
                 result.append(declarationName(model));
+                /* TODO: Getters that need context */
                 result.append("$get()\n");
             }
         }
@@ -94,7 +95,10 @@ class LLVMBuilder() satisfies Visitor {
     }
 
     "Prefix for all units"
-    String preamble = "declare i64* @malloc(i64)\n\n";
+    String preamble = "declare i64* @malloc(i64)
+                       define private i64 @cMS4yLjA.ceylon.language.$Basic$size() {
+                           ret i64 2;
+                       }\n\n";
 
     "The run() method"
     variable FunctionModel? runSymbol = null;
@@ -180,8 +184,10 @@ class LLVMBuilder() satisfies Visitor {
 
         declaredItems.add(model);
 
-        push(scope.getterFor(model));
-        pop();
+        if (exists g = scope.getterFor(model)) {
+            push(g);
+            pop();
+        }
 
         if (!model.\ivariable) {
             return;
@@ -203,7 +209,52 @@ class LLVMBuilder() satisfies Visitor {
     }
 
     shared actual void visitClassDefinition(ClassDefinition that) {
-        /* TODO: Anything */
+        assert(is Tree.ClassDefinition tc = that.get(keys.tcNode));
+        value model = tc.declarationModel;
+
+        push(ConstructorScope(tc.declarationModel));
+
+        for (parameter in CeylonList(model.parameterList.parameters)) {
+            assert(is ValueModel v = parameter.model);
+            scope.allocate(v, "%``parameter.name``");
+
+            if (exists g = scope.getterFor(v)) {
+                declaredItems.add(v);
+                push(g);
+                pop();
+            }
+        }
+
+        that.extendedType?.visit(this);
+        that.body.visit(this);
+
+        pop();
+    }
+
+    shared actual void visitExtendedType(ExtendedType that) {
+        value target = that.target;
+        assert(is Tree.InvocationExpression tc = target.get(keys.tcNode));
+        assert(is Tree.ExtendedTypeExpression te = tc.primary);
+
+        value instruction = StringBuilder();
+
+        instruction.append("call void \
+                            @``declarationName(te.declaration)``$init(");
+        instruction.append("i64* %.frame");
+
+        if (exists arguments = target.arguments) {
+
+            for (argument in arguments.argumentList.children) {
+                argument.visit(this);
+
+                "Arguments must have a value"
+                assert(exists l = lastReturn);
+                instruction.append(", i64* ``l``");
+            }
+        }
+
+        instruction.append(")");
+        scope.addInstruction(instruction.string);
     }
 
     shared actual void visitLazySpecifier(LazySpecifier that) {
@@ -252,6 +303,12 @@ class LLVMBuilder() satisfies Visitor {
         for (parameter in CeylonList(firstParameterList.parameters)) {
             assert(is ValueModel v = parameter.model);
             scope.allocate(v, "%``parameter.name``");
+
+            if (exists g = scope.getterFor(v)) {
+                declaredItems.add(v);
+                push(g);
+                pop();
+            }
         }
 
         that.definition?.visit(this);
@@ -260,10 +317,10 @@ class LLVMBuilder() satisfies Visitor {
 
     shared actual void visitInvocation(Invocation that) {
         "We don't support expression callables yet"
-        assert(is BaseExpression b = that.invoked);
+        assert(is BaseExpression|QualifiedExpression b = that.invoked);
 
         "Base expressions should have Base Member or Base Type RH nodes"
-        assert(is Tree.BaseMemberExpression|Tree.BaseTypeExpression bt = b.get(keys.tcNode));
+        assert(is Tree.MemberOrTypeExpression bt = b.get(keys.tcNode));
         value instruction = StringBuilder();
         value returnValue = scope.allocateTemporary();
 
@@ -277,11 +334,16 @@ class LLVMBuilder() satisfies Visitor {
         "We don't support sequence arguments yet"
         assert(! pa.argumentList.sequenceArgument exists);
 
-        variable Boolean first = true;
+        variable Boolean first = false;
 
-        if (exists f = scope.getFrameFor(bt.declaration)) {
+        if (is QualifiedExpression b) {
+            b.receiverExpression.visit(this);
+            assert(exists l = lastReturn);
+            instruction.append("i64* ``l``");
+        } else if (exists f = scope.getFrameFor(bt.declaration)) {
             instruction.append("i64* ``f``");
-            first = false;
+        } else {
+            first = true;
         }
 
         for (arg in pa.argumentList.listedArguments) {
@@ -307,5 +369,23 @@ class LLVMBuilder() satisfies Visitor {
         assert(is Tree.BaseMemberExpression tb = that.get(keys.tcNode));
         assert(is ValueModel declaration = tb.declaration);
         lastReturn = scope.access(declaration);
+    }
+
+    shared actual void visitQualifiedExpression(QualifiedExpression that) {
+        "TODO: Support fancy member operators"
+        assert(that.memberOperator is MemberOperator);
+
+        assert(is Tree.QualifiedMemberOrTypeExpression tc =
+                that.get(keys.tcNode));
+
+        value temp = scope.allocateTemporary();
+        value getterName = "``declarationName(tc.declaration)``$get";
+
+        that.receiverExpression.visit(this);
+        assert(exists target = lastReturn);
+
+        scope.addInstruction("``temp`` = \
+                              call i64* @``getterName``(i64* ``target``)");
+        lastReturn = temp;
     }
 }

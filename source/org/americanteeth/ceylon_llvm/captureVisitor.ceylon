@@ -47,7 +47,11 @@ object captureVisitor satisfies Visitor {
 
     shared actual void visitBaseExpression(BaseExpression that) {
         assert(is Tree.BaseMemberOrTypeExpression tb = that.get(keys.tcNode));
-        assert(is FunctionOrValueModel declaration = tb.declaration);
+        value declaration = tb.declaration;
+
+        if (! is FunctionOrValueModel declaration) {
+            return;
+        }
 
         if (declaration.captured) {
             return;
@@ -60,7 +64,6 @@ object captureVisitor satisfies Visitor {
         if (declaration.\ishared) {
             return;
         }
-
 
         declaration.captured = declaration.scope != current;
     }
