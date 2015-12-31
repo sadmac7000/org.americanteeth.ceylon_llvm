@@ -45,8 +45,9 @@ object captureVisitor satisfies Visitor {
         current_ = old;
     }
 
-    shared actual void visitBaseExpression(BaseExpression that) {
-        assert(is Tree.BaseMemberOrTypeExpression tb = that.get(keys.tcNode));
+    void setCapturedIfNeeded(BaseExpression|QualifiedExpression that) {
+        assert(is Tree.MemberOrTypeExpression tb = that.get(keys.tcNode));
+
         value declaration = tb.declaration;
 
         if (! is FunctionOrValueModel declaration) {
@@ -68,12 +69,9 @@ object captureVisitor satisfies Visitor {
         declaration.captured = declaration.scope != current;
     }
 
-    shared actual void visitQualifiedExpression(QualifiedExpression that) {
-        if (! that.receiverExpression is This) {
-            return;
-        }
+    shared actual void visitBaseExpression(BaseExpression that)
+        => setCapturedIfNeeded(that);
 
-        "TODO: Implement capture for this.*"
-        assert(false);
-    }
+    shared actual void visitQualifiedExpression(QualifiedExpression that)
+        => setCapturedIfNeeded(that);
 }
