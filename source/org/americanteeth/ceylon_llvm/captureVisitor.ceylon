@@ -3,8 +3,7 @@ import ceylon.ast.core {
     BaseExpression,
     Node,
     Declaration,
-    QualifiedExpression,
-    This
+    QualifiedExpression
 }
 
 import com.redhat.ceylon.compiler.typechecker.tree {

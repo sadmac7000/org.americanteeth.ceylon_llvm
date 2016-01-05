@@ -20,6 +20,7 @@ import com.redhat.ceylon.model.typechecker.model {
     FunctionModel = Function,
     ValueModel = Value,
     DeclarationModel = Declaration,
+    ClassModel = Class,
     PackageModel = Package
 }
 
@@ -66,27 +67,51 @@ class LLVMBuilder() satisfies Visitor {
         value result = StringBuilder();
 
         for (model in models) {
-            if (is FunctionModel model) {
-                result.append("declare i64* @");
-                result.append(declarationName(model));
-                result.append("(");
-
+            if (is FunctionModel|ClassModel model) {
+                value arguments = StringBuilder();
                 variable Boolean first = true;
+
+                if (!(model of DeclarationModel).toplevel) {
+                    arguments.append("i64* %.context");
+                    first = false;
+                }
 
                 for (param in CeylonList(model.firstParameterList.parameters)) {
                     if (! first) {
-                        result.append(", ");
+                        arguments.append(", ");
                     }
                     first = false;
-                    result.append("i64*");
+                    arguments.append("i64*");
                 }
 
-                result.append(")\n");
+                result.append("declare i64* @");
+                result.append(declarationName(model));
+                result.append("(``arguments``)\n");
+
+                if (is ClassModel model) {
+                    result.append("declare void @");
+                    result.append(declarationName(model));
+
+                    if (arguments.empty) {
+                        result.append("$init(i64* %.frame)\n");
+                    } else {
+                        result.append("$init(i64* %.frame, ``arguments``)\n");
+                    }
+
+                    result.append("declare i64 @");
+                    result.append(declarationName(model));
+                    result.append("$size()\n");
+                }
             } else if (is ValueModel model) {
                 result.append("declare i64* @");
                 result.append(declarationName(model));
-                /* TODO: Getters that need context */
-                result.append("$get()\n");
+                result.append("$get(");
+
+                if (!model.toplevel) {
+                    result.append("i64* %.context");
+                }
+
+                result.append(")\n");
             }
         }
 
@@ -211,6 +236,7 @@ class LLVMBuilder() satisfies Visitor {
     shared actual void visitClassDefinition(ClassDefinition that) {
         assert(is Tree.ClassDefinition tc = that.get(keys.tcNode));
         value model = tc.declarationModel;
+        declaredItems.add(model);
 
         push(ConstructorScope(tc.declarationModel));
 
@@ -241,6 +267,7 @@ class LLVMBuilder() satisfies Visitor {
         instruction.append("call void \
                             @``declarationName(te.declaration)``$init(");
         instruction.append("i64* %.frame");
+        usedItems.add(te.declaration);
 
         if (exists arguments = target.arguments) {
 
