@@ -349,9 +349,8 @@ class LLVMBuilder() satisfies Visitor {
         "Base expressions should have Base Member or Base Type RH nodes"
         assert(is Tree.MemberOrTypeExpression bt = b.get(keys.tcNode));
         value instruction = StringBuilder();
-        value returnValue = scope.allocateTemporary();
 
-        instruction.append("``returnValue`` = call i64* @");
+        instruction.append("call i64* @");
         instruction.append(declarationName(bt.declaration) + "(");
         usedItems.add(bt.declaration);
 
@@ -388,8 +387,7 @@ class LLVMBuilder() satisfies Visitor {
         }
 
         instruction.append(")");
-        scope.addInstruction(instruction.string);
-        lastReturn = returnValue;
+        lastReturn = scope.addValueInstruction(instruction.string);
     }
 
     shared actual void visitBaseExpression(BaseExpression that) {
@@ -405,14 +403,12 @@ class LLVMBuilder() satisfies Visitor {
         assert(is Tree.QualifiedMemberOrTypeExpression tc =
                 that.get(keys.tcNode));
 
-        value temp = scope.allocateTemporary();
         value getterName = "``declarationName(tc.declaration)``$get";
 
         that.receiverExpression.visit(this);
         assert(exists target = lastReturn);
 
-        scope.addInstruction("``temp`` = \
-                              call i64* @``getterName``(i64* ``target``)");
-        lastReturn = temp;
+        lastReturn = scope.addValueInstruction(
+                "call i64* @``getterName``(i64* ``target``)");
     }
 }

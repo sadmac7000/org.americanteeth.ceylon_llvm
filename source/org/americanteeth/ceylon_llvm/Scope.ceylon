@@ -91,6 +91,13 @@ abstract class Scope() of CallableScope|UnitScope {
     shared void addInstruction(String instruction)
         => instructions.add(instruction);
 
+    "Add an instruction that returns a value to this scope"
+    shared String addValueInstruction(String instruction) {
+        value temp = allocateTemporary();
+        addInstruction("``temp`` = ``instruction``");
+        return temp;
+    }
+
     "Whether any instructions have been added"
     shared Boolean hasInstructions => !instructions.empty;
 
@@ -112,14 +119,13 @@ abstract class Scope() of CallableScope|UnitScope {
 
         value getterScope = GetterScope(model);
         value offset = getAllocationOffset(slot, getterScope);
-        value address = getterScope.allocateTemporary();
-        value data = getterScope.allocateTemporary();
-        value cast = getterScope.allocateTemporary();
 
-        getterScope.addInstruction("``address`` = getelementptr i64, \
-                                    i64* %.context, i64 ``offset``");
-        getterScope.addInstruction("``data`` = load i64,i64* ``address``");
-        getterScope.addInstruction("``cast`` = inttoptr i64 ``data`` to i64*");
+        value address = getterScope.addValueInstruction(
+                "getelementptr i64, i64* %.context, i64 ``offset``");
+        value data = getterScope.addValueInstruction(
+                "load i64,i64* ``address``");
+        value cast = getterScope.addValueInstruction(
+                "inttoptr i64 ``data`` to i64*");
         getterScope.addInstruction("ret i64* ``cast``");
 
         return getterScope;
@@ -149,12 +155,10 @@ abstract class Scope() of CallableScope|UnitScope {
 
         /* allocationBlock = the new allocation position + 1 */
         value slotOffset = getAllocationOffset(allocationBlock - 1, this);
-        value tmp = allocateTemporary();
-        value offset = allocateTemporary();
 
-        addInstruction("``tmp`` = ptrtoint i64* ``startValue`` to i64");
-        addInstruction("``offset`` = getelementptr i64, i64* %.frame, \
-                        i64 ``slotOffset``");
+        value tmp = addValueInstruction("ptrtoint i64* ``startValue`` to i64");
+        value offset = addValueInstruction(
+                "getelementptr i64, i64* %.frame, i64 ``slotOffset``");
         addInstruction("store i64 ``tmp``, i64* ``offset``");
     }
 
@@ -196,10 +200,8 @@ abstract class Scope() of CallableScope|UnitScope {
                         then "i64* ``f``"
                         else "";
 
-        value ret = allocateTemporary();
-        addInstruction( "``ret`` = call i64* \
-                         @``declarationName(declaration)``$get(``context``)");
-        return ret;
+        return addValueInstruction(
+                "call i64* @``declarationName(declaration)``$get(``context``)");
     }
 
     shared actual default String string {
@@ -257,12 +259,8 @@ abstract class CallableScope(DeclarationModel model) extends Scope() {
         variable String context = "%.context";
 
         while (is DeclarationModel v = visitedContainer, v != container) {
-            value fetch = allocateTemporary();
-            value cast = allocateTemporary();
-
-            addInstruction("``fetch`` = load i64,i64* ``context``");
-            addInstruction("``cast`` = inttoptr i64 ``fetch`` to i64*");
-            context = cast;
+            value fetch = addValueInstruction("load i64,i64* ``context``");
+            context = addValueInstruction("inttoptr i64 ``fetch`` to i64*");
 
             visitedContainer = v.container;
         }
@@ -283,14 +281,11 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
     shared actual String returnType => "void";
 
     shared actual String getAllocationOffset(Integer slot, Scope scope) {
-        value shift = scope.allocateTemporary();
-        value add = scope.allocateTemporary();
         value parent = model.extendedType.declaration;
 
-        scope.addInstruction("``shift`` = call i64 \
-                              @``declarationName(parent)``$size()");
-        scope.addInstruction("``add`` = add i64 ``shift``, ``slot``");
-        return add;
+        value shift = scope.addValueInstruction(
+                "call i64 @``declarationName(parent)``$size()");
+        return scope.addValueInstruction("add i64 ``shift``, ``slot``");
     }
 
     shared actual String arguments {
@@ -389,10 +384,9 @@ class UnitScope() extends Scope() {
 
     shared actual GetterScope getterFor(ValueModel model) {
         value getterScope = GetterScope(model);
-        value temp = getterScope.allocateTemporary();
-        getterScope.addInstruction("``temp`` = load i64*,i64** \
-                                    @``declarationName(model)``");
-        getterScope.addInstruction("ret i64* ``temp``");
+        value ret = getterScope.addValueInstruction(
+                "load i64*,i64** @``declarationName(model)``");
+        getterScope.addInstruction("ret i64* ``ret``");
         return getterScope;
     }
 
