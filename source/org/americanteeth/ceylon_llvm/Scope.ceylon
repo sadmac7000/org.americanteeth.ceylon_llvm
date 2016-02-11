@@ -16,6 +16,13 @@ import com.redhat.ceylon.model.typechecker.model {
     ParameterList
 }
 
+"Priority of the library constructor function that contains all of the toplevel
+ code"
+Integer toplevelConstructorPriority = 65535;
+
+"Priority of the library constructor functions that initialize vtables"
+Integer vtableConstructorPriority = 65534;
+
 "Convert a parameter list to an LLVM string"
 String parameterListToLLVMString(ParameterList parameterList) {
     value result = StringBuilder();
@@ -204,6 +211,12 @@ abstract class Scope() of CallableScope|UnitScope {
                 "call i64* @``declarationName(declaration)``$get(``context``)");
     }
 
+    "Add a vtable entry for the given declaration model"
+    shared default void vtableEntry(DeclarationModel d) {
+        "Scope does not cotain a vtable"
+        assert(false);
+    }
+
     shared actual default String string {
         value result = StringBuilder();
 
@@ -275,6 +288,7 @@ abstract class CallableScope(DeclarationModel model) extends Scope() {
 
 "Scope of a class body"
 class ConstructorScope(ClassModel model) extends CallableScope(model) {
+    value vtable = ArrayList<DeclarationModel>();
     shared actual String postfix = "    ret void\n";
     shared actual String namePostfix = "$init";
     shared actual String initFrame() => "";
@@ -318,13 +332,67 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
                        $size()\n");
         result.append("    %.bytes = mul i64 %.words, 8\n");
         result.append("    %.frame = call i64* @malloc(i64 %.bytes)\n");
+
+        if (!vtable.empty) {
+            result.append("    %.vteptr = getelementptr i64, i64* %.frame, \
+                           i64 1\n");
+            result.append("    store i64 0, i64* %.vteptr\n");
+        }
+
         result.append("    call void @``declarationName(model)``$init(");
         result.append(arguments);
         result.append(")\n");
         result.append("    ret i64* %.frame\n}\n\n");
+        result.append(vtableCode());
 
         return result.string;
     }
+
+    "Get LLVM code to setup the vtable"
+    shared String vtableCode() {
+        value result = StringBuilder();
+        value parent = model.extendedType.declaration;
+
+        result.append("@``declarationName(model)``$vtable = global i64* \
+                       null\n\n");
+
+        result.append("define i64 \
+                       @``declarationName(model)``$vtsize() {\n");
+        result.append("    %.parentsz = call i64 \
+                       @``declarationName(parent)``$vtsize()\n");
+        result.append("    %.result = add i64 %.parentsz, ``vtable.size``\n");
+        result.append("    ret i64 %.result\n");
+        result.append("}\n\n");
+
+        result.append("define private void \
+                       @``declarationName(model)``$vtsetup() {\n");
+        result.append("    %.parentsz = call i64 \
+                       @``declarationName(parent)``$vtsize()\n");
+        result.append("    %.size = call i64 \
+                       @``declarationName(model)``$vtsize()\n");
+        result.append("    %.bytes = mul i64 %.size, 8\n");
+        result.append("    %.parentbytes = mul i64 %.parentsz, 8\n");
+        result.append("    %.vt = call i64* @malloc(i64 %.bytes)\n");
+        result.append("    %.parentvt = load i64*,i64** \
+                       @``declarationName(parent)``$vtable\n");
+        result.append("    call void @llvm.memcpy.p0i64.p0i64.i64(\
+                       i64* %.vt, i64* %.parentvt, i64 %.parentsz, i32 8, \
+                       i1 0)\n");
+        result.append("    store i64* %.vt, i64** \
+                       @``declarationName(model)``$vtable\n");
+        result.append("    ret void\n");
+        result.append("}\n\n");
+        result.append("@llvm.global_ctors = appending global \
+                       [1 x %.constructor_type] \
+                       [%.constructor_type { \
+                       i32 ``vtableConstructorPriority``, \
+                       void ()* @``declarationName(model)``$vtsetup }]\n\n");
+
+        return result.string;
+    }
+
+    shared actual void vtableEntry(DeclarationModel d)
+        => vtable.add(d);
 
     shared actual String string
         => super.string + additionalCalls + "\n\n";
@@ -371,11 +439,11 @@ class UnitScope() extends Scope() {
         value result = StringBuilder();
         result.append("\n");
         result.append(super.string);
-        result.append("%.constructor_type = type { i32, void ()*, i8* }
-                       @llvm.global_ctors = appending global \
+        result.append("@llvm.global_ctors = appending global \
                        [1 x %.constructor_type] \
-                       [%.constructor_type { i32 65535, \
-                       void ()* @__ceylon_constructor, null }]\n");
+                       [%.constructor_type { \
+                       i32 ``toplevelConstructorPriority``, \
+                       void ()* @__ceylon_constructor }]\n");
         return result.string;
     }
 

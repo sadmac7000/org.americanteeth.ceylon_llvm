@@ -120,10 +120,20 @@ class LLVMBuilder() satisfies Visitor {
     }
 
     "Prefix for all units"
-    String preamble = "declare i64* @malloc(i64)
+    String preamble = "%.constructor_type = type { i32, void ()* }
+
+                       declare i64* @malloc(i64)
                        define private i64 @cMS4yLjA.ceylon.language.$Basic$size() {
                            ret i64 2;
-                       }\n\n";
+                       }
+                       
+                       define private i64 @cMS4yLjA.ceylon.language.$Basic$vtsize() {
+                           ret i64 0
+                       }
+                       
+                       @cMS4yLjA.ceylon.language.$Basic$vtable = private global i64* null
+                       
+                       declare void @llvm.memcpy.p0i64.p0i64.i64(i64*, i64*, i64 , i32, i1)\n\n";
 
     "The run() method"
     variable FunctionModel? runSymbol = null;
@@ -308,11 +318,16 @@ class LLVMBuilder() satisfies Visitor {
     }
 
     shared actual void visitAnyFunction(AnyFunction that) {
+        assert(is Tree.AnyMethod tc = that.get(keys.tcNode));
+
+        if (tc.declarationModel.\iformal ||
+            (tc.declarationModel.\idefault && !tc.declarationModel.\iactual)) {
+            scope.vtableEntry(tc.declarationModel);
+        }
+
         if (is FunctionDeclaration that) {
             return;
         }
-
-        assert(is Tree.AnyMethod tc = that.get(keys.tcNode));
 
         if (tc.declarationModel.name == "run",
             tc.declarationModel.container is PackageModel) {
