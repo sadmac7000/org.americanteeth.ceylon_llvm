@@ -23,22 +23,9 @@ Integer toplevelConstructorPriority = 65535;
 "Priority of the library constructor functions that initialize vtables"
 Integer vtableConstructorPriority = 65534;
 
-"Convert a parameter list to an LLVM string"
-String parameterListToLLVMString(ParameterList parameterList) {
-    value result = StringBuilder();
-    variable Boolean first = true;
-
-    for(item in CeylonList(parameterList.parameters)) {
-        if (! first) {
-            result.append(", ");
-        }
-
-        first = false;
-        result.append("i64* %``item.name``");
-    }
-
-    return result.string;
-}
+"Convert a parameter list to a sequence of LLVM strings"
+[String*] parameterListToLLVMStrings(ParameterList parameterList)
+    => CeylonList(parameterList.parameters).collect((x) => "i64* %``x.name``");
 
 "Add a new definition start to a StringBuilder"
 void beginDefinition(StringBuilder result, String modifiers, String returnType,
@@ -74,10 +61,10 @@ abstract class Scope() of CallableScope|UnitScope {
     shared formal String definitionName;
 
     "Name of the function definition we will generate"
-    shared default String arguments = "";
+    shared default [String*] arguments = [];
 
     "Trailing instructions for definition"
-    shared default String postfix = "";
+    shared default String? postfix = null;
 
     "Visibility and linkage for the definition"
     shared default String modifiers = "";
@@ -170,29 +157,26 @@ abstract class Scope() of CallableScope|UnitScope {
     }
 
     "Add instructions to initialize the frame object"
-    shared default String initFrame() {
+    shared default [String*] initFrame() {
         if (allocationBlock < 0 && !nestedScope) {
-            return "    %.frame = bitcast i64* null to i64*\n\n";
+            return ["%.frame = bitcast i64* null to i64*"];
         }
 
-        value result = StringBuilder();
         value blocksTotal =
             if (nestedScope)
             then allocationBlock + 1
             else allocationBlock;
         value bytesTotal = blocksTotal * 8;
 
-        result.append("    %.frame = call i64* @malloc(i64 ``bytesTotal``)\n");
+        value alloc = "%.frame = call i64* @malloc(i64 ``bytesTotal``)";
 
-        if (nestedScope) {
-            result.append("    %.context_cast = \
-                           ptrtoint i64* %.context to i64\n");
-            result.append("    store i64 %.context_cast, i64* %.frame\n");
+        if (! nestedScope) {
+            return [alloc];
         }
 
-        result.append("\n");
-
-        return result.string;
+        return [alloc,
+                "%.context_cast = ptrtoint i64* %.context to i64",
+                "store i64 %.context_cast, i64* %.frame"];
     }
 
     "Access a declaration"
@@ -217,34 +201,24 @@ abstract class Scope() of CallableScope|UnitScope {
         assert(false);
     }
 
-    shared actual default String string {
-        value result = StringBuilder();
+    shared default {String|LLVMFunction*} results {
+        value fullArguments =
+            if (nestedScope)
+            then ["i64* %.context", *arguments]
+            else arguments;
 
-        beginDefinition(result, modifiers, returnType, definitionName);
+        value llvmFunction = LLVMFunction(definitionName, returnType,
+                modifiers, fullArguments, [*initFrame().chain(instructions)]);
 
-        result.append("(");
+        if (exists p = postfix) {
+            llvmFunction.addInstructions(p);
 
-        if (nestedScope) {
-            result.append("i64* %.context");
-
-            if (! arguments.empty) {
-                result.append(", ");
+            if (definitionName == "__ceylon_constructor") {
+                print(llvmFunction);
             }
         }
 
-        result.append(arguments);
-        result.append(") {\n");
-
-        result.append(initFrame());
-
-        for (instruction in instructions) {
-            result.append("    ``instruction``\n");
-        }
-
-        result.append(postfix);
-        result.append("}\n\n");
-
-        return result.string;
+        return {llvmFunction};
     }
 }
 
@@ -289,9 +263,9 @@ abstract class CallableScope(DeclarationModel model) extends Scope() {
 "Scope of a class body"
 class ConstructorScope(ClassModel model) extends CallableScope(model) {
     value vtable = ArrayList<DeclarationModel>();
-    shared actual String postfix = "    ret void\n";
+    shared actual String postfix = "ret void";
     shared actual String namePostfix = "$init";
-    shared actual String initFrame() => "";
+    shared actual [String*] initFrame() => [];
     shared actual String returnType => "void";
 
     shared actual String getAllocationOffset(Integer slot, Scope scope) {
@@ -302,15 +276,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
         return scope.addValueInstruction("add i64 ``shift``, ``slot``");
     }
 
-    shared actual String arguments {
-        value ret = parameterListToLLVMString(model.parameterList);
-
-        if (ret.empty) {
-            return "i64* %.frame";
-        }
-
-        return "i64* %.frame, ``ret``";
-    }
+    shared actual [String*] arguments
+        => ["i64* %.frame", *parameterListToLLVMStrings(model.parameterList)];
 
     String additionalCalls {
         value result = StringBuilder();
@@ -326,8 +293,9 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
         result.append("    ret i64 %.total\n}\n\n");
 
         beginDefinition(result, modifiers, "i64*", declarationName(model));
-        result.append("(``parameterListToLLVMString(model.parameterList)``) \
-                        {\n");
+        result.append("(");
+        result.append(", ".join(parameterListToLLVMStrings(model.parameterList)));
+        result.append(") {\n");
         result.append("    %.words = call i64 @``declarationName(model)``\
                        $size()\n");
         result.append("    %.bytes = mul i64 %.words, 8\n");
@@ -340,7 +308,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
         }
 
         result.append("    call void @``declarationName(model)``$init(");
-        result.append(arguments);
+        result.append(", ".join(arguments));
         result.append(")\n");
         result.append("    ret i64* %.frame\n}\n\n");
         result.append(vtableCode());
@@ -394,8 +362,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
     shared actual void vtableEntry(DeclarationModel d)
         => vtable.add(d);
 
-    shared actual String string
-        => super.string + additionalCalls + "\n\n";
+    shared actual {String|LLVMFunction*} results
+        => super.results.follow(additionalCalls);
 }
 
 "Scope of a getter method"
@@ -410,9 +378,9 @@ class SetterScope(ValueModel model) extends CallableScope(model) {
 
 "The scope of a function"
 class FunctionScope(FunctionModel model) extends CallableScope(model) {
-    shared actual String postfix => "    ret i64* null\n";
-    shared actual String arguments
-        => parameterListToLLVMString(model.firstParameterList);
+    shared actual String postfix => "ret i64* null";
+    shared actual [String*] arguments
+        => parameterListToLLVMStrings(model.firstParameterList);
 }
 
 "The outermost scope of the compilation unit"
@@ -421,6 +389,7 @@ class UnitScope() extends Scope() {
     shared actual String definitionName => "__ceylon_constructor";
     shared actual String modifiers => "private";
     shared actual String returnType => "void";
+    shared actual String postfix => "ret void";
 
     shared actual void allocate(ValueModel declaration,
             String? startValue) {
@@ -431,24 +400,20 @@ class UnitScope() extends Scope() {
     }
 
     "Code to register the constructor with LLVM"
-    String constructor {
+    String? constructor {
         if (! hasInstructions) {
-            return "";
+            return null;
         }
 
-        value result = StringBuilder();
-        result.append("\n");
-        result.append(super.string);
-        result.append("@llvm.global_ctors = appending global \
-                       [1 x %.constructor_type] \
-                       [%.constructor_type { \
-                       i32 ``toplevelConstructorPriority``, \
-                       void ()* @__ceylon_constructor }]\n");
-        return result.string;
+        return "@llvm.global_ctors = appending global \
+                [1 x %.constructor_type] \
+                [%.constructor_type { \
+                i32 ``toplevelConstructorPriority``, \
+                void ()* @__ceylon_constructor }]\n";
     }
 
-    shared actual String string
-        => globalVariables.string + constructor;
+    shared actual {String|LLVMFunction*} results => {globalVariables.string,
+        *super.results}.follow(constructor).narrow<Object>();
 
     shared actual GetterScope getterFor(ValueModel model) {
         value getterScope = GetterScope(model);

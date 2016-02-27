@@ -124,7 +124,7 @@ class LLVMBuilder() satisfies Visitor {
 
                        declare i64* @malloc(i64)
                        define private i64 @cMS4yLjA.ceylon.language.$Basic$size() {
-                           ret i64 2;
+                           ret i64 2
                        }
                        
                        define private i64 @cMS4yLjA.ceylon.language.$Basic$vtsize() {
@@ -148,9 +148,9 @@ class LLVMBuilder() satisfies Visitor {
     value unitScope = UnitScope();
 
     "The code we are outputting"
-    value output = StringBuilder();
-    string => preamble + stringTable + predeclarations + output.string +
-        unitScope.string + runSymbolAlias;
+    value output = LLVMUnit();
+    string => preamble + stringTable + predeclarations + output.string + "\n\n"
+        + "\n\n".join(unitScope.results.map(Object.string)) + runSymbolAlias;
 
     "Return value from the most recent instruction"
     variable String? lastReturn = null;
@@ -168,7 +168,9 @@ class LLVMBuilder() satisfies Visitor {
     void pop() {
         "We must pop no more scopes than we push"
         assert(exists scope = scopeStack.deleteLast());
-        output.append(scope.string);
+        for (result in scope.results) {
+            output.append(result);
+        }
         usedItems.addAll(scope.usedItems);
     }
 
