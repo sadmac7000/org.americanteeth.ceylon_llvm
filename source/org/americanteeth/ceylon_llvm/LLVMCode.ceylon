@@ -1,6 +1,6 @@
 import ceylon.collection { ArrayList }
 
-abstract class LLVMDeclaration() {}
+abstract class LLVMDeclaration(shared String name) {}
 
 class LLVMUnit() {
     value items = ArrayList<String|LLVMDeclaration>();
@@ -10,10 +10,10 @@ class LLVMUnit() {
     string => "\n\n".join(items.map(Object.string));
 }
 
-class LLVMFunction(shared String name, shared String returnType,
+class LLVMFunction(String n, shared String returnType,
         shared String modifiers,
         shared [String*] arguments,
-        shared [String*] bodyStart) extends LLVMDeclaration() {
+        shared [String*] bodyStart) extends LLVMDeclaration(n) {
 
     String argList => ", ".join(arguments);
     String modString => if (modifiers.empty) then "" else modifiers + " ";
@@ -28,4 +28,9 @@ class LLVMFunction(shared String name, shared String returnType,
 
     string => "define ``modString````returnType`` @``name``(``argList``) {\
                ``bodyPadded``}";
+}
+
+class LLVMGlobal(String n, String? startValue = null)
+        extends LLVMDeclaration(n) {
+    string => "@``name`` = global i64* ``startValue else "null"``";
 }

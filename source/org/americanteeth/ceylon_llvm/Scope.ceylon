@@ -27,22 +27,6 @@ Integer vtableConstructorPriority = 65534;
 [String*] parameterListToLLVMStrings(ParameterList parameterList)
     => CeylonList(parameterList.parameters).collect((x) => "i64* %``x.name``");
 
-"Add a new definition start to a StringBuilder"
-void beginDefinition(StringBuilder result, String modifiers, String returnType,
-    String definitionName) {
-        result.append("define ");
-
-        result.append(modifiers);
-
-        if (!modifiers.empty) {
-            result.append(" ");
-        }
-
-        result.append(returnType);
-        result.append(" @");
-        result.append(definitionName);
-}
-
 "A scope containing instructions"
 abstract class Scope() of CallableScope|UnitScope {
     value currentValues = HashMap<ValueModel,String>();
@@ -201,7 +185,7 @@ abstract class Scope() of CallableScope|UnitScope {
         assert(false);
     }
 
-    shared default {String|LLVMFunction*} results {
+    shared default {String|LLVMDeclaration*} results {
         value fullArguments =
             if (nestedScope)
             then ["i64* %.context", *arguments]
@@ -279,91 +263,78 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
     shared actual [String*] arguments
         => ["i64* %.frame", *parameterListToLLVMStrings(model.parameterList)];
 
-    String additionalCalls {
-        value result = StringBuilder();
-
+    {String|LLVMDeclaration*} additionalCalls {
         value parent = model.extendedType.declaration;
 
-        beginDefinition(result, modifiers, "i64", declarationName(model) +
-                "$size");
-        result.append("() {\n");
-        result.append("    %.extendedSize = call i64 \
-                       @``declarationName(parent)``$size()\n");
-        result.append("    %.total = add i64 %.extendedSize, ``allocatedBlocks``");
-        result.append("    ret i64 %.total\n}\n\n");
+        value sizeFunction = LLVMFunction(declarationName(model) + "$size", "i64",
+                modifiers, [], []);
+        sizeFunction.addInstructions(
+            "%.extendedSize = call i64 @``declarationName(parent)``$size()",
+            "%.total = add i64 %.extendedSize, ``allocatedBlocks``",
+            "ret i64 %.total"
+        );
 
-        beginDefinition(result, modifiers, "i64*", declarationName(model));
-        result.append("(");
-        result.append(", ".join(parameterListToLLVMStrings(model.parameterList)));
-        result.append(") {\n");
-        result.append("    %.words = call i64 @``declarationName(model)``\
-                       $size()\n");
-        result.append("    %.bytes = mul i64 %.words, 8\n");
-        result.append("    %.frame = call i64* @malloc(i64 %.bytes)\n");
+        value directConstructor = LLVMFunction(declarationName(model), "i64*",
+                modifiers, parameterListToLLVMStrings(model.parameterList), []);
+        directConstructor.addInstructions(
+            "%.words = call i64 @``declarationName(model)``$size()",
+            "%.bytes = mul i64 %.words, 8\n",
+            "%.frame = call i64* @malloc(i64 %.bytes)\n"
+        );
 
         if (!vtable.empty) {
-            result.append("    %.vteptr = getelementptr i64, i64* %.frame, \
-                           i64 1\n");
-            result.append("    store i64 0, i64* %.vteptr\n");
+            directConstructor.addInstructions(
+                "%.vteptr = getelementptr i64, i64* %.frame, i64 1",
+                "store i64 0, i64* %.vteptr"
+            );
         }
 
-        result.append("    call void @``declarationName(model)``$init(");
-        result.append(", ".join(arguments));
-        result.append(")\n");
-        result.append("    ret i64* %.frame\n}\n\n");
-        result.append(vtableCode());
+        directConstructor.addInstructions(
+            "call void @``declarationName(model)``$init(``", ".join(arguments)``)",
+            "ret i64* %.frame"
+        );
 
-        return result.string;
-    }
+        value vtSizeFunction = LLVMFunction(declarationName(model) + "$vtsize",
+                "i64", "", [], []);
+        vtSizeFunction.addInstructions(
+            "%.parentsz = call i64 @``declarationName(parent)``$vtsize()",
+            "%.result = add i64 %.parentsz, ``vtable.size``",
+            "ret i64 %.result"
+        );
 
-    "Get LLVM code to setup the vtable"
-    shared String vtableCode() {
-        value result = StringBuilder();
-        value parent = model.extendedType.declaration;
+        value vtSetupFunction =
+            LLVMFunction(declarationName(model) + "$vtsetup",
+                    "void", "private", [], []);
+        vtSetupFunction.addInstructions(
+            "%.parentsz = call i64 @``declarationName(parent)``$vtsize()",
+            "%.size = call i64 @``declarationName(model)``$vtsize()",
+            "%.bytes = mul i64 %.size, 8",
+            "%.parentbytes = mul i64 %.parentsz, 8",
+            "%.vt = call i64* @malloc(i64 %.bytes)",
+            "%.parentvt = load i64*,i64** @``declarationName(parent)``$vtable",
+            "call void @llvm.memcpy.p0i64.p0i64.i64(\
+             i64* %.vt, i64* %.parentvt, i64 %.parentsz, i32 8, i1 0)",
+            "store i64* %.vt, i64** @``declarationName(model)``$vtable",
+            "ret void"
+        );
 
-        result.append("@``declarationName(model)``$vtable = global i64* \
-                       null\n\n");
+        value vtableCode = LLVMGlobal(declarationName(model) + "$vtable");
 
-        result.append("define i64 \
-                       @``declarationName(model)``$vtsize() {\n");
-        result.append("    %.parentsz = call i64 \
-                       @``declarationName(parent)``$vtsize()\n");
-        result.append("    %.result = add i64 %.parentsz, ``vtable.size``\n");
-        result.append("    ret i64 %.result\n");
-        result.append("}\n\n");
+        value vtConstruct = "@llvm.global_ctors = appending global \
+                             [1 x %.constructor_type] \
+                             [%.constructor_type { \
+                             i32 ``vtableConstructorPriority``, \
+                             void ()* @``declarationName(model)``$vtsetup }]";
 
-        result.append("define private void \
-                       @``declarationName(model)``$vtsetup() {\n");
-        result.append("    %.parentsz = call i64 \
-                       @``declarationName(parent)``$vtsize()\n");
-        result.append("    %.size = call i64 \
-                       @``declarationName(model)``$vtsize()\n");
-        result.append("    %.bytes = mul i64 %.size, 8\n");
-        result.append("    %.parentbytes = mul i64 %.parentsz, 8\n");
-        result.append("    %.vt = call i64* @malloc(i64 %.bytes)\n");
-        result.append("    %.parentvt = load i64*,i64** \
-                       @``declarationName(parent)``$vtable\n");
-        result.append("    call void @llvm.memcpy.p0i64.p0i64.i64(\
-                       i64* %.vt, i64* %.parentvt, i64 %.parentsz, i32 8, \
-                       i1 0)\n");
-        result.append("    store i64* %.vt, i64** \
-                       @``declarationName(model)``$vtable\n");
-        result.append("    ret void\n");
-        result.append("}\n\n");
-        result.append("@llvm.global_ctors = appending global \
-                       [1 x %.constructor_type] \
-                       [%.constructor_type { \
-                       i32 ``vtableConstructorPriority``, \
-                       void ()* @``declarationName(model)``$vtsetup }]\n\n");
-
-        return result.string;
+        return {sizeFunction, directConstructor, vtableCode, vtSizeFunction,
+            vtSetupFunction, vtConstruct};
     }
 
     shared actual void vtableEntry(DeclarationModel d)
         => vtable.add(d);
 
-    shared actual {String|LLVMFunction*} results
-        => super.results.follow(additionalCalls);
+    shared actual {String|LLVMDeclaration*} results
+        => super.results.chain(additionalCalls);
 }
 
 "Scope of a getter method"
@@ -385,7 +356,7 @@ class FunctionScope(FunctionModel model) extends CallableScope(model) {
 
 "The outermost scope of the compilation unit"
 class UnitScope() extends Scope() {
-    value globalVariables = StringBuilder();
+    value globalVariables = ArrayList<LLVMGlobal>();
     shared actual String definitionName => "__ceylon_constructor";
     shared actual String modifiers => "private";
     shared actual String returnType => "void";
@@ -395,8 +366,7 @@ class UnitScope() extends Scope() {
             String? startValue) {
         value name = namePrefix(declaration);
 
-        globalVariables.append(
-                "@``name`` = global i64* ``startValue else "null"``\n");
+        globalVariables.add(LLVMGlobal(name, startValue));
     }
 
     "Code to register the constructor with LLVM"
@@ -412,8 +382,8 @@ class UnitScope() extends Scope() {
                 void ()* @__ceylon_constructor }]\n";
     }
 
-    shared actual {String|LLVMFunction*} results => {globalVariables.string,
-        *super.results}.follow(constructor).narrow<Object>();
+    shared actual {String|LLVMDeclaration*} results => globalVariables.chain(
+        super.results).follow(constructor).narrow<Object>();
 
     shared actual GetterScope getterFor(ValueModel model) {
         value getterScope = GetterScope(model);
