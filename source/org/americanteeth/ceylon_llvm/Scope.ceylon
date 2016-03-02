@@ -196,10 +196,6 @@ abstract class Scope() of CallableScope|UnitScope {
 
         if (exists p = postfix) {
             llvmFunction.addInstructions(p);
-
-            if (definitionName == "__ceylon_constructor") {
-                print(llvmFunction);
-            }
         }
 
         return {llvmFunction};
