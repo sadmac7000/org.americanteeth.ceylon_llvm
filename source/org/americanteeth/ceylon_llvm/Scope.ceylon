@@ -185,7 +185,7 @@ abstract class Scope() of CallableScope|UnitScope {
         assert(false);
     }
 
-    shared default {String|LLVMDeclaration*} results {
+    shared default {LLVMDeclaration*} results {
         value fullArguments =
             if (nestedScope)
             then ["i64* %.context", *arguments]
@@ -259,7 +259,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
     shared actual [String*] arguments
         => ["i64* %.frame", *parameterListToLLVMStrings(model.parameterList)];
 
-    {String|LLVMDeclaration*} additionalCalls {
+    shared actual {LLVMDeclaration*} results {
         value parent = model.extendedType.declaration;
 
         value sizeFunction = LLVMFunction(declarationName(model) + "$size", "i64",
@@ -314,23 +314,16 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
             "ret void"
         );
 
+        vtSetupFunction.makeConstructor(vtableConstructorPriority);
+
         value vtableCode = LLVMGlobal(declarationName(model) + "$vtable");
 
-        value vtConstruct = "@llvm.global_ctors = appending global \
-                             [1 x %.constructor_type] \
-                             [%.constructor_type { \
-                             i32 ``vtableConstructorPriority``, \
-                             void ()* @``declarationName(model)``$vtsetup }]";
-
-        return {sizeFunction, directConstructor, vtableCode, vtSizeFunction,
-            vtSetupFunction, vtConstruct};
+        return super.results.chain{sizeFunction, directConstructor, vtableCode,
+            vtSizeFunction, vtSetupFunction};
     }
 
     shared actual void vtableEntry(DeclarationModel d)
         => vtable.add(d);
-
-    shared actual {String|LLVMDeclaration*} results
-        => super.results.chain(additionalCalls);
 }
 
 "Scope of a getter method"
@@ -365,21 +358,14 @@ class UnitScope() extends Scope() {
         globalVariables.add(LLVMGlobal(name, startValue));
     }
 
-    "Code to register the constructor with LLVM"
-    String? constructor {
-        if (! hasInstructions) {
-            return null;
-        }
+    shared actual {LLVMDeclaration*} results {
+        value superResults = super.results;
 
-        return "@llvm.global_ctors = appending global \
-                [1 x %.constructor_type] \
-                [%.constructor_type { \
-                i32 ``toplevelConstructorPriority``, \
-                void ()* @__ceylon_constructor }]\n";
+        assert(is LLVMFunction s = superResults.first);
+        s.makeConstructor(toplevelConstructorPriority);
+
+        return globalVariables.chain(superResults);
     }
-
-    shared actual {String|LLVMDeclaration*} results => globalVariables.chain(
-        super.results).follow(constructor).narrow<Object>();
 
     shared actual GetterScope getterFor(ValueModel model) {
         value getterScope = GetterScope(model);

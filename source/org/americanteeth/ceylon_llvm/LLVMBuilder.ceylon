@@ -149,8 +149,15 @@ class LLVMBuilder() satisfies Visitor {
 
     "The code we are outputting"
     value output = LLVMUnit();
-    string => preamble + stringTable + predeclarations + output.string + "\n\n"
-        + "\n\n".join(unitScope.results.map(Object.string)) + runSymbolAlias;
+
+    shared actual String string {
+        for (item in unitScope.results) {
+            output.append(item);
+        }
+
+        return preamble + stringTable + predeclarations + output.string +
+        runSymbolAlias;
+    }
 
     "Return value from the most recent instruction"
     variable String? lastReturn = null;
