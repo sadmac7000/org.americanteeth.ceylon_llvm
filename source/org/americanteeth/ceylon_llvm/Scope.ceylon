@@ -76,6 +76,17 @@ abstract class Scope() of CallableScope|UnitScope {
         return temp;
     }
 
+    "Add a call instruction"
+    shared String addCallInstruction(String type, String name, String* args) {
+        return addValueInstruction(
+                "call ``type`` @``name``(``", ".join(args)``)");
+    }
+
+    "Add a call instruction for a function returning void"
+    shared void addVoidCallInstruction(String name, String* args) {
+        return addInstruction("call void @``name``(``", ".join(args)``)");
+    }
+
     "Whether any instructions have been added"
     shared Boolean hasInstructions => !instructions.empty;
 
@@ -172,11 +183,11 @@ abstract class Scope() of CallableScope|UnitScope {
         usedItems.add(declaration);
 
         value context = if (exists f = getFrameFor(declaration))
-                        then "i64* ``f``"
-                        else "";
+                        then {"i64* ``f``"}
+                        else {""};
 
-        return addValueInstruction(
-                "call i64* @``declarationName(declaration)``$get(``context``)");
+        return addCallInstruction("i64*",
+                "``declarationName(declaration)``$get", *context);
     }
 
     "Add a vtable entry for the given declaration model"
@@ -251,8 +262,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
     shared actual String getAllocationOffset(Integer slot, Scope scope) {
         value parent = model.extendedType.declaration;
 
-        value shift = scope.addValueInstruction(
-                "call i64 @``declarationName(parent)``$size()");
+        value shift = scope.addCallInstruction("i64",
+                "``declarationName(parent)``$size");
         return scope.addValueInstruction("add i64 ``shift``, ``slot``");
     }
 

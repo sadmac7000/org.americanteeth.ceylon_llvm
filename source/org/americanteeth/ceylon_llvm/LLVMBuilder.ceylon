@@ -281,26 +281,22 @@ class LLVMBuilder() satisfies Visitor {
         assert(is Tree.InvocationExpression tc = target.get(keys.tcNode));
         assert(is Tree.ExtendedTypeExpression te = tc.primary);
 
-        value instruction = StringBuilder();
-
-        instruction.append("call void \
-                            @``declarationName(te.declaration)``$init(");
-        instruction.append("i64* %.frame");
         usedItems.add(te.declaration);
 
-        if (exists arguments = target.arguments) {
+        value arguments = ArrayList<String>();
 
-            for (argument in arguments.argumentList.children) {
+        if (exists argNode = target.arguments) {
+            for (argument in argNode.argumentList.children) {
                 argument.visit(this);
 
                 "Arguments must have a value"
                 assert(exists l = lastReturn);
-                instruction.append(", i64* ``l``");
+                arguments.append("i64* ``l``");
             }
         }
 
-        instruction.append(")");
-        scope.addInstruction(instruction.string);
+        scope.addVoidCallInstruction("``declarationName(te.declaration)``$init",
+                "i64* %.frame", *arguments);
     }
 
     shared actual void visitLazySpecifier(LazySpecifier that) {
@@ -372,10 +368,8 @@ class LLVMBuilder() satisfies Visitor {
 
         "Base expressions should have Base Member or Base Type RH nodes"
         assert(is Tree.MemberOrTypeExpression bt = b.get(keys.tcNode));
-        value instruction = StringBuilder();
+        value arguments = ArrayList<String>();
 
-        instruction.append("call i64* @");
-        instruction.append(declarationName(bt.declaration) + "(");
         usedItems.add(bt.declaration);
 
         "We don't support named arguments yet"
@@ -384,34 +378,25 @@ class LLVMBuilder() satisfies Visitor {
         "We don't support sequence arguments yet"
         assert(! pa.argumentList.sequenceArgument exists);
 
-        variable Boolean first = false;
-
         if (is QualifiedExpression b) {
             b.receiverExpression.visit(this);
             assert(exists l = lastReturn);
-            instruction.append("i64* ``l``");
+            arguments.add("i64* ``l``");
         } else if (exists f = scope.getFrameFor(bt.declaration)) {
-            instruction.append("i64* ``f``");
-        } else {
-            first = true;
+            arguments.add("i64* ``f``");
         }
 
         for (arg in pa.argumentList.listedArguments) {
             arg.visit(this);
 
-            if (! first) {
-                instruction.append(", ");
-            }
-
             "Arguments should have a value"
             assert(exists l = lastReturn);
-            instruction.append("i64* ``l``");
+            arguments.add("i64* ``l``");
 
-            first = false;
         }
 
-        instruction.append(")");
-        lastReturn = scope.addValueInstruction(instruction.string);
+        lastReturn = scope.addCallInstruction("i64*",
+                declarationName(bt.declaration), *arguments);
     }
 
     shared actual void visitBaseExpression(BaseExpression that) {
@@ -432,7 +417,7 @@ class LLVMBuilder() satisfies Visitor {
         that.receiverExpression.visit(this);
         assert(exists target = lastReturn);
 
-        lastReturn = scope.addValueInstruction(
-                "call i64* @``getterName``(i64* ``target``)");
+        lastReturn = scope.addCallInstruction("i64*", getterName,
+                "i64* ``target``");
     }
 }
