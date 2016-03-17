@@ -196,14 +196,14 @@ abstract class Scope() of CallableScope|UnitScope {
         assert(false);
     }
 
-    shared default {LLVMDeclaration*} results {
-        value fullArguments =
-            if (nestedScope)
-            then ["i64* %.context", *arguments]
-            else arguments;
+    shared default LLVMFunction constructPrimary()
+        => LLVMFunction(definitionName, returnType, modifiers,
+                if (nestedScope)
+                then ["i64* %.context", *arguments]
+                else arguments, [*initFrame().chain(instructions)]);
 
-        value llvmFunction = LLVMFunction(definitionName, returnType,
-                modifiers, fullArguments, [*initFrame().chain(instructions)]);
+    shared default {LLVMDeclaration*} results {
+        value llvmFunction = constructPrimary();
 
         if (exists p = postfix) {
             llvmFunction.addInstructions(p);
