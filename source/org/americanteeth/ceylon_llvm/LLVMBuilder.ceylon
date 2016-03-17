@@ -291,7 +291,7 @@ class LLVMBuilder() satisfies Visitor {
 
                 "Arguments must have a value"
                 assert(exists l = lastReturn);
-                arguments.append("i64* ``l``");
+                arguments.add("i64* ``l``");
             }
         }
 

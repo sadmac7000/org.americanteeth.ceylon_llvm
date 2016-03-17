@@ -84,7 +84,7 @@ abstract class Scope() of CallableScope|UnitScope {
 
     "Add a call instruction for a function returning void"
     shared void addVoidCallInstruction(String name, String* args) {
-        return addInstruction("call void @``name``(``", ".join(args)``)");
+        addInstruction("call void @``name``(``", ".join(args)``)");
     }
 
     "Whether any instructions have been added"
