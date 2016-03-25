@@ -2,14 +2,14 @@ import com.redhat.ceylon.cmr.ceylon {
     RepoUsingTool
 }
 
-import com.redhat.ceylon.common {
+/*import com.redhat.ceylon.common {
     ModuleUtil
 }
 
 import com.redhat.ceylon.cmr.api {
-    //ArtifactContext,
+    ArtifactContext,
     ModuleQuery
-}
+}*/
 
 import com.redhat.ceylon.common.tool {
         argument=argument__SETTER
@@ -26,12 +26,12 @@ class NativeRunTool() extends RepoUsingTool(null) {
     String moduleString = "";
 
     shared actual void run() {
-        String moduleName = ModuleUtil.moduleName(moduleString);
+        /*String moduleName = ModuleUtil.moduleName(moduleString);
         String? moduleVersion =
             checkModuleVersionsOrShowSuggestions(repositoryManager, moduleName,
                     ModuleUtil.moduleVersion(moduleString),
                     ModuleQuery.Type.\iALL, null, null);
         print(moduleName);
-        print(moduleVersion);
+        print(moduleVersion);*/
     }
 }

@@ -1,5 +1,5 @@
-import ceylon.io.base64 { encodeUrl }
-import ceylon.io.charset { utf8 }
+import ceylon.buffer.base { base64StringUrl }
+import ceylon.buffer.charset { utf8 }
 
 import com.redhat.ceylon.model.typechecker.model {
     Declaration,
@@ -30,7 +30,7 @@ String declarationName(Declaration|Scope p) {
         .reduce<String>((x, y) => x.string + ".``y.string``")?.string;
     assert(exists pkg);
 
-    return "c" + utf8.decode(encodeUrl(utf8.encode(v)))
+    return "c" + base64StringUrl.encode(utf8.encode(v))
             .replace("=", "")
             .replace("-", "$") + ".``pkg``";
 }

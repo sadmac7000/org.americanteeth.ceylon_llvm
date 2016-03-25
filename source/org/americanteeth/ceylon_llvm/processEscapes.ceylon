@@ -1,4 +1,4 @@
-import ceylon.io.charset { utf8 }
+import ceylon.buffer.charset { utf8 }
 
 "Get a hex string for a byte"
 String byteHex(Byte b)
