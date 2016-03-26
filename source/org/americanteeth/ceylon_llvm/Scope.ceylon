@@ -39,25 +39,10 @@ abstract class Scope() of CallableScope|UnitScope {
     shared HashSet<ValueModel> usedItems = HashSet<ValueModel>();
 
     "List of instructions"
-    value instructions = ArrayList<String>();
-
-    "Name of the function definition we will generate"
-    shared formal String definitionName;
-
-    "Name of the function definition we will generate"
-    shared default [String*] arguments = [];
+    shared ArrayList<String> instructions = ArrayList<String>();
 
     "Trailing instructions for definition"
     shared default String? postfix = null;
-
-    "Visibility and linkage for the definition"
-    shared default String modifiers = "";
-
-    "LLVM return type"
-    shared default String returnType = "i64*";
-
-    "Whether this scope is a nested function/class/etc."
-    shared default Boolean nestedScope = false;
 
     "Is there an allocation for this value in the frame for this scope"
     shared Boolean allocates(ValueModel v) => allocations.defines(v);
@@ -151,29 +136,6 @@ abstract class Scope() of CallableScope|UnitScope {
         addInstruction("store i64 ``tmp``, i64* ``offset``");
     }
 
-    "Add instructions to initialize the frame object"
-    shared default [String*] initFrame() {
-        if (allocationBlock < 0 && !nestedScope) {
-            return ["%.frame = bitcast i64* null to i64*"];
-        }
-
-        value blocksTotal =
-            if (nestedScope)
-            then allocationBlock + 1
-            else allocationBlock;
-        value bytesTotal = blocksTotal * 8;
-
-        value alloc = "%.frame = call i64* @malloc(i64 ``bytesTotal``)";
-
-        if (! nestedScope) {
-            return [alloc];
-        }
-
-        return [alloc,
-                "%.context_cast = ptrtoint i64* %.context to i64",
-                "store i64 %.context_cast, i64* %.frame"];
-    }
-
     "Access a declaration"
     shared String access(ValueModel declaration) {
         if (exists cached = currentValues[declaration]) {
@@ -196,11 +158,7 @@ abstract class Scope() of CallableScope|UnitScope {
         assert(false);
     }
 
-    shared default LLVMFunction constructPrimary()
-        => LLVMFunction(definitionName, returnType, modifiers,
-                if (nestedScope)
-                then ["i64* %.context", *arguments]
-                else arguments, [*initFrame().chain(instructions)]);
+    shared formal LLVMFunction constructPrimary();
 
     shared default {LLVMDeclaration*} results {
         value llvmFunction = constructPrimary();
@@ -213,10 +171,36 @@ abstract class Scope() of CallableScope|UnitScope {
     }
 }
 
-abstract class CallableScope(DeclarationModel model) extends Scope() {
-    shared default String namePostfix = "";
-    shared actual Boolean nestedScope = !model.toplevel;
-    shared actual String definitionName => declarationName(model) + namePostfix;
+abstract class CallableScope(DeclarationModel model, String namePostfix = "")
+        extends Scope() {
+    "Add instructions to initialize the frame object"
+    shared [String*] initFrame() {
+        if (allocatedBlocks < 0 && !model.toplevel) {
+            return ["%.frame = bitcast i64* null to i64*"];
+        }
+
+        value blocksTotal =
+            if (!model.toplevel)
+            then allocatedBlocks + 1
+            else allocatedBlocks;
+        value bytesTotal = blocksTotal * 8;
+
+        value alloc = "%.frame = call i64* @malloc(i64 ``bytesTotal``)";
+
+        if (model.toplevel) {
+            return [alloc];
+        }
+
+        return [alloc,
+                "%.context_cast = ptrtoint i64* %.context to i64",
+                "store i64 %.context_cast, i64* %.frame"];
+    }
+
+    shared actual default LLVMFunction constructPrimary()
+        => LLVMFunction(declarationName(model) + namePostfix, "i64*", "",
+                if (!model.toplevel)
+                then ["i64* %.context"]
+                else [], [*initFrame().chain(instructions)]);
 
     shared actual String? getFrameFor(DeclarationModel declaration) {
         if (is ValueModel declaration, allocates(declaration)) {
@@ -255,9 +239,20 @@ abstract class CallableScope(DeclarationModel model) extends Scope() {
 class ConstructorScope(ClassModel model) extends CallableScope(model) {
     value vtable = ArrayList<DeclarationModel>();
     shared actual String postfix = "ret void";
-    shared actual String namePostfix = "$init";
-    shared actual [String*] initFrame() => [];
-    shared actual String returnType => "void";
+
+    [String*] arguments {
+        value prepend =
+            if (!model.toplevel)
+            then ["i64* %.context", "i64* %.frame"]
+            else ["i64* %.frame"];
+
+        return prepend.chain(parameterListToLLVMStrings(
+                    model.parameterList)).sequence();
+    }
+
+    shared actual default LLVMFunction constructPrimary()
+        => LLVMFunction(declarationName(model) + "$init", "void", "",
+                arguments, instructions.sequence());
 
     shared actual String getAllocationOffset(Integer slot, Scope scope) {
         value parent = model.extendedType.declaration;
@@ -267,14 +262,11 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
         return scope.addValueInstruction("add i64 ``shift``, ``slot``");
     }
 
-    shared actual [String*] arguments
-        => ["i64* %.frame", *parameterListToLLVMStrings(model.parameterList)];
-
     shared actual {LLVMDeclaration*} results {
         value parent = model.extendedType.declaration;
 
         value sizeFunction = LLVMFunction(declarationName(model) + "$size", "i64",
-                modifiers, [], []);
+                "", [], []);
         sizeFunction.addInstructions(
             "%.extendedSize = call i64 @``declarationName(parent)``$size()",
             "%.total = add i64 %.extendedSize, ``allocatedBlocks``",
@@ -282,7 +274,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
         );
 
         value directConstructor = LLVMFunction(declarationName(model), "i64*",
-                modifiers, parameterListToLLVMStrings(model.parameterList), []);
+                "", parameterListToLLVMStrings(model.parameterList), []);
         directConstructor.addInstructions(
             "%.words = call i64 @``declarationName(model)``$size()",
             "%.bytes = mul i64 %.words, 8\n",
@@ -338,33 +330,34 @@ class ConstructorScope(ClassModel model) extends CallableScope(model) {
 }
 
 "Scope of a getter method"
-class GetterScope(ValueModel model) extends CallableScope(model) {
-    shared actual String namePostfix = "$get";
-}
+class GetterScope(ValueModel model) extends CallableScope(model, "$get") {}
 
 "Scope of a setter method"
-class SetterScope(ValueModel model) extends CallableScope(model) {
-    shared actual String namePostfix = "$set";
-}
+class SetterScope(ValueModel model) extends CallableScope(model, "$set") {}
 
 "The scope of a function"
 class FunctionScope(FunctionModel model) extends CallableScope(model) {
     shared actual String postfix => "ret i64* null";
-    shared actual [String*] arguments
-        => parameterListToLLVMStrings(model.firstParameterList);
+    shared actual default LLVMFunction constructPrimary()
+        => LLVMFunction(declarationName(model), "i64*", "",
+                if (!model.toplevel)
+                then ["i64* %.context", *parameterListToLLVMStrings(model.firstParameterList)]
+                else parameterListToLLVMStrings(model.firstParameterList),
+                [*initFrame().chain(instructions)]);
 }
 
 "The outermost scope of the compilation unit"
 class UnitScope() extends Scope() {
     value globalVariables = ArrayList<LLVMGlobal>();
-    shared actual String definitionName => "__ceylon_constructor";
-    shared actual String modifiers => "private";
-    shared actual String returnType => "void";
     shared actual String postfix => "ret void";
+
+    shared actual default LLVMFunction constructPrimary()
+        => LLVMFunction("__ceylon_constructor", "void", "private",
+                [], instructions.sequence());
 
     shared actual void allocate(ValueModel declaration,
             String? startValue) {
-        value name = namePrefix(declaration);
+        value name = declarationName(declaration);
 
         globalVariables.add(LLVMGlobal(name, startValue));
     }
