@@ -25,12 +25,17 @@ String declarationName(Declaration|Scope p) {
 
     assert(is Package p);
 
-    value v = p.\imodule.version;
+    String? v = p.\imodule.version;
     value pkg = CeylonList(p.name)
         .reduce<String>((x, y) => x.string + ".``y.string``")?.string;
     assert(exists pkg);
-
-    return "c" + base64StringUrl.encode(utf8.encode(v))
+    
+    value vEncoded = 
+        if (exists v)
+        then base64StringUrl.encode(utf8.encode(v))
             .replace("=", "")
-            .replace("-", "$") + ".``pkg``";
+            .replace("-", "$")
+        else "";
+
+    return "c``vEncoded``.``pkg``";
 }
