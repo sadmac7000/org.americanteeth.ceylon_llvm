@@ -175,7 +175,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         extends Scope() {
     "Add instructions to initialize the frame object"
     shared [String*] initFrame() {
-        if (allocatedBlocks < 0 && !model.toplevel) {
+        if (allocatedBlocks == 0 && model.toplevel) {
             return ["%.frame = bitcast i64* null to i64*"];
         }
 
