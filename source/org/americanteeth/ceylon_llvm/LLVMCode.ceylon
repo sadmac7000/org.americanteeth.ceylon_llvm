@@ -34,8 +34,7 @@ class LLVMUnit() {
 
 class LLVMFunction(String n, shared String returnType,
         shared String modifiers,
-        shared [String*] arguments,
-        shared [String*] bodyStart) extends LLVMDeclaration(n) {
+        shared [String*] arguments) extends LLVMDeclaration(n) {
 
     String argList => ", ".join(arguments);
     String modString => if (modifiers.empty) then "" else modifiers + " ";
@@ -46,13 +45,26 @@ class LLVMFunction(String n, shared String returnType,
     shared void makeConstructor(Integer priority)
         => constructorPriority_ = priority;
 
-    value bodyItems = ArrayList{*bodyStart};
-    value body => "\n    ".join(bodyItems);
+    value stubReturn => switch(returnType)
+        case ("i64*") "ret i64* null"
+        case ("void") "ret void"
+        else "/* Could not generate default return */";
+
+    value bodyItems = ArrayList<String>();
+
+    value augmentedBodyItems =>
+        if (exists b = bodyItems.last, b.startsWith("ret "))
+        then bodyItems
+        else bodyItems.sequence().withTrailing(stubReturn);
+
+    value body => "\n    ".join(augmentedBodyItems);
 
     value bodyPadded => if (body.empty) then "" else "\n    ``body``\n";
 
     shared void addInstructions(String* instructions)
         => bodyItems.addAll(instructions);
+    shared void addInstructionsPre(String* instructions)
+        => bodyItems.insertAll(0, instructions);
 
     string => "define ``modString````returnType`` @``name``(``argList``) {\
                ``bodyPadded``}";
