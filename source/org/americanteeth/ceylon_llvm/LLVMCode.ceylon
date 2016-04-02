@@ -32,12 +32,19 @@ class LLVMUnit() {
     string => "\n\n".join(items.map(Object.string).follow(constructorItem));
 }
 
+interface LLVMCodeTarget<ReturnValue>
+        given ReturnValue satisfies Anything {
+    shared formal ReturnValue addInstruction(String instruction);
+}
+
 class LLVMFunction(String n, shared String returnType,
-        shared String modifiers,
-        shared [String*] arguments) extends LLVMDeclaration(n) {
+                   shared String modifiers,
+                   shared [String*] arguments)
+        extends LLVMDeclaration(n)
+        satisfies LLVMCodeTarget<Anything> {
+    variable value nextTemporary = 0;
 
     String argList => ", ".join(arguments);
-    String modString => if (modifiers.empty) then "" else modifiers + " ";
 
     variable Integer? constructorPriority_ = null;
     shared Integer? constructorPriority => constructorPriority_;
@@ -45,7 +52,7 @@ class LLVMFunction(String n, shared String returnType,
     shared void makeConstructor(Integer priority)
         => constructorPriority_ = priority;
 
-    value stubReturn => switch(returnType)
+    value stubReturn = switch(returnType)
         case ("i64*") "ret i64* null"
         case ("void") "ret void"
         else "/* Could not generate default return */";
@@ -65,9 +72,26 @@ class LLVMFunction(String n, shared String returnType,
         => bodyItems.addAll(instructions);
     shared void addInstructionsPre(String* instructions)
         => bodyItems.insertAll(0, instructions);
+    shared actual void addInstruction(String instruction)
+        => addInstructions(instruction);
 
-    string => "define ``modString````returnType`` @``name``(``argList``) {\
+    string => "define ``modifiers`` ``returnType`` @``name``(``argList``) {\
                ``bodyPadded``}";
+
+    shared LLVMCodeTarget<String> register(String? regNameIn = null)
+        => object satisfies LLVMCodeTarget<String> {
+            value regName =
+                if (exists regNameIn)
+                then "%.``regNameIn``"
+                else "%.``nextTemporary++``";
+
+            shared actual String addInstruction(String instruction) {
+                bodyItems.add("``regName`` = ``instruction``");
+                return name;
+            }
+
+            string => regName;
+        };
 }
 
 class LLVMGlobal(String n, String? startValue = null)

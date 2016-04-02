@@ -32,7 +32,6 @@ abstract class Scope() of CallableScope|UnitScope {
     value currentValues = HashMap<ValueModel,String>();
     value allocations = HashMap<ValueModel,Integer>();
     variable value allocationBlock = 0;
-    variable value nextTemporary = 0;
 
     shared Integer allocatedBlocks => allocationBlock;
 
@@ -41,19 +40,13 @@ abstract class Scope() of CallableScope|UnitScope {
     "Is there an allocation for this value in the frame for this scope"
     shared Boolean allocates(ValueModel v) => allocations.defines(v);
 
-    "Allocate a new temporary label"
-    shared String allocateTemporary() => "%.``nextTemporary++``";
-
     "Add an instruction to this scope"
     shared void addInstruction(String instruction)
         => primary.addInstructions(instruction);
 
     "Add an instruction that returns a value to this scope"
-    shared String addValueInstruction(String instruction) {
-        value temp = allocateTemporary();
-        addInstruction("``temp`` = ``instruction``");
-        return temp;
-    }
+    shared String addValueInstruction(String instruction)
+        => primary.register().addInstruction(instruction);
 
     "Add a call instruction"
     shared String addCallInstruction(String type, String name, String* args) {
