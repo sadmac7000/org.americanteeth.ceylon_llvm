@@ -87,7 +87,7 @@ class LLVMFunction(String n, shared String returnType,
 
             shared actual String addInstruction(String instruction) {
                 bodyItems.add("``regName`` = ``instruction``");
-                return name;
+                return regName;
             }
 
             string => regName;
