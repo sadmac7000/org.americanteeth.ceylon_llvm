@@ -228,11 +228,6 @@ class LLVMBuilder() satisfies Visitor {
 
         declaredItems.add(model);
 
-        if (exists g = scope.getterFor(model)) {
-            push(g);
-            pop();
-        }
-
         if (!model.\ivariable) {
             return;
         }
@@ -262,12 +257,7 @@ class LLVMBuilder() satisfies Visitor {
         for (parameter in CeylonList(model.parameterList.parameters)) {
             assert(is ValueModel v = parameter.model);
             scope.allocate(v, "%``parameter.name``");
-
-            if (exists g = scope.getterFor(v)) {
-                declaredItems.add(v);
-                push(g);
-                pop();
-            }
+            declaredItems.add(v);
         }
 
         that.extendedType?.visit(this);
@@ -350,12 +340,7 @@ class LLVMBuilder() satisfies Visitor {
         for (parameter in CeylonList(firstParameterList.parameters)) {
             assert(is ValueModel v = parameter.model);
             scope.allocate(v, "%``parameter.name``");
-
-            if (exists g = scope.getterFor(v)) {
-                declaredItems.add(v);
-                push(g);
-                pop();
-            }
+            declaredItems.add(v);
         }
 
         that.definition?.visit(this);

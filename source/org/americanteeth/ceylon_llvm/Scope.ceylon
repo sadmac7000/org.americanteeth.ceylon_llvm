@@ -29,6 +29,8 @@ Integer vtableConstructorPriority = 65534;
 
 "A scope containing instructions"
 abstract class Scope() of CallableScope|UnitScope {
+    value getters = ArrayList<LLVMDeclaration>();
+    value setters = ArrayList<LLVMDeclaration>();
     value currentValues = HashMap<ValueModel,String>();
     value allocations = HashMap<ValueModel,Integer>();
     variable value allocationBlock = 0;
@@ -68,12 +70,8 @@ abstract class Scope() of CallableScope|UnitScope {
     }
 
     "Add instructions to fetch an allocated element"
-    shared default GetterScope? getterFor(ValueModel model) {
-        value slot = allocations[model];
-
-        if (! exists slot) {
-            return null;
-        }
+    shared default GetterScope getterFor(ValueModel model) {
+        assert(exists slot = allocations[model]);
 
         value getterScope = GetterScope(model);
         value offset = getAllocationOffset(slot, getterScope);
@@ -118,6 +116,8 @@ abstract class Scope() of CallableScope|UnitScope {
         value offset = addValueInstruction(
                 "getelementptr i64, i64* %.frame, i64 ``slotOffset``");
         addInstruction("store i64 ``tmp``, i64* ``offset``");
+
+        getters.addAll(getterFor(declaration).results);
     }
 
     "Access a declaration"
@@ -143,11 +143,11 @@ abstract class Scope() of CallableScope|UnitScope {
     }
 
     shared formal LLVMFunction primary;
-    shared formal [String*] initFrame();
+    shared default [String*] initFrame() => [];
 
     shared default {LLVMDeclaration*} results {
         primary.addInstructionsPre(*initFrame());
-        return {primary};
+        return {primary, *getters};
     }
 }
 
@@ -216,7 +216,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
 }
 
 "Scope of a class body"
-class ConstructorScope(ClassModel model) extends CallableScope(model) {
+class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     value vtable = ArrayList<DeclarationModel>();
 
     shared actual [String*] initFrame() => [];
@@ -328,8 +328,6 @@ class FunctionScope(FunctionModel model) extends CallableScope(model) {
 "The outermost scope of the compilation unit"
 class UnitScope() extends Scope() {
     value globalVariables = ArrayList<LLVMGlobal>();
-
-    shared actual [String*] initFrame() => [];
 
     shared actual LLVMFunction primary
         = LLVMFunction("__ceylon_constructor", "void", "private", []);
