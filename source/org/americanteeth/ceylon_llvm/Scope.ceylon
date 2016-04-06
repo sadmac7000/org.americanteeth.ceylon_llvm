@@ -38,26 +38,14 @@ abstract class Scope() of CallableScope|UnitScope {
 
     shared HashSet<ValueModel> usedItems = HashSet<ValueModel>();
 
+    shared LLVMFunction body => primary;
+
     "Is there an allocation for this value in the frame for this scope"
     shared Boolean allocates(ValueModel v) => allocations.defines(v);
 
-    "Add an instruction to this scope"
-    shared void addInstruction(String instruction)
-        => primary.addInstructions(instruction);
-
-    "Add an instruction that returns a value to this scope"
-    shared String addValueInstruction(String instruction)
-        => primary.register().addInstruction(instruction);
-
-    "Add a call instruction"
-    shared String addCallInstruction(String type, String name, String* args) {
-        return addValueInstruction(
-                "call ``type`` @``name``(``", ".join(args)``)");
-    }
-
     "Add a call instruction for a function returning void"
     shared void addVoidCallInstruction(String name, String* args) {
-        addInstruction("call void @``name``(``", ".join(args)``)");
+        primary.instruction("call void @``name``(``", ".join(args)``)");
     }
 
     "Get the frame variable for a nested declaration"
@@ -76,13 +64,13 @@ abstract class Scope() of CallableScope|UnitScope {
 
         value offset = getAllocationOffset(slot, getter);
 
-        value address = getter.register().addInstruction(
+        value address = getter.register().instruction(
                 "getelementptr i64, i64* %.context, i64 ``offset``");
-        value data = getter.register().addInstruction(
+        value data = getter.register().instruction(
                 "load i64,i64* ``address``");
-        value cast = getter.register().addInstruction(
+        value cast = getter.register().instruction(
                 "inttoptr i64 ``data`` to i64*");
-        getter.addInstruction("ret i64* ``cast``");
+        getter.instruction("ret i64* ``cast``");
 
         return getter;
     }
@@ -105,11 +93,11 @@ abstract class Scope() of CallableScope|UnitScope {
             value slotOffset = getAllocationOffset(allocationBlock - 1,
                     primary);
 
-            value tmp = addValueInstruction(
+            value tmp = primary.register().instruction(
                     "ptrtoint i64* ``startValue`` to i64");
-            value offset = addValueInstruction(
+            value offset = primary.register().instruction(
                     "getelementptr i64, i64* %.frame, i64 ``slotOffset``");
-            addInstruction("store i64 ``tmp``, i64* ``offset``");
+            primary.instruction("store i64 ``tmp``, i64* ``offset``");
         }
 
         getters.add(getterFor(declaration));
@@ -123,12 +111,8 @@ abstract class Scope() of CallableScope|UnitScope {
 
         usedItems.add(declaration);
 
-        value context = if (exists f = getFrameFor(declaration))
-                        then {"i64* ``f``"}
-                        else {""};
-
-        return addCallInstruction("i64*",
-                "``declarationName(declaration)``$get", *context);
+        return primary.register().call("``declarationName(declaration)``$get",
+                *{getFrameFor(declaration)}.coalesced);
     }
 
     "Add a vtable entry for the given declaration model"
@@ -173,8 +157,10 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         variable String context = "%.context";
 
         while (is DeclarationModel v = visitedContainer, v != container) {
-            value fetch = addValueInstruction("load i64,i64* ``context``");
-            context = addValueInstruction("inttoptr i64 ``fetch`` to i64*");
+            value fetch = primary.register()
+                .instruction("load i64,i64* ``context``");
+            context = primary.register()
+                .instruction("inttoptr i64 ``fetch`` to i64*");
 
             visitedContainer = v.container;
         }
@@ -234,10 +220,9 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     shared actual String getAllocationOffset(Integer slot, LLVMFunction func) {
         value parent = model.extendedType.declaration;
 
-        value shift = func.register().addInstruction(
+        value shift = func.register().instruction(
                 "call i64 @``declarationName(parent)``$size()");
-        return func.register().addInstruction(
-                "add i64 ``shift``, ``slot``");
+        return func.register().instruction("add i64 ``shift``, ``slot``");
     }
 
     shared actual {LLVMDeclaration*} results {
@@ -333,9 +318,9 @@ class UnitScope() extends Scope() {
     LLVMFunction getterFor(ValueModel model) {
         value getter = LLVMFunction(declarationName(model) + "$get",
                 "i64*", "", []);
-        value ret = getter.register().addInstruction(
+        value ret = getter.register().instruction(
                 "load i64*,i64** @``declarationName(model)``");
-        getter.addInstruction("ret i64* ``ret``");
+        getter.instruction("ret i64* ``ret``");
         return getter;
     }
 

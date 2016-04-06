@@ -2,6 +2,20 @@ import ceylon.collection { ArrayList }
 
 abstract class LLVMDeclaration(shared String name) {}
 
+interface LLVMCodeTarget<ReturnValue>
+        given ReturnValue satisfies Anything {
+    shared formal ReturnValue instruction(String instruction);
+    shared default String resultType => "void";
+
+    shared void ret(String val) => instruction("ret i64* ``val``");
+
+    shared ReturnValue call(String name, String* args) {
+        value argList = ", ".join(args.map((x) => "i64* ``x``"));
+
+        return instruction("call ``resultType`` @``name``(``argList``)");
+    }
+}
+
 class LLVMUnit() {
     value items = ArrayList<LLVMDeclaration>();
 
@@ -30,11 +44,6 @@ class LLVMUnit() {
     }
 
     string => "\n\n".join(items.map(Object.string).follow(constructorItem));
-}
-
-interface LLVMCodeTarget<ReturnValue>
-        given ReturnValue satisfies Anything {
-    shared formal ReturnValue addInstruction(String instruction);
 }
 
 class LLVMFunction(String n, shared String returnType,
@@ -72,7 +81,7 @@ class LLVMFunction(String n, shared String returnType,
         => bodyItems.addAll(instructions);
     shared void addInstructionsPre(String* instructions)
         => bodyItems.insertAll(0, instructions);
-    shared actual void addInstruction(String instruction)
+    shared actual void instruction(String instruction)
         => addInstructions(instruction);
 
     string => "define ``modifiers`` ``returnType`` @``name``(``argList``) {\
@@ -80,12 +89,14 @@ class LLVMFunction(String n, shared String returnType,
 
     shared LLVMCodeTarget<String> register(String? regNameIn = null)
         => object satisfies LLVMCodeTarget<String> {
+            shared actual String resultType = "i64*";
+
             value regName =
                 if (exists regNameIn)
                 then "%.``regNameIn``"
                 else "%.``nextTemporary++``";
 
-            shared actual String addInstruction(String instruction) {
+            shared actual String instruction(String instruction) {
                 bodyItems.add("``regName`` = ``instruction``");
                 return regName;
             }

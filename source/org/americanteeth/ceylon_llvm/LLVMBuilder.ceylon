@@ -282,7 +282,7 @@ class LLVMBuilder() satisfies Visitor {
 
         "Lazy Specifier expression should have a value"
         assert(exists l = lastReturn);
-        scope.addInstruction("ret i64* ``l``");
+        scope.body.ret(l);
     }
 
     shared actual void visitReturn(Return that) {
@@ -297,7 +297,7 @@ class LLVMBuilder() satisfies Visitor {
             val = l;
         }
 
-        scope.addInstruction("ret i64* ``val``");
+        scope.body.ret(val);
     }
 
     shared actual void visitAnyFunction(AnyFunction that) {
@@ -354,9 +354,9 @@ class LLVMBuilder() satisfies Visitor {
         if (is QualifiedExpression b) {
             b.receiverExpression.visit(this);
             assert(exists l = lastReturn);
-            arguments.add("i64* ``l``");
+            arguments.add(l);
         } else if (exists f = scope.getFrameFor(bt.declaration)) {
-            arguments.add("i64* ``f``");
+            arguments.add(f);
         }
 
         for (arg in pa.argumentList.listedArguments) {
@@ -364,12 +364,12 @@ class LLVMBuilder() satisfies Visitor {
 
             "Arguments should have a value"
             assert(exists l = lastReturn);
-            arguments.add("i64* ``l``");
+            arguments.add(l);
 
         }
 
-        lastReturn = scope.addCallInstruction("i64*",
-                declarationName(bt.declaration), *arguments);
+        lastReturn = scope.body.register().call(declarationName(bt.declaration),
+                *arguments);
     }
 
     shared actual void visitBaseExpression(BaseExpression that) {
@@ -390,7 +390,6 @@ class LLVMBuilder() satisfies Visitor {
         that.receiverExpression.visit(this);
         assert(exists target = lastReturn);
 
-        lastReturn = scope.addCallInstruction("i64*", getterName,
-                "i64* ``target``");
+        lastReturn = scope.body.register().call(getterName, target);
     }
 }
