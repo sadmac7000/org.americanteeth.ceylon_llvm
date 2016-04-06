@@ -236,9 +236,6 @@ class LLVMBuilder() satisfies Visitor {
         if (model.setter exists) {
             return;
         }
-
-        push(scope.setterFor(model));
-        pop();
     }
 
     shared actual void visitStringLiteral(StringLiteral that) {

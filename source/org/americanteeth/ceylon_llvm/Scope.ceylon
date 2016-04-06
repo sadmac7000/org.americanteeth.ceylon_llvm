@@ -30,7 +30,6 @@ Integer vtableConstructorPriority = 65534;
 "A scope containing instructions"
 abstract class Scope() of CallableScope|UnitScope {
     value getters = ArrayList<LLVMDeclaration>();
-    value setters = ArrayList<LLVMDeclaration>();
     value currentValues = HashMap<ValueModel,String>();
     value allocations = HashMap<ValueModel,Integer>();
     variable value allocationBlock = 0;
@@ -65,31 +64,27 @@ abstract class Scope() of CallableScope|UnitScope {
     shared default String? getFrameFor(DeclarationModel declaration) => null;
 
     "The allocation offset for this item"
-    shared default String getAllocationOffset(Integer slot, Scope scope) {
-        return (slot + 1).string;
-    }
+    shared default String getAllocationOffset(Integer slot, LLVMFunction func)
+        => (slot+1).string;
 
     "Add instructions to fetch an allocated element"
-    shared default GetterScope getterFor(ValueModel model) {
+    LLVMFunction getterFor(ValueModel model) {
         assert(exists slot = allocations[model]);
 
-        value getterScope = GetterScope(model);
-        value offset = getAllocationOffset(slot, getterScope);
+        value getter = LLVMFunction(declarationName(model) + "$get",
+                "i64*", "", ["i64* %.context"]);
 
-        value address = getterScope.addValueInstruction(
+        value offset = getAllocationOffset(slot, getter);
+
+        value address = getter.register().addInstruction(
                 "getelementptr i64, i64* %.context, i64 ``offset``");
-        value data = getterScope.addValueInstruction(
+        value data = getter.register().addInstruction(
                 "load i64,i64* ``address``");
-        value cast = getterScope.addValueInstruction(
+        value cast = getter.register().addInstruction(
                 "inttoptr i64 ``data`` to i64*");
-        getterScope.addInstruction("ret i64* ``cast``");
+        getter.addInstruction("ret i64* ``cast``");
 
-        return getterScope;
-    }
-
-    "Add instructions to write an allocated element"
-    shared default SetterScope setterFor(ValueModel model) {
-        return SetterScope(model);
+        return getter;
     }
 
     "Create space in this scope for a value"
@@ -105,19 +100,19 @@ abstract class Scope() of CallableScope|UnitScope {
 
         allocations.put(declaration, allocationBlock++);
 
-        if (! exists startValue) {
-            return;
+        if (exists startValue) {
+            /* allocationBlock = the new allocation position + 1 */
+            value slotOffset = getAllocationOffset(allocationBlock - 1,
+                    primary);
+
+            value tmp = addValueInstruction(
+                    "ptrtoint i64* ``startValue`` to i64");
+            value offset = addValueInstruction(
+                    "getelementptr i64, i64* %.frame, i64 ``slotOffset``");
+            addInstruction("store i64 ``tmp``, i64* ``offset``");
         }
 
-        /* allocationBlock = the new allocation position + 1 */
-        value slotOffset = getAllocationOffset(allocationBlock - 1, this);
-
-        value tmp = addValueInstruction("ptrtoint i64* ``startValue`` to i64");
-        value offset = addValueInstruction(
-                "getelementptr i64, i64* %.frame, i64 ``slotOffset``");
-        addInstruction("store i64 ``tmp``, i64* ``offset``");
-
-        getters.addAll(getterFor(declaration).results);
+        getters.add(getterFor(declaration));
     }
 
     "Access a declaration"
@@ -235,12 +230,14 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         = LLVMFunction(declarationName(model) + "$init", "void", "",
                 arguments);
 
-    shared actual String getAllocationOffset(Integer slot, Scope scope) {
+    "The allocation offset for this item"
+    shared actual String getAllocationOffset(Integer slot, LLVMFunction func) {
         value parent = model.extendedType.declaration;
 
-        value shift = scope.addCallInstruction("i64",
-                "``declarationName(parent)``$size");
-        return scope.addValueInstruction("add i64 ``shift``, ``slot``");
+        value shift = func.register().addInstruction(
+                "call i64 @``declarationName(parent)``$size()");
+        return func.register().addInstruction(
+                "add i64 ``shift``, ``slot``");
     }
 
     shared actual {LLVMDeclaration*} results {
@@ -328,15 +325,26 @@ class FunctionScope(FunctionModel model) extends CallableScope(model) {
 "The outermost scope of the compilation unit"
 class UnitScope() extends Scope() {
     value globalVariables = ArrayList<LLVMGlobal>();
+    value getters = ArrayList<LLVMDeclaration>();
 
     shared actual LLVMFunction primary
         = LLVMFunction("__ceylon_constructor", "void", "private", []);
+
+    LLVMFunction getterFor(ValueModel model) {
+        value getter = LLVMFunction(declarationName(model) + "$get",
+                "i64*", "", []);
+        value ret = getter.register().addInstruction(
+                "load i64*,i64** @``declarationName(model)``");
+        getter.addInstruction("ret i64* ``ret``");
+        return getter;
+    }
 
     shared actual void allocate(ValueModel declaration,
             String? startValue) {
         value name = declarationName(declaration);
 
         globalVariables.add(LLVMGlobal(name, startValue));
+        getters.add(getterFor(declaration));
     }
 
     shared actual {LLVMDeclaration*} results {
@@ -345,16 +353,6 @@ class UnitScope() extends Scope() {
         assert(is LLVMFunction s = superResults.first);
         s.makeConstructor(toplevelConstructorPriority);
 
-        return globalVariables.chain(superResults);
+        return globalVariables.chain(superResults).chain(getters);
     }
-
-    shared actual GetterScope getterFor(ValueModel model) {
-        value getterScope = GetterScope(model);
-        value ret = getterScope.addValueInstruction(
-                "load i64*,i64** @``declarationName(model)``");
-        getterScope.addInstruction("ret i64* ``ret``");
-        return getterScope;
-    }
-
-    shared actual String? getFrameFor(DeclarationModel declaration) => null;
 }
