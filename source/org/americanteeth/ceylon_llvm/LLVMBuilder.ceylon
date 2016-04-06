@@ -227,15 +227,6 @@ class LLVMBuilder() satisfies Visitor {
         }
 
         declaredItems.add(model);
-
-        if (!model.\ivariable) {
-            return;
-        }
-
-        /* We'll have an `assign` statement later that'll fill this in */
-        if (model.setter exists) {
-            return;
-        }
     }
 
     shared actual void visitStringLiteral(StringLiteral that) {
