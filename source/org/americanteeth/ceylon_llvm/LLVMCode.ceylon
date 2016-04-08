@@ -1,12 +1,48 @@
 import ceylon.collection { ArrayList }
+import ceylon.process {
+    createProcess,
+    currentError
+}
+
+import ceylon.file {
+    Reader
+}
 
 "Any top-level declaration in an LLVM compilation unit."
 abstract class LLVMDeclaration(shared String name) {}
 
+"Get the dereference of an LLVM pointer type"
 String unPointer(String type) {
     assert(type.endsWith("*"));
     return type.spanTo(type.size - 2);
 }
+
+"Get the current LLVM version"
+[Integer, Integer] getLLVMVersion() {
+    value proc = createProcess {
+        command = "/usr/bin/llvm-config";
+        arguments = ["--version"];
+        error = currentError;
+    };
+
+    proc.waitForExit();
+
+    assert(is Reader r = proc.output);
+    assert(exists result = r.readLine());
+
+    value nums = result.split((x) => x == '.')
+        .map((x) => x.trimmed)
+        .take(2)
+        .map(parseInteger).sequence();
+
+    assert(exists major = nums[0],
+           exists minor = nums[1]);
+
+    return [major, minor];
+}
+
+"The current LLVM version"
+[Integer, Integer] llvmVersion = getLLVMVersion();
 
 "Something to which an instruction may be added. Usually a function body, or a
  register (in which case the instruction says how to assign that register)."
@@ -25,10 +61,15 @@ interface LLVMCodeTarget<ReturnValue> {
  result of that instruction."
 interface LLVMRegister satisfies LLVMCodeTarget<String> {
     shared String load(String from, String? index = null)
-        => instruction("load ``resultType``,``resultType``* ``from``");
+        => if (llvmVersion[1] < 7)
+           then instruction("load ``resultType``* ``from``")
+           else instruction("load ``resultType``,``resultType``* ``from``");
     shared String offsetPointer(String register, String offset)
-        => instruction("getelementptr ``unPointer(resultType)``, \
-                        ``resultType`` ``register``, i64 ``offset``");
+        => if (llvmVersion[1] < 7)
+           then instruction("getelementptr \
+                             ``resultType`` ``register``, i64 ``offset``")
+           else instruction("getelementptr ``unPointer(resultType)``, \
+                             ``resultType`` ``register``, i64 ``offset``");
 }
 
 "An LLVM compilation unit."
