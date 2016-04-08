@@ -59,13 +59,11 @@ abstract class Scope() of CallableScope|UnitScope {
 
         value offset = getAllocationOffset(slot, getter);
 
-        value address = getter.register().instruction(
-                "getelementptr i64, i64* %.context, i64 ``offset``");
-        value data = getter.register().instruction(
-                "load i64,i64* ``address``");
+        value address = getter.register().offsetPointer("%.context", offset);
+        value data = getter.registerInt().load(address);
         value cast = getter.register().instruction(
                 "inttoptr i64 ``data`` to i64*");
-        getter.instruction("ret i64* ``cast``");
+        getter.ret(cast);
 
         return getter;
     }
@@ -90,8 +88,8 @@ abstract class Scope() of CallableScope|UnitScope {
 
             value tmp = primary.register().instruction(
                     "ptrtoint i64* ``startValue`` to i64");
-            value offset = primary.register().instruction(
-                    "getelementptr i64, i64* %.frame, i64 ``slotOffset``");
+            value offset = primary.register().offsetPointer("%.frame",
+                    slotOffset);
             primary.instruction("store i64 ``tmp``, i64* ``offset``");
         }
 
@@ -154,8 +152,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         variable String context = "%.context";
 
         while (is DeclarationModel v = visitedContainer, v != container) {
-            value fetch = primary.register()
-                .instruction("load i64,i64* ``context``");
+            value fetch = primary.registerInt().load(context);
             context = primary.register()
                 .instruction("inttoptr i64 ``fetch`` to i64*");
 
@@ -242,10 +239,9 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         );
 
         if (!vtable.empty) {
-            directConstructor.addInstructions(
-                "%.vteptr = getelementptr i64, i64* %.frame, i64 1",
-                "store i64 0, i64* %.vteptr"
-            );
+            value vteptr = directConstructor.register().offsetPointer("%.frame",
+                    "1");
+            directConstructor.instruction("store i64 0, i64* ``vteptr``");
         }
 
         directConstructor.addInstructions(
@@ -257,9 +253,10 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
                 "i64", "", []);
         vtSizeFunction.addInstructions(
             "%.parentsz = call i64 @``declarationName(parent)``$vtsize()",
-            "%.result = add i64 %.parentsz, ``vtable.size``",
-            "ret i64 %.result"
+            "%.result = add i64 %.parentsz, ``vtable.size``"
         );
+
+        vtSizeFunction.ret("%.result");
 
         value vtSetupFunction =
             LLVMFunction(declarationName(model) + "$vtsetup",
@@ -269,12 +266,14 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
             "%.size = call i64 @``declarationName(model)``$vtsize()",
             "%.bytes = mul i64 %.size, 8",
             "%.parentbytes = mul i64 %.parentsz, 8",
-            "%.vt = call i64* @malloc(i64 %.bytes)",
-            "%.parentvt = load i64*,i64** @``declarationName(parent)``$vtable",
+            "%.vt = call i64* @malloc(i64 %.bytes)");
+
+        vtSetupFunction.register().load("@``declarationName(parent)``$vtable");
+
+        vtSetupFunction.addInstructions(
             "call void @llvm.memcpy.p0i64.p0i64.i64(\
              i64* %.vt, i64* %.parentvt, i64 %.parentsz, i32 8, i1 0)",
-            "store i64* %.vt, i64** @``declarationName(model)``$vtable",
-            "ret void"
+            "store i64* %.vt, i64** @``declarationName(model)``$vtable"
         );
 
         vtSetupFunction.makeConstructor(vtableConstructorPriority);
@@ -315,9 +314,8 @@ class UnitScope() extends Scope() {
     LLVMFunction getterFor(ValueModel model) {
         value getter = LLVMFunction(declarationName(model) + "$get",
                 "i64*", "", []);
-        value ret = getter.register().instruction(
-                "load i64*,i64** @``declarationName(model)``");
-        getter.instruction("ret i64* ``ret``");
+        value ret = getter.register().load("@``declarationName(model)``");
+        getter.ret(ret);
         return getter;
     }
 

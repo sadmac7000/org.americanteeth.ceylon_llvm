@@ -3,19 +3,32 @@ import ceylon.collection { ArrayList }
 "Any top-level declaration in an LLVM compilation unit."
 abstract class LLVMDeclaration(shared String name) {}
 
+String unPointer(String type) {
+    assert(type.endsWith("*"));
+    return type.spanTo(type.size - 2);
+}
+
 "Something to which an instruction may be added. Usually a function body, or a
-register (in which case the instruction says how to assign that register)."
+ register (in which case the instruction says how to assign that register)."
 interface LLVMCodeTarget<ReturnValue> {
     shared formal ReturnValue instruction(String instruction);
     shared default String resultType => "void";
-
-    shared void ret(String val) => instruction("ret i64* ``val``");
 
     shared ReturnValue call(String name, String* args) {
         value argList = ", ".join(args.map((x) => "i64* ``x``"));
 
         return instruction("call ``resultType`` @``name``(``argList``)");
     }
+}
+
+"An LLVM Register. Adding an instruction to it will assign that register the
+ result of that instruction."
+interface LLVMRegister satisfies LLVMCodeTarget<String> {
+    shared String load(String from, String? index = null)
+        => instruction("load ``resultType``,``resultType``* ``from``");
+    shared String offsetPointer(String register, String offset)
+        => instruction("getelementptr ``unPointer(resultType)``, \
+                        ``resultType`` ``register``, i64 ``offset``");
 }
 
 "An LLVM compilation unit."
@@ -117,9 +130,9 @@ class LLVMFunction(String n, shared String returnType,
                }";
 
     "Get a new register to which you may assign a value."
-    shared LLVMCodeTarget<String> register(String? regNameIn = null)
-        => object satisfies LLVMCodeTarget<String> {
-            shared actual String resultType = "i64*";
+    LLVMRegister anyRegister(String resultTypeIn, String? regNameIn)
+        => object satisfies LLVMRegister {
+            shared actual String resultType = resultTypeIn;
 
             value regName =
                 if (exists regNameIn)
@@ -133,6 +146,24 @@ class LLVMFunction(String n, shared String returnType,
 
             string => regName;
         };
+
+    "Get a new i64* register"
+    shared LLVMRegister register(String? name = null)
+        => anyRegister("i64*", name);
+
+    "Get a new i64 register"
+    shared LLVMRegister registerInt(String? name = null)
+        => anyRegister("i64", name);
+
+    "Add a return statement to this function"
+    shared void ret(String? val) {
+        if (exists val) {
+            instruction("ret ``returnType`` ``val``");
+        } else {
+            assert(returnType == "void");
+            instruction("ret void");
+        }
+    }
 }
 
 "An LLVM global variable declaration."
