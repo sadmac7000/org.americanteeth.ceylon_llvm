@@ -2,8 +2,7 @@ import ceylon.collection { ArrayList }
 
 abstract class LLVMDeclaration(shared String name) {}
 
-interface LLVMCodeTarget<ReturnValue>
-        given ReturnValue satisfies Anything {
+interface LLVMCodeTarget<ReturnValue> {
     shared formal ReturnValue instruction(String instruction);
     shared default String resultType => "void";
 
