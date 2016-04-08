@@ -43,11 +43,6 @@ abstract class Scope() of CallableScope|UnitScope {
     "Is there an allocation for this value in the frame for this scope"
     shared Boolean allocates(ValueModel v) => allocations.defines(v);
 
-    "Add a call instruction for a function returning void"
-    shared void addVoidCallInstruction(String name, String* args) {
-        primary.instruction("call void @``name``(``", ".join(args)``)");
-    }
-
     "Get the frame variable for a nested declaration"
     shared default String? getFrameFor(DeclarationModel declaration) => null;
 
@@ -125,7 +120,9 @@ abstract class Scope() of CallableScope|UnitScope {
     shared default [String*] initFrame() => [];
 
     shared default {LLVMDeclaration*} results {
-        primary.addInstructionsPre(*initFrame());
+        for (i in initFrame()) {
+            primary.preamble.instruction(i);
+        }
         return {primary, *getters};
     }
 }

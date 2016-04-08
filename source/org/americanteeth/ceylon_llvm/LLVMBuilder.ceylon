@@ -269,12 +269,12 @@ class LLVMBuilder() satisfies Visitor {
 
                 "Arguments must have a value"
                 assert(exists l = lastReturn);
-                arguments.add("i64* ``l``");
+                arguments.add(l);
             }
         }
 
-        scope.addVoidCallInstruction("``declarationName(te.declaration)``$init",
-                "i64* %.frame", *arguments);
+        scope.body.call("``declarationName(te.declaration)``$init",
+                "%.frame", *arguments);
     }
 
     shared actual void visitLazySpecifier(LazySpecifier that) {

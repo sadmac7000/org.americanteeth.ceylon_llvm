@@ -66,23 +66,27 @@ class LLVMFunction(String n, shared String returnType,
         case ("void") "ret void"
         else "/* Could not generate default return */";
 
-    value bodyItems = ArrayList<String>();
+    value mainBodyItems = ArrayList<String>();
+    value preambleItems = ArrayList<String>();
 
-    value augmentedBodyItems =>
-        if (exists b = bodyItems.last, b.startsWith("ret "))
-        then bodyItems
-        else bodyItems.sequence().withTrailing(stubReturn);
+    value bodyItems =>
+        if (exists b = mainBodyItems.last, b.startsWith("ret "))
+        then preambleItems.chain(mainBodyItems)
+        else mainBodyItems.sequence().withTrailing(stubReturn);
 
-    value body => "\n    ".join(augmentedBodyItems);
+    value body => "\n    ".join(bodyItems);
 
     value bodyPadded => if (body.empty) then "" else "\n    ``body``\n";
 
+    shared object preamble satisfies LLVMCodeTarget<Anything> {
+        shared actual void instruction(String instruction)
+            => preambleItems.add(instruction);
+    }
+
     shared void addInstructions(String* instructions)
-        => bodyItems.addAll(instructions);
-    shared void addInstructionsPre(String* instructions)
-        => bodyItems.insertAll(0, instructions);
+        => mainBodyItems.addAll(instructions);
     shared actual void instruction(String instruction)
-        => addInstructions(instruction);
+        => mainBodyItems.add(instruction);
 
     string => "define ``modifiers`` ``returnType`` @``name``(``argList``) {\
                ``bodyPadded``}";
@@ -97,7 +101,7 @@ class LLVMFunction(String n, shared String returnType,
                 else "%.``nextTemporary++``";
 
             shared actual String instruction(String instruction) {
-                bodyItems.add("``regName`` = ``instruction``");
+                mainBodyItems.add("``regName`` = ``instruction``");
                 return regName;
             }
 
