@@ -148,7 +148,7 @@ class LLVMFunction(String n, shared String returnType,
     value bodyItems =>
         if (exists b = mainBodyItems.last, b.startsWith("ret "))
         then preambleItems.chain(mainBodyItems)
-        else mainBodyItems.sequence().withTrailing(stubReturn);
+        else preambleItems.chain(mainBodyItems).sequence().withTrailing(stubReturn);
 
     "Function body as a single code string."
     value body => "\n    ".join(bodyItems);

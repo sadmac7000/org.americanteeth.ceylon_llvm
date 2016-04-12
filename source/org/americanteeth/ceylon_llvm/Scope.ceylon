@@ -121,6 +121,7 @@ abstract class Scope() of CallableScope|UnitScope {
         for (i in initFrame()) {
             primary.preamble.instruction(i);
         }
+
         return {primary, *getters};
     }
 }
@@ -268,11 +269,12 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
             "%.parentbytes = mul i64 %.parentsz, 8",
             "%.vt = call i64* @malloc(i64 %.bytes)");
 
-        vtSetupFunction.register().load("@``declarationName(parent)``$vtable");
+        value parentvt = vtSetupFunction.register().load(
+                "@``declarationName(parent)``$vtable");
 
         vtSetupFunction.addInstructions(
             "call void @llvm.memcpy.p0i64.p0i64.i64(\
-             i64* %.vt, i64* %.parentvt, i64 %.parentsz, i32 8, i1 0)",
+             i64* %.vt, i64* ``parentvt``, i64 %.parentsz, i32 8, i1 0)",
             "store i64* %.vt, i64** @``declarationName(model)``$vtable"
         );
 
