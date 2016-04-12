@@ -38,8 +38,6 @@ abstract class Scope() of CallableScope|UnitScope {
 
     shared HashSet<ValueModel> usedItems = HashSet<ValueModel>();
 
-    shared LLVMFunction body => primary;
-
     "Is there an allocation for this value in the frame for this scope"
     shared Boolean allocates(ValueModel v) => allocations.defines(v);
 
@@ -84,13 +82,13 @@ abstract class Scope() of CallableScope|UnitScope {
         if (exists startValue) {
             /* allocationBlock = the new allocation position + 1 */
             value slotOffset = getAllocationOffset(allocationBlock - 1,
-                    primary);
+                    body);
 
-            value tmp = primary.register().instruction(
+            value tmp = body.register().instruction(
                     "ptrtoint i64* ``startValue`` to i64");
-            value offset = primary.register().offsetPointer("%.frame",
+            value offset = body.register().offsetPointer("%.frame",
                     slotOffset);
-            primary.instruction("store i64 ``tmp``, i64* ``offset``");
+            body.instruction("store i64 ``tmp``, i64* ``offset``");
         }
 
         getters.add(getterFor(declaration));
@@ -104,7 +102,7 @@ abstract class Scope() of CallableScope|UnitScope {
 
         usedItems.add(declaration);
 
-        return primary.register().call("``declarationName(declaration)``$get",
+        return body.register().call("``declarationName(declaration)``$get",
                 *{getFrameFor(declaration)}.coalesced);
     }
 
@@ -114,21 +112,21 @@ abstract class Scope() of CallableScope|UnitScope {
         assert(false);
     }
 
-    shared formal LLVMFunction primary;
+    shared formal LLVMFunction body;
     shared default [String*] initFrame() => [];
 
     shared default {LLVMDeclaration*} results {
         for (i in initFrame()) {
-            primary.preamble.instruction(i);
+            body.preamble.instruction(i);
         }
 
-        return {primary, *getters};
+        return {body, *getters};
     }
 }
 
 abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         extends Scope() {
-    shared actual default LLVMFunction primary
+    shared actual default LLVMFunction body
         = LLVMFunction(declarationName(model) + namePostfix, "i64*", "",
                 if (!model.toplevel)
                 then ["i64* %.context"]
@@ -153,8 +151,8 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         variable String context = "%.context";
 
         while (is DeclarationModel v = visitedContainer, v != container) {
-            value fetch = primary.registerInt().load(context);
-            context = primary.register()
+            value fetch = body.registerInt().load(context);
+            context = body.register()
                 .instruction("inttoptr i64 ``fetch`` to i64*");
 
             visitedContainer = v.container;
@@ -207,7 +205,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
                     model.parameterList)).sequence();
     }
 
-    shared actual LLVMFunction primary
+    shared actual LLVMFunction body
         = LLVMFunction(declarationName(model) + "$init", "void", "",
                 arguments);
 
@@ -298,7 +296,7 @@ class SetterScope(ValueModel model) extends CallableScope(model, "$set") {}
 
 "The scope of a function"
 class FunctionScope(FunctionModel model) extends CallableScope(model) {
-    shared actual LLVMFunction primary
+    shared actual LLVMFunction body
         = LLVMFunction(declarationName(model), "i64*", "",
                 if (!model.toplevel)
                 then ["i64* %.context", *parameterListToLLVMStrings(model.firstParameterList)]
@@ -310,7 +308,7 @@ class UnitScope() extends Scope() {
     value globalVariables = ArrayList<LLVMGlobal>();
     value getters = ArrayList<LLVMDeclaration>();
 
-    shared actual LLVMFunction primary
+    shared actual LLVMFunction body
         = LLVMFunction("__ceylon_constructor", "void", "private", []);
 
     LLVMFunction getterFor(ValueModel model) {
