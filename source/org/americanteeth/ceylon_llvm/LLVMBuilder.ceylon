@@ -273,8 +273,8 @@ class LLVMBuilder() satisfies Visitor {
             }
         }
 
-        scope.body.call("``declarationName(te.declaration)``$init",
-                "%.frame", *arguments);
+        scope.body.call<>("``declarationName(te.declaration)``$init",
+                scope.body.register("frame"), *arguments);
     }
 
     shared actual void visitLazySpecifier(LazySpecifier that) {
@@ -368,9 +368,9 @@ class LLVMBuilder() satisfies Visitor {
 
         }
 
-        value l = scope.body.register();
-        l.call(declarationName(bt.declaration), *arguments);
-        lastReturn = l;
+        lastReturn =
+            scope.body.call<Ptr<I64>>(declarationName(bt.declaration),
+                                      *arguments);
     }
 
     shared actual void visitBaseExpression(BaseExpression that) {
@@ -391,8 +391,6 @@ class LLVMBuilder() satisfies Visitor {
         that.receiverExpression.visit(this);
         assert(exists target = lastReturn);
 
-        value l = scope.body.register();
-        l.call(getterName, target);
-        lastReturn = l;
+        lastReturn = scope.body.call<Ptr<I64>>(getterName, target);
     }
 }

@@ -100,10 +100,8 @@ abstract class Scope() of CallableScope|UnitScope {
 
         usedItems.add(declaration);
 
-        value ret = body.register();
-        ret.call("``declarationName(declaration)``$get",
+        return body.call<Ptr<I64>>("``declarationName(declaration)``$get",
                 *{getFrameFor(declaration)}.coalesced);
-        return ret;
     }
 
     "Add a vtable entry for the given declaration model"
