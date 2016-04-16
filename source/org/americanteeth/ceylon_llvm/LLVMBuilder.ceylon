@@ -160,7 +160,7 @@ class LLVMBuilder() satisfies Visitor {
     }
 
     "Return value from the most recent instruction"
-    variable String? lastReturn = null;
+    variable Ptr<I64>? lastReturn = null;
 
     "Stack of declarations we are processing"
     value scopeStack = ArrayList<Scope>();
@@ -232,7 +232,7 @@ class LLVMBuilder() satisfies Visitor {
     shared actual void visitStringLiteral(StringLiteral that) {
         value idNumber = nextStringLiteral++;
         stringLiterals.put(idNumber, that.text);
-        lastReturn = "@.str``idNumber``";
+        lastReturn = object satisfies Ptr<I64> { identifier = "@.str``idNumber``"; };
     }
 
     shared actual void visitClassDefinition(ClassDefinition that) {
@@ -244,7 +244,7 @@ class LLVMBuilder() satisfies Visitor {
 
         for (parameter in CeylonList(model.parameterList.parameters)) {
             assert(is ValueModel v = parameter.model);
-            scope.allocate(v, "%``parameter.name``");
+            scope.allocate(v, liftp64("%``parameter.name``"));
             declaredItems.add(v);
         }
 
@@ -261,7 +261,7 @@ class LLVMBuilder() satisfies Visitor {
 
         usedItems.add(te.declaration);
 
-        value arguments = ArrayList<String>();
+        value arguments = ArrayList<Ptr<I64>>();
 
         if (exists argNode = target.arguments) {
             for (argument in argNode.argumentList.children) {
@@ -286,9 +286,9 @@ class LLVMBuilder() satisfies Visitor {
     }
 
     shared actual void visitReturn(Return that) {
-        String val;
+        Ptr<I64> val;
         if (! that.result exists) {
-            val = "null";
+            val = llvmNull;
         } else {
             that.result?.visit(this);
 
@@ -327,7 +327,7 @@ class LLVMBuilder() satisfies Visitor {
 
         for (parameter in CeylonList(firstParameterList.parameters)) {
             assert(is ValueModel v = parameter.model);
-            scope.allocate(v, "%``parameter.name``");
+            scope.allocate(v, liftp64("%``parameter.name``"));
             declaredItems.add(v);
         }
 
@@ -341,7 +341,7 @@ class LLVMBuilder() satisfies Visitor {
 
         "Base expressions should have Base Member or Base Type RH nodes"
         assert(is Tree.MemberOrTypeExpression bt = b.get(keys.tcNode));
-        value arguments = ArrayList<String>();
+        value arguments = ArrayList<Ptr<I64>>();
 
         usedItems.add(bt.declaration);
 
@@ -368,8 +368,9 @@ class LLVMBuilder() satisfies Visitor {
 
         }
 
-        lastReturn = scope.body.register().call(declarationName(bt.declaration),
-                *arguments);
+        value l = scope.body.register();
+        l.call(declarationName(bt.declaration), *arguments);
+        lastReturn = l;
     }
 
     shared actual void visitBaseExpression(BaseExpression that) {
@@ -390,6 +391,8 @@ class LLVMBuilder() satisfies Visitor {
         that.receiverExpression.visit(this);
         assert(exists target = lastReturn);
 
-        lastReturn = scope.body.register().call(getterName, target);
+        value l = scope.body.register();
+        l.call(getterName, target);
+        lastReturn = l;
     }
 }
