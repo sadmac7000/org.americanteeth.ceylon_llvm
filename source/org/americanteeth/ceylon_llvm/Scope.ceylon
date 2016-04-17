@@ -211,8 +211,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     shared actual {LLVMDeclaration*} results {
         value parent = model.extendedType.declaration;
 
-        value sizeFunction = LLVMFunction(declarationName(model) + "$size", "i64",
-                "", []);
+        value sizeFunction = LLVMFunction(declarationName(model) + "$size",
+                "i64", "", []);
         value extendedSize = sizeFunction.call<I64>(
                 "``declarationName(parent)``$size");
         value total = sizeFunction.add(extendedSize, allocatedBlocks);
@@ -222,45 +222,49 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
                 "", parameterListToLLVMStrings(model.parameterList));
         value words = directConstructor.call<I64>(
                 "``declarationName(model)``$size");
-        directConstructor.addInstructions(
-            "%.bytes = mul ``words``, 8\n",
-            "%.frame = call i64* @malloc(i64 %.bytes)\n"
-        );
+        value bytes = directConstructor.mul(words, 8);
+        directConstructor.instruction(
+            "%.frame = call i64* @malloc(``bytes``)");
 
         if (!vtable.empty) {
-            value vteptr = directConstructor.register(".frame").offset(I64Lit(1));
+            value vteptr = directConstructor.register(".frame").offset(
+                    I64Lit(1));
             directConstructor.instruction("store i64 0, ``vteptr``");
         }
 
-        directConstructor.addInstructions(
-            "call void @``declarationName(model)``$init(``", ".join(arguments)``)",
-            "ret i64* %.frame"
-        );
+        directConstructor.instruction(
+            "call void @``declarationName(model)``$init(\
+             ``", ".join(arguments)``)");
+
+        directConstructor.ret(directConstructor.register(".frame"));
 
         value vtSizeFunction = LLVMFunction(declarationName(model) + "$vtsize",
                 "i64", "", []);
-        value parentsz = vtSizeFunction.call<I64>("``declarationName(parent)``$vtsize");
+        value parentsz = vtSizeFunction.call<I64>(
+                "``declarationName(parent)``$vtsize");
         value result = vtSizeFunction.add(parentsz, vtable.size);
         vtSizeFunction.ret(result);
 
         value vtSetupFunction =
             LLVMFunction(declarationName(model) + "$vtsetup",
                     "void", "private", []);
-        vtSetupFunction.addInstructions(
-            "%.parentsz = call i64 @``declarationName(parent)``$vtsize()",
-            "%.size = call i64 @``declarationName(model)``$vtsize()",
-            "%.bytes = mul i64 %.size, 8",
-            "%.parentbytes = mul i64 %.parentsz, 8",
-            "%.vt = call i64* @malloc(i64 %.bytes)");
+        value vtparentsz = vtSetupFunction.call<I64>(
+                "``declarationName(parent)``$vtsize");
+        value parentBytes = vtSetupFunction.mul(vtparentsz, 8);
+        value size = vtSetupFunction.call<I64>(
+                "``declarationName(model)``$vtsize");
+        value vt = vtSetupFunction.call<Ptr<I64>>("malloc",
+                vtSetupFunction.mul(size, 8));
 
         value parentvt = vtSetupFunction.global<Ptr<I64>>(
                 "``declarationName(parent)``$vtable").fetch();
 
-        vtSetupFunction.addInstructions(
+        vtSetupFunction.instruction(
             "call void @llvm.memcpy.p0i64.p0i64.i64(\
-             i64* %.vt, ``parentvt``, i64 %.parentsz, i32 8, i1 0)",
-            "store i64* %.vt, i64** @``declarationName(model)``$vtable"
-        );
+             ``vt``, ``parentvt``, ``parentBytes``, i32 8, i1 0)");
+
+        vtSetupFunction.instruction(
+            "store i64* %.vt, i64** @``declarationName(model)``$vtable");
 
         vtSetupFunction.makeConstructor(vtableConstructorPriority);
 

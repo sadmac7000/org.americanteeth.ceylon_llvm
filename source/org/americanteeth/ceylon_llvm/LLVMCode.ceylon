@@ -196,9 +196,6 @@ class LLVMFunction(String n, shared String returnType,
             => preambleItems.add(instruction);
     }
 
-    shared void addInstructions(String* instructions)
-        => mainBodyItems.addAll(instructions);
-
     shared actual void instruction(String instruction)
         => mainBodyItems.add(instruction);
 
@@ -311,12 +308,18 @@ class LLVMFunction(String n, shared String returnType,
         }
     }
 
-    "Add an add instruction to this function"
-    shared I64 add(I64|Integer a, I64|Integer b) {
+    "Add an integer operation instruction to this function"
+    I64 intOp(String op, I64|Integer a, I64|Integer b) {
         value ret = registerInt();
-        instruction("``ret.identifier`` = add ``a``, ``b``");
+        instruction("``ret.identifier`` = ``op`` ``a``, ``b``");
         return ret;
     }
+
+    "Add an add instruction to this function"
+    shared I64 add(I64|Integer a, I64|Integer b) => intOp("add", a, b);
+
+    "Add a mul instruction to this function"
+    shared I64 mul(I64|Integer a, I64|Integer b) => intOp("mul", a, b);
 }
 
 "An LLVM global variable declaration."
