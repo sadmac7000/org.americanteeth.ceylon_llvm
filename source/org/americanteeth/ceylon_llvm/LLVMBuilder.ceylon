@@ -232,7 +232,7 @@ class LLVMBuilder() satisfies Visitor {
     shared actual void visitStringLiteral(StringLiteral that) {
         value idNumber = nextStringLiteral++;
         stringLiterals.put(idNumber, that.text);
-        lastReturn = object satisfies Ptr<I64> { identifier = "@.str``idNumber``"; };
+        lastReturn = scope.body.global<I64>(".str``idNumber``");
     }
 
     shared actual void visitClassDefinition(ClassDefinition that) {
@@ -244,7 +244,7 @@ class LLVMBuilder() satisfies Visitor {
 
         for (parameter in CeylonList(model.parameterList.parameters)) {
             assert(is ValueModel v = parameter.model);
-            scope.allocate(v, liftp64("%``parameter.name``"));
+            scope.allocate(v, scope.body.register(parameter.name));
             declaredItems.add(v);
         }
 
@@ -273,8 +273,8 @@ class LLVMBuilder() satisfies Visitor {
             }
         }
 
-        scope.body.call("``declarationName(te.declaration)``$init",
-                "%.frame", *arguments);
+        scope.body.call<>("``declarationName(te.declaration)``$init",
+                scope.body.register(".frame"), *arguments);
     }
 
     shared actual void visitLazySpecifier(LazySpecifier that) {
@@ -327,7 +327,7 @@ class LLVMBuilder() satisfies Visitor {
 
         for (parameter in CeylonList(firstParameterList.parameters)) {
             assert(is ValueModel v = parameter.model);
-            scope.allocate(v, liftp64("%``parameter.name``"));
+            scope.allocate(v, scope.body.register(parameter.name));
             declaredItems.add(v);
         }
 
@@ -368,9 +368,9 @@ class LLVMBuilder() satisfies Visitor {
 
         }
 
-        value l = scope.body.register();
-        l.call(declarationName(bt.declaration), *arguments);
-        lastReturn = l;
+        lastReturn =
+            scope.body.call<Ptr<I64>>(declarationName(bt.declaration),
+                                      *arguments);
     }
 
     shared actual void visitBaseExpression(BaseExpression that) {
@@ -391,8 +391,6 @@ class LLVMBuilder() satisfies Visitor {
         that.receiverExpression.visit(this);
         assert(exists target = lastReturn);
 
-        value l = scope.body.register();
-        l.call(getterName, target);
-        lastReturn = l;
+        lastReturn = scope.body.call<Ptr<I64>>(getterName, target);
     }
 }

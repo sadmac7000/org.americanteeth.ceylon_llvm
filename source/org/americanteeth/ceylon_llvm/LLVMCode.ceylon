@@ -44,41 +44,37 @@ String unPointer(String type) {
 "The current LLVM version"
 [Integer, Integer] llvmVersion = getLLVMVersion();
 
-LLVMValue lift(String|LLVMValue got) {
-    if (is LLVMValue got) {
-        return got;
-    } else {
-        return liftp64(got);
-    }
-}
-
-Ptr<I64> liftp64(String got) => object satisfies Ptr<I64> { identifier = got; };
-
-"Something to which an instruction may be added. Usually a function body, or a
- register (in which case the instruction says how to assign that register)."
-interface LLVMCodeTarget {
+"A sequence of LLVM instructions"
+interface LLVMBlock {
     shared formal void instruction(String instruction);
+    shared formal <T&LLVMValue>? registerFor<T>(String? regNameIn = null);
 
-    shared void call(String name, String|LLVMValue* args) {
-        value argList = ", ".join(args.map((x) => lift(x)));
+    "Emit a call instruction"
+    shared T call<T=Anything>(String name, LLVMValue* args) {
+        value argList = ", ".join(args);
 
         String resultType;
+        String equality;
+        value result = registerFor<T>();
 
-        if (is LLVMValue t = this) {
-            resultType = t.typeName;
+        if (exists result) {
+            resultType = result.typeName;
+            equality = "``result.identifier`` = ";
         } else {
             resultType = "void";
+            equality = "";
         }
 
-        instruction("call ``resultType`` @``name``(``argList``)");
+        instruction("``equality``call ``resultType`` @``name``(``argList``)");
+
+        assert(is T result);
+        return result;
     }
 }
 
 "An LLVM typed value"
-interface LLVMValue satisfies LLVMCodeTarget {
+interface LLVMValue {
     shared formal String identifier;
-    shared actual default void instruction(String inst) { assert(false); }
-
     shared formal String typeName;
     string => "``typeName`` ``identifier``";
 }
@@ -88,19 +84,27 @@ interface Ptr<T> satisfies LLVMValue given T satisfies LLVMValue {
     shared default Ptr<T> offset(I64 amount) { assert(false); }
     shared default T fetch(I64? off=null) { assert(false); }
     shared actual default String typeName => "i64*";
+    shared formal I64 i64();
 }
 
 
 "An LLVM 64-bit integer value"
 interface I64 satisfies LLVMValue {
     typeName => "i64";
+    shared formal Ptr<I64> i64p();
 }
 
 "A literal LLVM I64"
-final class I64Lit(Integer val) satisfies I64 { identifier = val.string; }
+final class I64Lit(Integer val) satisfies I64 {
+    identifier = val.string;
+    shared actual Ptr<I64> i64p() { assert(false); }
+}
 
 "An LLVM Null value"
-object llvmNull satisfies Ptr<I64> { identifier = "null"; }
+object llvmNull satisfies Ptr<I64> {
+    identifier = "null";
+    shared actual I64 i64() => I64Lit(0);
+}
 
 "An LLVM compilation unit."
 class LLVMUnit() {
@@ -138,7 +142,7 @@ class LLVMFunction(String n, shared String returnType,
                    shared String modifiers,
                    shared [String*] arguments)
         extends LLVMDeclaration(n)
-        satisfies LLVMCodeTarget {
+        satisfies LLVMBlock {
     "Counter for auto-naming temporary registers."
     variable value nextTemporary = 0;
 
@@ -185,7 +189,9 @@ class LLVMFunction(String n, shared String returnType,
 
     "A block of instructions that precedes the main body and can be used to set
      up a context."
-    shared object preamble satisfies LLVMCodeTarget {
+    shared object preamble satisfies LLVMBlock {
+        shared actual <T&LLVMValue>? registerFor<T>(String? regNameIn)
+            => outer.registerFor(regNameIn);
         shared actual void instruction(String instruction)
             => preambleItems.add(instruction);
     }
@@ -204,22 +210,32 @@ class LLVMFunction(String n, shared String returnType,
     abstract class Register(String? regNameIn) satisfies LLVMValue {
         identifier =
             if (exists regNameIn)
-            then "%.``regNameIn``"
+            then "%``regNameIn``"
             else "%.``nextTemporary++``";
+    }
 
-        shared actual void instruction(String instruction)
-            => mainBodyItems.add("``identifier`` = ``instruction``");
+    "Get a register for a given type"
+    shared actual <T&LLVMValue>? registerFor<T>(String? regNameIn) {
+        value ret = {register, registerInt}.narrow<T(String?)>();
+
+        if (ret.size > 1) {
+            return null;
+        } else if (exists r = ret.first) {
+            return r(regNameIn);
+        } else {
+            return null;
+        }
     }
 
     "Implementation for pointers"
     interface PointerImpl<T> satisfies Ptr<T> given T satisfies LLVMValue {
-        Ptr<T>() offsetReg {
-            assert(exists ret = {register, registerInt}.narrow<Ptr<T>()>().first);
+        Ptr<T> offsetReg() {
+            assert(exists ret = registerFor<Ptr<T>>());
             return ret;
         }
 
-        T() writeReg {
-            assert(exists ret = {register, registerInt}.narrow<T()>().first);
+        T writeReg() {
+            assert(exists ret = registerFor<T>());
             return ret;
         }
 
@@ -229,10 +245,10 @@ class LLVMFunction(String n, shared String returnType,
                                       // should see the other things I tried.
 
             if (llvmVersion[1] < 7) {
-                result.instruction("getelementptr ``this``, ``amount``");
+                instruction("``result.identifier`` = getelementptr ``this``, ``amount``");
             } else {
-                result.instruction("getelementptr ``dummy.typeName``, \
-                                    ``this``, ``amount``");
+                instruction("``result.identifier`` = getelementptr ``dummy.typeName``, \
+                             ``this``, ``amount``");
             }
 
             return result;
@@ -246,11 +262,18 @@ class LLVMFunction(String n, shared String returnType,
             value result = writeReg();
 
             if (llvmVersion[1] < 7) {
-                result.instruction("load ``this``");
+                instruction("``result.identifier`` = load ``this``");
             } else {
-                result.instruction("load ``result.typeName``, ``this``");
+                instruction("``result.identifier`` = load ``result.typeName``, ``this``");
             }
 
+            return result;
+        }
+
+        shared actual I64 i64() {
+            value result = registerInt();
+
+            instruction("``result.identifier`` = ptrtoint ``this`` to i64");
             return result;
         }
 
@@ -263,12 +286,19 @@ class LLVMFunction(String n, shared String returnType,
 
     "Get a new i64 register"
     shared I64 registerInt(String? regNameIn = null)
-        => object extends Register(regNameIn) satisfies I64 {};
+        => object extends Register(regNameIn) satisfies I64 {
+            shared actual Ptr<I64> i64p() {
+                value result = register();
+                instruction("``result.identifier`` = inttoptr ``this`` \
+                             to ``result.typeName``");
+                return result;
+            }
+        };
 
     "Access a global from this function"
     shared Ptr<T> global<T>(String name) given T satisfies LLVMValue
         => object satisfies PointerImpl<T> {
-            identifier = "@name";
+            identifier = "@``name``";
         };
 
     "Add a return statement to this function"
@@ -279,6 +309,13 @@ class LLVMFunction(String n, shared String returnType,
             assert(returnType == "void");
             instruction("ret void");
         }
+    }
+
+    "Add an add instruction to this function"
+    shared I64 add(I64|Integer a, I64|Integer b) {
+        value ret = registerInt();
+        instruction("``ret.identifier`` = add ``a``, ``b``");
+        return ret;
     }
 }
 

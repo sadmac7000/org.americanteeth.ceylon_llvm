@@ -57,10 +57,7 @@ abstract class Scope() of CallableScope|UnitScope {
 
         value offset = getAllocationOffset(slot, getter);
 
-        value data = getter.register("context").fetch(offset);
-        value cast = getter.register();
-        cast.instruction("inttoptr ``data`` to i64*");
-        getter.ret(cast);
+        getter.ret(getter.register(".context").fetch(offset).i64p());
 
         return getter;
     }
@@ -83,10 +80,8 @@ abstract class Scope() of CallableScope|UnitScope {
             value slotOffset = getAllocationOffset(allocationBlock - 1,
                     body);
 
-            value tmp = body.registerInt();
-            tmp.instruction("ptrtoint ``startValue`` to i64");
-            value offset = body.register("frame").offset(slotOffset);
-            body.instruction("store ``tmp``, ``offset``");
+            value offset = body.register(".frame").offset(slotOffset);
+            body.instruction("store ``startValue.i64()``, ``offset``");
         }
 
         getters.add(getterFor(declaration));
@@ -100,10 +95,8 @@ abstract class Scope() of CallableScope|UnitScope {
 
         usedItems.add(declaration);
 
-        value ret = body.register();
-        ret.call("``declarationName(declaration)``$get",
+        return body.call<Ptr<I64>>("``declarationName(declaration)``$get",
                 *{getFrameFor(declaration)}.coalesced);
-        return ret;
     }
 
     "Add a vtable entry for the given declaration model"
@@ -134,7 +127,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
 
     shared actual Ptr<I64>? getFrameFor(DeclarationModel declaration) {
         if (is ValueModel declaration, allocates(declaration)) {
-            return body.register("frame");
+            return body.register(".frame");
         }
 
         if (declaration.toplevel) {
@@ -144,17 +137,14 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         value container = declaration.container;
 
         if (container == model) {
-            return body.register("frame");
+            return body.register(".frame");
         }
 
         variable Anything visitedContainer = model.container;
-        variable Ptr<I64> context = body.register("context");
+        variable Ptr<I64> context = body.register(".context");
 
         while (is DeclarationModel v = visitedContainer, v != container) {
-            value fetch = context.fetch();
-            context = body.register();
-            context.instruction("inttoptr ``fetch`` to i64*");
-
+            context = context.fetch().i64p();
             visitedContainer = v.container;
         }
 
@@ -213,10 +203,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     shared actual I64 getAllocationOffset(Integer slot, LLVMFunction func) {
         value parent = model.extendedType.declaration;
 
-        value shift = func.registerInt();
-        shift.instruction("call i64 @``declarationName(parent)``$size()");
-        value ret = func.registerInt();
-        ret.instruction("add ``shift``, ``slot``");
+        value shift = func.call<I64>("``declarationName(parent)``$size");
+        value ret = func.add(shift, slot);
         return ret;
     }
 
@@ -225,22 +213,22 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
 
         value sizeFunction = LLVMFunction(declarationName(model) + "$size", "i64",
                 "", []);
-        sizeFunction.addInstructions(
-            "%.extendedSize = call i64 @``declarationName(parent)``$size()",
-            "%.total = add i64 %.extendedSize, ``allocatedBlocks``",
-            "ret i64 %.total"
-        );
+        value extendedSize = sizeFunction.call<I64>(
+                "``declarationName(parent)``$size");
+        value total = sizeFunction.add(extendedSize, allocatedBlocks);
+        sizeFunction.ret(total);
 
         value directConstructor = LLVMFunction(declarationName(model), "i64*",
                 "", parameterListToLLVMStrings(model.parameterList));
+        value words = directConstructor.call<I64>(
+                "``declarationName(model)``$size");
         directConstructor.addInstructions(
-            "%.words = call i64 @``declarationName(model)``$size()",
-            "%.bytes = mul i64 %.words, 8\n",
+            "%.bytes = mul ``words``, 8\n",
             "%.frame = call i64* @malloc(i64 %.bytes)\n"
         );
 
         if (!vtable.empty) {
-            value vteptr = directConstructor.register("frame").offset(I64Lit(1));
+            value vteptr = directConstructor.register(".frame").offset(I64Lit(1));
             directConstructor.instruction("store i64 0, ``vteptr``");
         }
 
@@ -251,10 +239,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
 
         value vtSizeFunction = LLVMFunction(declarationName(model) + "$vtsize",
                 "i64", "", []);
-        value parentsz = vtSizeFunction.registerInt();
-        parentsz.instruction("call i64 @``declarationName(parent)``$vtsize()");
-        value result = vtSizeFunction.registerInt();
-        result.instruction("add ``parentsz``, ``vtable.size``");
+        value parentsz = vtSizeFunction.call<I64>("``declarationName(parent)``$vtsize");
+        value result = vtSizeFunction.add(parentsz, vtable.size);
         vtSizeFunction.ret(result);
 
         value vtSetupFunction =
