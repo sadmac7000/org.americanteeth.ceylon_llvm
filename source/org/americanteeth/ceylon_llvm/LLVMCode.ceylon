@@ -82,9 +82,10 @@ interface LLVMValue {
 "An LLVM pointer value"
 interface Ptr<T> satisfies LLVMValue given T satisfies LLVMValue {
     shared default Ptr<T> offset(I64 amount) { assert(false); }
-    shared default T fetch(I64? off=null) { assert(false); }
+    shared default T load(I64? off=null) { assert(false); }
     shared actual default String typeName => "i64*";
     shared formal I64 i64();
+    shared formal void store(T val, I64? off=null);
 }
 
 
@@ -104,6 +105,10 @@ final class I64Lit(Integer val) satisfies I64 {
 object llvmNull satisfies Ptr<I64> {
     identifier = "null";
     shared actual I64 i64() => I64Lit(0);
+    shared actual void store(I64 val, I64? off) {
+        "Cannot store to null pointer."
+        assert(false);
+    }
 }
 
 "An LLVM compilation unit."
@@ -251,9 +256,9 @@ class LLVMFunction(String n, shared String returnType,
             return result;
         }
 
-        shared actual T fetch(I64? off) {
+        shared actual T load(I64? off) {
             if (exists off) {
-                return offset(off).fetch();
+                return offset(off).load();
             }
 
             value result = writeReg();
@@ -272,6 +277,14 @@ class LLVMFunction(String n, shared String returnType,
 
             instruction("``result.identifier`` = ptrtoint ``this`` to i64");
             return result;
+        }
+
+        shared actual void store(T val, I64? off) {
+            if (exists off) {
+                offset(off).store(val);
+            } else {
+                instruction("store ``val``, ``this``");
+            }
         }
 
         shared actual String typeName => writeReg().typeName + "*";

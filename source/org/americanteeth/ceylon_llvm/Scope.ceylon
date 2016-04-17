@@ -57,7 +57,7 @@ abstract class Scope() of CallableScope|UnitScope {
 
         value offset = getAllocationOffset(slot, getter);
 
-        getter.ret(getter.register(".context").fetch(offset).i64p());
+        getter.ret(getter.register(".context").load(offset).i64p());
 
         return getter;
     }
@@ -80,8 +80,7 @@ abstract class Scope() of CallableScope|UnitScope {
             value slotOffset = getAllocationOffset(allocationBlock - 1,
                     body);
 
-            value offset = body.register(".frame").offset(slotOffset);
-            body.instruction("store ``startValue.i64()``, ``offset``");
+            body.register(".frame").store(startValue.i64(), slotOffset);
         }
 
         getters.add(getterFor(declaration));
@@ -144,7 +143,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         variable Ptr<I64> context = body.register(".context");
 
         while (is DeclarationModel v = visitedContainer, v != container) {
-            context = context.fetch().i64p();
+            context = context.load().i64p();
             visitedContainer = v.container;
         }
 
@@ -227,9 +226,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
             "%.frame = call i64* @malloc(``bytes``)");
 
         if (!vtable.empty) {
-            value vteptr = directConstructor.register(".frame").offset(
-                    I64Lit(1));
-            directConstructor.instruction("store i64 0, ``vteptr``");
+            directConstructor.register(".frame").store(I64Lit(0), I64Lit(1));
         }
 
         directConstructor.instruction(
@@ -257,14 +254,14 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
                 vtSetupFunction.mul(size, 8));
 
         value parentvt = vtSetupFunction.global<Ptr<I64>>(
-                "``declarationName(parent)``$vtable").fetch();
+                "``declarationName(parent)``$vtable").load();
 
         vtSetupFunction.instruction(
             "call void @llvm.memcpy.p0i64.p0i64.i64(\
              ``vt``, ``parentvt``, ``parentBytes``, i32 8, i1 0)");
 
-        vtSetupFunction.instruction(
-            "store i64* %.vt, i64** @``declarationName(model)``$vtable");
+        vtSetupFunction.global<Ptr<I64>>("``declarationName(model)``$vtable")
+            .store(vt);
 
         vtSetupFunction.makeConstructor(vtableConstructorPriority);
 
@@ -304,7 +301,7 @@ class UnitScope() extends Scope() {
     LLVMFunction getterFor(ValueModel model) {
         value getter = LLVMFunction(declarationName(model) + "$get",
                 "i64*", "", []);
-        value ret = getter.global<Ptr<I64>>(declarationName(model)).fetch();
+        value ret = getter.global<Ptr<I64>>(declarationName(model)).load();
         getter.ret(ret);
         return getter;
     }
