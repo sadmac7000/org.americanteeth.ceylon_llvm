@@ -1,4 +1,8 @@
-import ceylon.collection { ArrayList }
+import ceylon.collection {
+    ArrayList,
+    HashSet
+}
+
 import ceylon.process {
     createProcess,
     currentError
@@ -9,7 +13,9 @@ import ceylon.file {
 }
 
 "Any top-level declaration in an LLVM compilation unit."
-abstract class LLVMDeclaration(shared String name) {}
+abstract class LLVMDeclaration(shared String name) {
+    shared default {String*} declarationsNeeded = {};
+}
 
 "Get the dereference of an LLVM pointer type"
 String unPointer(String type) {
@@ -48,10 +54,12 @@ String unPointer(String type) {
 interface LLVMBlock {
     shared formal void instruction(String instruction);
     shared formal <T&LLVMValue>? registerFor<T>(String? regNameIn = null);
+    shared default void declaration(String declaration) {}
 
     "Emit a call instruction"
     shared T call<T=Anything>(String name, LLVMValue* args) {
         value argList = ", ".join(args);
+        value typeList = ", ".join(args.map((x) => x.typeName));
 
         String resultType;
         String equality;
@@ -66,10 +74,33 @@ interface LLVMBlock {
         }
 
         instruction("``equality``call ``resultType`` @``name``(``argList``)");
+        declaration("declare ``resultType`` @``name``(``typeList``)");
 
         assert(is T result);
         return result;
     }
+
+    "Add a return statement to this block"
+    shared void ret(LLVMValue? val) {
+        if (exists val) {
+            instruction("ret ``val``");
+        } else {
+            instruction("ret void");
+        }
+    }
+
+    "Add an integer operation instruction to this block"
+    I64 intOp(String op, I64|Integer a, I64|Integer b) {
+        assert(exists ret = registerFor<I64>());
+        instruction("``ret.identifier`` = ``op`` ``a``, ``b``");
+        return ret;
+    }
+
+    "Add an add instruction to this block"
+    shared I64 add(I64|Integer a, I64|Integer b) => intOp("add", a, b);
+
+    "Add a mul instruction to this block"
+    shared I64 mul(I64|Integer a, I64|Integer b) => intOp("mul", a, b);
 }
 
 "An LLVM typed value"
@@ -134,8 +165,14 @@ object llvmNull satisfies Ptr<I64> {
 "An LLVM compilation unit."
 class LLVMUnit() {
     value items = ArrayList<LLVMDeclaration>();
+    value declarations = HashSet<String>();
 
-    shared void append(LLVMDeclaration item) => items.add(item);
+    shared void append(LLVMDeclaration item) {
+        items.add(item);
+        declarations.addAll(item.declarationsNeeded);
+    }
+
+    value declarationCode => "\n".join(declarations);
 
     String constructorItem {
         String? constructorString(LLVMDeclaration dec) {
@@ -159,7 +196,8 @@ class LLVMUnit() {
                 [``", ".join(constructors)``]";
     }
 
-    string => "\n\n".join(items.map(Object.string).follow(constructorItem));
+    string => "\n\n".join({declarationCode, constructorItem, *items}
+            .map(Object.string));
 }
 
 "An LLVM function declaration."
@@ -170,6 +208,12 @@ class LLVMFunction(String n, shared String returnType,
         satisfies LLVMBlock {
     "Counter for auto-naming temporary registers."
     variable value nextTemporary = 0;
+
+    "List of declarations"
+    value declarationList = ArrayList<String>();
+
+    "Public list of declarations"
+    shared actual {String*} declarationsNeeded => declarationList;
 
     "The argument list as a single code string."
     String argList => ", ".join(arguments);
@@ -215,6 +259,8 @@ class LLVMFunction(String n, shared String returnType,
     "A block of instructions that precedes the main body and can be used to set
      up a context."
     shared object preamble satisfies LLVMBlock {
+        shared actual void declaration(String declaration)
+            => outer.declaration(declaration);
         shared actual <T&LLVMValue>? registerFor<T>(String? regNameIn)
             => outer.registerFor(regNameIn);
         shared actual void instruction(String instruction)
@@ -223,6 +269,9 @@ class LLVMFunction(String n, shared String returnType,
 
     shared actual void instruction(String instruction)
         => mainBodyItems.add(instruction);
+
+    shared actual void declaration(String declaration)
+        => declarationList.add(declaration);
 
     string => "define ``modifiers`` ``returnType`` @``name``(``argList``) {
                    ``body``
@@ -330,29 +379,6 @@ class LLVMFunction(String n, shared String returnType,
         => object satisfies PointerImpl<T> {
             identifier = "@``name``";
         };
-
-    "Add a return statement to this function"
-    shared void ret(LLVMValue? val) {
-        if (exists val) {
-            instruction("ret ``val``");
-        } else {
-            assert(returnType == "void");
-            instruction("ret void");
-        }
-    }
-
-    "Add an integer operation instruction to this function"
-    I64 intOp(String op, I64|Integer a, I64|Integer b) {
-        value ret = registerInt();
-        instruction("``ret.identifier`` = ``op`` ``a``, ``b``");
-        return ret;
-    }
-
-    "Add an add instruction to this function"
-    shared I64 add(I64|Integer a, I64|Integer b) => intOp("add", a, b);
-
-    "Add a mul instruction to this function"
-    shared I64 mul(I64|Integer a, I64|Integer b) => intOp("mul", a, b);
 }
 
 "An LLVM global variable declaration."

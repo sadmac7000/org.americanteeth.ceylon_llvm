@@ -8,8 +8,7 @@ import ceylon.interop.java {
 
 import ceylon.collection {
     ArrayList,
-    HashMap,
-    HashSet
+    HashMap
 }
 
 import com.redhat.ceylon.compiler.typechecker.tree {
@@ -19,8 +18,6 @@ import com.redhat.ceylon.compiler.typechecker.tree {
 import com.redhat.ceylon.model.typechecker.model {
     FunctionModel = Function,
     ValueModel = Value,
-    DeclarationModel = Declaration,
-    ClassModel = Class,
     PackageModel = Package
 }
 
@@ -52,70 +49,6 @@ class LLVMBuilder() satisfies Visitor {
                            bitcast([3 x i64]* @.str``id``.object to i64*)\n\n");
         }
 
-        return result.string;
-    }
-
-    "Declarations we will be outputting"
-    value declaredItems = HashSet<DeclarationModel>();
-
-    "Declarations we will need to link externally"
-    value usedItems = HashSet<DeclarationModel>();
-
-    "Predeclaration text"
-    String predeclarations {
-        value models = usedItems ~ declaredItems;
-        value result = StringBuilder();
-
-        for (model in models) {
-            if (is FunctionModel|ClassModel model) {
-                value arguments = StringBuilder();
-                variable Boolean first = true;
-
-                if (!(model of DeclarationModel).toplevel) {
-                    arguments.append("i64* %.context");
-                    first = false;
-                }
-
-                for (param in CeylonList(model.firstParameterList.parameters)) {
-                    if (! first) {
-                        arguments.append(", ");
-                    }
-                    first = false;
-                    arguments.append("i64*");
-                }
-
-                result.append("declare i64* @");
-                result.append(declarationName(model));
-                result.append("(``arguments``)\n");
-
-                if (is ClassModel model) {
-                    result.append("declare void @");
-                    result.append(declarationName(model));
-
-                    if (arguments.empty) {
-                        result.append("$init(i64* %.frame)\n");
-                    } else {
-                        result.append("$init(i64* %.frame, ``arguments``)\n");
-                    }
-
-                    result.append("declare i64 @");
-                    result.append(declarationName(model));
-                    result.append("$size()\n");
-                }
-            } else if (is ValueModel model) {
-                result.append("declare i64* @");
-                result.append(declarationName(model));
-                result.append("$get(");
-
-                if (!model.toplevel) {
-                    result.append("i64* %.context");
-                }
-
-                result.append(")\n");
-            }
-        }
-
-        result.append("\n");
         return result.string;
     }
 
@@ -155,7 +88,7 @@ class LLVMBuilder() satisfies Visitor {
             output.append(item);
         }
 
-        return preamble + stringTable + predeclarations + output.string +
+        return preamble + stringTable + output.string +
         runSymbolAlias;
     }
 
@@ -178,7 +111,6 @@ class LLVMBuilder() satisfies Visitor {
         for (result in scope.results) {
             output.append(result);
         }
-        usedItems.addAll(scope.usedItems);
     }
 
     shared actual void visitNode(Node that) { 
@@ -206,7 +138,6 @@ class LLVMBuilder() satisfies Visitor {
             push(GetterScope(model));
             specifier.visit(this);
             pop();
-            declaredItems.add(model);
             return;
         }
 
@@ -225,8 +156,6 @@ class LLVMBuilder() satisfies Visitor {
             !model.container is PackageModel) {
             return;
         }
-
-        declaredItems.add(model);
     }
 
     shared actual void visitStringLiteral(StringLiteral that) {
@@ -238,14 +167,12 @@ class LLVMBuilder() satisfies Visitor {
     shared actual void visitClassDefinition(ClassDefinition that) {
         assert(is Tree.ClassDefinition tc = that.get(keys.tcNode));
         value model = tc.declarationModel;
-        declaredItems.add(model);
 
         push(ConstructorScope(tc.declarationModel));
 
         for (parameter in CeylonList(model.parameterList.parameters)) {
             assert(is ValueModel v = parameter.model);
             scope.allocate(v, scope.body.register(parameter.name));
-            declaredItems.add(v);
         }
 
         that.extendedType?.visit(this);
@@ -258,8 +185,6 @@ class LLVMBuilder() satisfies Visitor {
         value target = that.target;
         assert(is Tree.InvocationExpression tc = target.get(keys.tcNode));
         assert(is Tree.ExtendedTypeExpression te = tc.primary);
-
-        usedItems.add(te.declaration);
 
         value arguments = ArrayList<Ptr<I64>>();
 
@@ -322,13 +247,11 @@ class LLVMBuilder() satisfies Visitor {
 
         value firstParameterList = tc.declarationModel.firstParameterList;
 
-        declaredItems.add(tc.declarationModel);
         push(FunctionScope(tc.declarationModel));
 
         for (parameter in CeylonList(firstParameterList.parameters)) {
             assert(is ValueModel v = parameter.model);
             scope.allocate(v, scope.body.register(parameter.name));
-            declaredItems.add(v);
         }
 
         that.definition?.visit(this);
@@ -342,8 +265,6 @@ class LLVMBuilder() satisfies Visitor {
         "Base expressions should have Base Member or Base Type RH nodes"
         assert(is Tree.MemberOrTypeExpression bt = b.get(keys.tcNode));
         value arguments = ArrayList<Ptr<I64>>();
-
-        usedItems.add(bt.declaration);
 
         "We don't support named arguments yet"
         assert(is PositionalArguments pa = that.arguments);
