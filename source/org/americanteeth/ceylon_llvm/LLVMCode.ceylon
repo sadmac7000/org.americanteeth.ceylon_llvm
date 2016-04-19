@@ -95,10 +95,30 @@ interface I64 satisfies LLVMValue {
     shared formal Ptr<I64> i64p();
 }
 
-"A literal LLVM I64"
+"A literal LLVM i64"
 final class I64Lit(Integer val) satisfies I64 {
     identifier = val.string;
     shared actual Ptr<I64> i64p() { assert(false); }
+}
+
+"An LLVM 32-bit integer value"
+interface I32 satisfies LLVMValue {
+    typeName => "i32";
+}
+
+"A literal LLVM i32"
+final class I32Lit(Integer val) satisfies I32 {
+    identifier = val.string;
+}
+
+"An LLVM 1-bit integer value"
+interface I1 satisfies LLVMValue {
+    typeName => "i1";
+}
+
+"A literal LLVM i1"
+final class I1Lit(Integer val) satisfies I1 {
+    identifier = val.string;
 }
 
 "An LLVM Null value"

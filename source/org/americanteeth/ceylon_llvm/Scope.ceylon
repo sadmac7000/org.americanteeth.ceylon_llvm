@@ -27,6 +27,12 @@ Integer vtableConstructorPriority = 65534;
 [String*] parameterListToLLVMStrings(ParameterList parameterList)
     => CeylonList(parameterList.parameters).collect((x) => "i64* %``x.name``");
 
+"Convert a parameter list to a sequence of LLVM values"
+[LLVMValue*] parameterListToLLVMValues(LLVMFunction func,
+        ParameterList parameterList)
+    => CeylonList(parameterList.parameters).collect((x)
+            => func.register(x.name));
+
 "A scope containing instructions"
 abstract class Scope() of CallableScope|UnitScope {
     value getters = ArrayList<LLVMDeclaration>();
@@ -105,13 +111,10 @@ abstract class Scope() of CallableScope|UnitScope {
     }
 
     shared formal LLVMFunction body;
-    shared default [String*] initFrame() => [];
+    shared default void initFrame() {}
 
     shared default {LLVMDeclaration*} results {
-        for (i in initFrame()) {
-            body.preamble.instruction(i);
-        }
-
+        initFrame();
         return {body, *getters};
     }
 }
@@ -155,9 +158,10 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
     }
 
     "Add instructions to initialize the frame object"
-    shared actual default [String*] initFrame() {
+    shared actual default void initFrame() {
         if (allocatedBlocks == 0 && model.toplevel) {
-            return ["%.frame = bitcast i64* null to i64*"];
+            body.preamble.instruction("%.frame = bitcast i64* null to i64*");
+            return;
         }
 
         value blocksTotal =
@@ -166,15 +170,12 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
             else allocatedBlocks;
         value bytesTotal = blocksTotal * 8;
 
-        value alloc = "%.frame = call i64* @malloc(i64 ``bytesTotal``)";
+        body.preamble.instruction(
+                "%.frame = call i64* @malloc(i64 ``bytesTotal``)");
 
-        if (model.toplevel) {
-            return [alloc];
+        if (!model.toplevel) {
+            body.register(".frame").store(body.register(".context").i64());
         }
-
-        return [alloc,
-                "%.context_cast = ptrtoint i64* %.context to i64",
-                "store i64 %.context_cast, i64* %.frame"];
     }
 }
 
@@ -182,9 +183,9 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
 class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     value vtable = ArrayList<DeclarationModel>();
 
-    shared actual [String*] initFrame() => [];
+    shared actual void initFrame() {}
 
-    [String*] arguments {
+    [String*] argumentStrings {
         value prepend =
             if (!model.toplevel)
             then ["i64* %.context", "i64* %.frame"]
@@ -196,7 +197,17 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
 
     shared actual LLVMFunction body
         = LLVMFunction(declarationName(model) + "$init", "void", "",
-                arguments);
+                argumentStrings);
+
+    [LLVMValue*] arguments {
+        value prepend =
+            if (!model.toplevel)
+            then [body.register(".context"), body.register(".frame")]
+            else [body.register(".frame")];
+
+        return prepend.chain(parameterListToLLVMValues(body,
+                    model.parameterList)).sequence();
+    }
 
     "The allocation offset for this item"
     shared actual I64 getAllocationOffset(Integer slot, LLVMFunction func) {
@@ -229,9 +240,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
             directConstructor.register(".frame").store(I64Lit(0), I64Lit(1));
         }
 
-        directConstructor.instruction(
-            "call void @``declarationName(model)``$init(\
-             ``", ".join(arguments)``)");
+        directConstructor.call<>("``declarationName(model)``$init",
+                *arguments);
 
         directConstructor.ret(directConstructor.register(".frame"));
 
@@ -256,9 +266,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         value parentvt = vtSetupFunction.global<Ptr<I64>>(
                 "``declarationName(parent)``$vtable").load();
 
-        vtSetupFunction.instruction(
-            "call void @llvm.memcpy.p0i64.p0i64.i64(\
-             ``vt``, ``parentvt``, ``parentBytes``, i32 8, i1 0)");
+        vtSetupFunction.call<>("llvm.memcpy.p0i64.p0i64.i64", vt, parentvt,
+                parentBytes, I32Lit(8), I1Lit(0));
 
         vtSetupFunction.global<Ptr<I64>>("``declarationName(model)``$vtable")
             .store(vt);
