@@ -1,4 +1,4 @@
-import com.redhat.ceylon.cmr.ceylon {
+import com.redhat.ceylon.common.tools {
     RepoUsingTool
 }
 
