@@ -405,8 +405,8 @@ class LLVMFunction(String n, shared String returnType,
 }
 
 "An LLVM global variable declaration."
-class LLVMGlobal(String n, LLVMValue startValue = llvmNull)
+class LLVMGlobal(String n, LLVMValue startValue = llvmNull, String modifiers = "")
         extends LLVMDeclaration(n) {
-    string => "@``name`` = global ``startValue``";
+    string => "@``name`` = ``modifiers`` global ``startValue``";
     declarationMade => "@``name`` = external global ``startValue.typeName``";
 }
