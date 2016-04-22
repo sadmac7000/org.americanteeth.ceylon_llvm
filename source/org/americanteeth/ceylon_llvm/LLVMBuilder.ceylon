@@ -55,18 +55,7 @@ class LLVMBuilder() satisfies Visitor {
     "Prefix for all units"
     String preamble = "%.constructor_type = type { i32, void ()* }
 
-                       declare i64* @malloc(i64)
-                       define private i64 @cMS4yLjA.ceylon.language.$Basic$size() {
-                           ret i64 2
-                       }
-                       
-                       define private i64 @cMS4yLjA.ceylon.language.$Basic$vtsize() {
-                           ret i64 0
-                       }
-                       
-                       @cMS4yLjA.ceylon.language.$Basic$vtable = private global i64* null
-                       
-                       declare void @llvm.memcpy.p0i64.p0i64.i64(i64*, i64*, i64 , i32, i1)\n\n";
+                       @cMS4yLjM.ceylon.language.$Basic$vtable = private global i64* null\n\n";
 
     "The run() method"
     variable FunctionModel? runSymbol = null;
@@ -82,6 +71,18 @@ class LLVMBuilder() satisfies Visitor {
 
     "The code we are outputting"
     value output = LLVMUnit();
+
+    /* Default items */
+    value basicSize = LLVMFunction("cMS4yLjM.ceylon.language.$Basic$size",
+            "i64", "private", []);
+    value basicVtSize = LLVMFunction("cMS4yLjM.ceylon.language.$Basic$vtsize",
+            "i64", "private", []);
+
+    basicSize.ret(I64Lit(2));
+    basicVtSize.ret(I64Lit(0));
+
+    output.append(basicSize);
+    output.append(basicVtSize);
 
     shared actual String string {
         for (item in unitScope.results) {
