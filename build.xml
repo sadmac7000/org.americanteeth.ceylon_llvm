@@ -4,7 +4,7 @@
     <property name="ceylon.ant.lib" value="${ceylon.home}/lib/ceylon-ant.jar"/>
 
     <property name="ceylon.verbosity" value="false"/>
-    <property name="ceylon.base.version" value="1.2.2"/>
+    <property name="ceylon.base.version" value="1.2.3"/>
     <property name="ceylon.executable" value="${ceylon.home}/bin/ceylon"/>
     <property name="out.repo" location="modules"/>
     
