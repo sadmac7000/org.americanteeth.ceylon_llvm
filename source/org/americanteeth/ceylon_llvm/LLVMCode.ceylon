@@ -217,6 +217,9 @@ class LLVMFunction(String n, shared String returnType,
     "Counter for auto-naming temporary registers."
     variable value nextTemporary = 0;
 
+    "Position where we will insert instructions"
+    variable value insertPos = 0;
+
     "List of declarations"
     value declarationList = ArrayList<String>();
 
@@ -259,32 +262,26 @@ class LLVMFunction(String n, shared String returnType,
      logic."
     value mainBodyItems = ArrayList<String>();
 
-    "Instructions in the body of this function. This is a separate block of
-     instructions that runs before the 'main' instructions."
-    value preambleItems = ArrayList<String>();
-
     "All instructions in the body of this function."
     value bodyItems =>
         if (exists b = mainBodyItems.last, b.startsWith("ret "))
-        then preambleItems.chain(mainBodyItems)
-        else preambleItems.chain(mainBodyItems).sequence().withTrailing(stubReturn);
+        then mainBodyItems
+        else mainBodyItems.sequence().withTrailing(stubReturn);
 
     "Function body as a single code string."
     value body => "\n    ".join(bodyItems);
 
-    "A block of instructions that precedes the main body and can be used to set
-     up a context."
-    shared object preamble satisfies LLVMBlock {
-        shared actual void declaration(String declaration)
-            => outer.declaration(declaration);
-        shared actual <T&LLVMValue>? registerFor<T>(String? regNameIn)
-            => outer.registerFor(regNameIn);
-        shared actual void instruction(String instruction)
-            => preambleItems.add(instruction);
-    }
-
     shared actual void instruction(String instruction)
-        => mainBodyItems.add(instruction);
+        => mainBodyItems.insert(insertPos++, instruction);
+
+    "Set the index in the instruction list where we will add instructions"
+    shared void setInsertPosition(Integer? pos = null) {
+        if (exists pos) {
+            insertPos = pos;
+        } else {
+            insertPos = mainBodyItems.size;
+        }
+    }
 
     shared actual void declaration(String declaration)
         => declarationList.add(declaration);

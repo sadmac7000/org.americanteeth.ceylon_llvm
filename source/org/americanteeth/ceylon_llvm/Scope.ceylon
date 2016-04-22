@@ -159,8 +159,10 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
 
     "Add instructions to initialize the frame object"
     shared actual default void initFrame() {
+        body.setInsertPosition(0);
         if (allocatedBlocks == 0 && model.toplevel) {
-            body.preamble.instruction("%.frame = bitcast i64* null to i64*");
+            body.instruction("%.frame = bitcast i64* null to i64*");
+            body.setInsertPosition();
             return;
         }
 
@@ -170,12 +172,12 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
             else allocatedBlocks;
         value bytesTotal = blocksTotal * 8;
 
-        body.preamble.instruction(
-                "%.frame = call i64* @malloc(i64 ``bytesTotal``)");
+        body.instruction("%.frame = call i64* @malloc(i64 ``bytesTotal``)");
 
         if (!model.toplevel) {
             body.register(".frame").store(body.register(".context").i64());
         }
+        body.setInsertPosition();
     }
 }
 
