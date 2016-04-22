@@ -78,7 +78,7 @@ class LLVMBuilder() satisfies Visitor {
     value basicVtSize = LLVMFunction("cMS4yLjM.ceylon.language.$Basic$vtsize",
             "i64", "private", []);
 
-    basicSize.ret(I64Lit(2));
+    basicSize.ret(I64Lit(16));
     basicVtSize.ret(I64Lit(0));
 
     output.append(basicSize);

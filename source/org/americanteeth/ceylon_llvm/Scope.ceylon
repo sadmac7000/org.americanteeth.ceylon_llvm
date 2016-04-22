@@ -227,14 +227,13 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
                 "i64", "", []);
         value extendedSize = sizeFunction.call<I64>(
                 "``declarationName(parent)``$size");
-        value total = sizeFunction.add(extendedSize, allocatedBlocks);
+        value total = sizeFunction.add(extendedSize, allocatedBlocks * 8);
         sizeFunction.ret(total);
 
         value directConstructor = LLVMFunction(declarationName(model), "i64*",
                 "", parameterListToLLVMStrings(model.parameterList));
-        value words = directConstructor.call<I64>(
+        value bytes = directConstructor.call<I64>(
                 "``declarationName(model)``$size");
-        value bytes = directConstructor.mul(words, 8);
         directConstructor.instruction(
             "%.frame = call i64* @malloc(``bytes``)");
 
@@ -251,7 +250,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
                 "i64", "", []);
         value parentsz = vtSizeFunction.call<I64>(
                 "``declarationName(parent)``$vtsize");
-        value result = vtSizeFunction.add(parentsz, vtable.size);
+        value result = vtSizeFunction.add(parentsz, vtable.size * 8);
         vtSizeFunction.ret(result);
 
         value vtSetupFunction =
@@ -259,17 +258,15 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
                     "void", "private", []);
         value vtparentsz = vtSetupFunction.call<I64>(
                 "``declarationName(parent)``$vtsize");
-        value parentBytes = vtSetupFunction.mul(vtparentsz, 8);
         value size = vtSetupFunction.call<I64>(
                 "``declarationName(model)``$vtsize");
-        value vt = vtSetupFunction.call<Ptr<I64>>("malloc",
-                vtSetupFunction.mul(size, 8));
+        value vt = vtSetupFunction.call<Ptr<I64>>("malloc", size);
 
         value parentvt = vtSetupFunction.global<Ptr<I64>>(
                 "``declarationName(parent)``$vtable").load();
 
         vtSetupFunction.call<>("llvm.memcpy.p0i64.p0i64.i64", vt, parentvt,
-                parentBytes, I32Lit(8), I1Lit(0));
+                vtparentsz, I32Lit(8), I1Lit(0));
 
         vtSetupFunction.global<Ptr<I64>>("``declarationName(model)``$vtable")
             .store(vt);
