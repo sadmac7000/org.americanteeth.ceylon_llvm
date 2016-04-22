@@ -15,6 +15,7 @@ import ceylon.file {
 "Any top-level declaration in an LLVM compilation unit."
 abstract class LLVMDeclaration(shared String name) {
     shared default {String*} declarationsNeeded = {};
+    shared default String? declarationMade = null;
 }
 
 "Get the dereference of an LLVM pointer type"
@@ -166,13 +167,20 @@ object llvmNull satisfies Ptr<I64> {
 class LLVMUnit() {
     value items = ArrayList<LLVMDeclaration>();
     value declarations = HashSet<String>();
+    value unnededDeclarations = HashSet<String>();
 
     shared void append(LLVMDeclaration item) {
         items.add(item);
         declarations.addAll(item.declarationsNeeded);
+        if (exists i = item.declarationMade) {
+            unnededDeclarations.add(i);
+        }
     }
 
-    value declarationCode => "\n".join(declarations);
+    value declarationCode {
+        declarations.removeAll(unnededDeclarations);
+        return "\n".join(declarations);
+    }
 
     String constructorItem {
         String? constructorString(LLVMDeclaration dec) {
@@ -214,6 +222,14 @@ class LLVMFunction(String n, shared String returnType,
 
     "Public list of declarations"
     shared actual {String*} declarationsNeeded => declarationList;
+
+    "The declaration that we don't need because we have this definition"
+    shared actual String declarationMade {
+        value types =
+            arguments.map((x) => x.split()).map((x) => x.first).narrow<String>();
+        value typeList = ", ".join(types);
+        return "declare ``returnType`` @``n``(``typeList``)";
+    }
 
     "The argument list as a single code string."
     String argList => ", ".join(arguments);
@@ -356,7 +372,8 @@ class LLVMFunction(String n, shared String returnType,
             }
         }
 
-        shared actual String typeName => writeReg().typeName + "*";
+        shared String targetTypeName => writeReg().typeName;
+        shared actual String typeName => targetTypeName + "*";
     }
 
     "Get a new i64* register"
@@ -375,14 +392,24 @@ class LLVMFunction(String n, shared String returnType,
         };
 
     "Access a global from this function"
-    shared Ptr<T> global<T>(String name) given T satisfies LLVMValue
-        => object satisfies PointerImpl<T> {
+    shared Ptr<T> global<T>(String name) given T satisfies LLVMValue {
+        value ret = object satisfies PointerImpl<T> {
             identifier = "@``name``";
         };
+        if (name.startsWith(".str")) {
+            return ret;
+        }
+        if (name.endsWith("$Basic$vtable")) {
+            return ret;
+        }
+        declaration("``ret.identifier`` = external global ``ret.targetTypeName``");
+        return ret;
+    }
 }
 
 "An LLVM global variable declaration."
 class LLVMGlobal(String n, LLVMValue startValue = llvmNull)
         extends LLVMDeclaration(n) {
     string => "@``name`` = global ``startValue``";
+    declarationMade => "@``name`` = external global ``startValue.typeName``";
 }
