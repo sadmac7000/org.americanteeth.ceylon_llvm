@@ -16,12 +16,15 @@ import com.redhat.ceylon.model.typechecker.model {
     ParameterList
 }
 
-"Priority of the library constructor function that contains all of the toplevel
- code"
-Integer toplevelConstructorPriority = 65535;
+"Floor value for constructor function priorities. We use this just to be well
+ out of the way of any C libraries that might get linked with us."
+Integer constructorPriorityOffset = 65536;
 
-"Priority of the library constructor functions that initialize vtables"
-Integer vtableConstructorPriority = 65534;
+"Priority of the library constructor function that contains all of the toplevel
+ code. Maximum inheritance depth is effectively bounded by this value, as
+ vtable initializers are expected to have values equal to the declared item's
+ inheritance depth."
+Integer toplevelConstructorPriority = constructorPriorityOffset + 65535;
 
 "Convert a parameter list to a sequence of LLVM strings"
 [String*] parameterListToLLVMStrings(ParameterList parameterList)
@@ -276,7 +279,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         setupFunction.global<Ptr<I64>>("``declarationName(model)``$vtable")
             .store(vt);
 
-        setupFunction.makeConstructor(vtableConstructorPriority);
+        assert(exists priority = declarationOrder[model]);
+        setupFunction.makeConstructor(priority + constructorPriorityOffset);
 
         value vtableDecl = LLVMGlobal(declarationName(model) + "$vtable");
 
