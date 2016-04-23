@@ -187,6 +187,13 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
 "Scope of a class body"
 class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     value vtable = ArrayList<DeclarationModel>();
+    value parent = model.extendedType.declaration;
+
+    {LLVMDeclaration+} globals = [
+        LLVMGlobal("``declarationName(model)``$size", I64Lit(0)),
+        LLVMGlobal("``declarationName(model)``$vtsize", I64Lit(0)),
+        LLVMGlobal(declarationName(model) + "$vtable")
+    ];
 
     shared actual void initFrame() {}
 
@@ -223,16 +230,13 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         return ret;
     }
 
-    shared actual {LLVMDeclaration*} results {
-        value parent = model.extendedType.declaration;
-
-        value sizeDecl = LLVMGlobal("``declarationName(model)``$size",
-                I64Lit(0));
-
+    LLVMDeclaration directConstructor() {
         value directConstructor = LLVMFunction(declarationName(model), "i64*",
                 "", parameterListToLLVMStrings(model.parameterList));
-        value bytes = directConstructor.global<I64>(
+        value size = directConstructor.global<I64>(
                 "``declarationName(model)``$size").load();
+        value bytes = directConstructor.mul(size, 8);
+
         directConstructor.instruction(
             "%.frame = call i64* @malloc(``bytes``)");
 
@@ -245,9 +249,10 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
 
         directConstructor.ret(directConstructor.register(".frame"));
 
-        value vtSizeDecl = LLVMGlobal("``declarationName(model)``$vtsize",
-                I64Lit(0));
+        return directConstructor;
+    }
 
+    shared actual {LLVMDeclaration*} results {
         value setupFunction =
             LLVMFunction(declarationName(model) + "$setupClass",
                     "void", "private", []);
@@ -257,24 +262,25 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
                 "``declarationName(model)``$size");
         value parentSize = setupFunction.global<I64>(
                 "``declarationName(parent)``$size").load();
-        value sizeValue = setupFunction.add(parentSize, allocatedBlocks * 8);
-        sizeGlobal.store(sizeValue);
-
+        value size = setupFunction.add(parentSize, allocatedBlocks);
+        sizeGlobal.store(size);
 
         /* Setup vtable size value */
-        value vtparentsz = setupFunction.global<I64>(
+        value vtParentSize = setupFunction.global<I64>(
                 "``declarationName(parent)``$vtsize").load();
+        value vtParentSizeBytes = setupFunction.mul(vtParentSize, 8);
         value vtSizeGlobal = setupFunction.global<I64>(
                 "``declarationName(model)``$vtsize");
-        value size = setupFunction.add(vtparentsz, vtable.size * 8);
-        vtSizeGlobal.store(size);
+        value vtSize = setupFunction.add(vtParentSize, vtable.size);
+        value vtSizeBytes = setupFunction.mul(vtSize, 8);
+        vtSizeGlobal.store(vtSize);
 
         /* Setup vtable */
-        value vt = setupFunction.call<Ptr<I64>>("malloc", size);
+        value vt = setupFunction.call<Ptr<I64>>("malloc", vtSizeBytes);
         value parentvt = setupFunction.global<Ptr<I64>>(
                 "``declarationName(parent)``$vtable").load();
         setupFunction.call<>("llvm.memcpy.p0i64.p0i64.i64", vt, parentvt,
-                vtparentsz, I32Lit(8), I1Lit(0));
+                vtParentSizeBytes, I32Lit(8), I1Lit(0));
 
         setupFunction.global<Ptr<I64>>("``declarationName(model)``$vtable")
             .store(vt);
@@ -282,10 +288,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         assert(exists priority = declarationOrder[model]);
         setupFunction.makeConstructor(priority + constructorPriorityOffset);
 
-        value vtableDecl = LLVMGlobal(declarationName(model) + "$vtable");
-
-        return super.results.chain{sizeDecl, directConstructor, vtableDecl,
-            vtSizeDecl, setupFunction};
+        return super.results.chain(globals).chain{directConstructor(),
+            setupFunction};
     }
 
     shared actual void vtableEntry(DeclarationModel d)
