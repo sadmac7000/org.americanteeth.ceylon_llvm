@@ -223,19 +223,24 @@ class LLVMFunction(String n, shared String returnType,
     "List of declarations"
     value declarationList = ArrayList<String>();
 
+    "Types of the arguments"
+    value argumentTypes =
+        arguments.map((x) => x.split()).map((x) => x.first).narrow<String>();
+
+    "LLVM list of the types of the arguments"
+    value typeList = ", ".join(argumentTypes);
+
     "Public list of declarations"
     shared actual {String*} declarationsNeeded => declarationList;
 
     "The declaration that we don't need because we have this definition"
-    shared actual String declarationMade {
-        value types =
-            arguments.map((x) => x.split()).map((x) => x.first).narrow<String>();
-        value typeList = ", ".join(types);
-        return "declare ``returnType`` @``n``(``typeList``)";
-    }
+    shared actual String declarationMade
+        => "declare ``returnType`` @``n``(``typeList``)";
+
+    shared String llvmType => "``returnType``(``typeList``)";
 
     "The argument list as a single code string."
-    String argList => ", ".join(arguments);
+    shared String argList => ", ".join(arguments);
 
     "Memoization of constructorPriority."
     variable Integer? constructorPriority_ = null;

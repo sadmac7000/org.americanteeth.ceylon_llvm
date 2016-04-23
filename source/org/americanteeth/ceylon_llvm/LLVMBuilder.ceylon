@@ -227,12 +227,8 @@ class LLVMBuilder() satisfies Visitor {
         assert(is Tree.AnyMethod tc = that.get(keys.tcNode));
 
         if (tc.declarationModel.\iformal ||
-            (tc.declarationModel.\idefault && !tc.declarationModel.\iactual)) {
+            tc.declarationModel.\idefault || tc.declarationModel.\iactual) {
             scope.vtableEntry(tc.declarationModel);
-        }
-
-        if (is FunctionDeclaration that) {
-            return;
         }
 
         if (tc.declarationModel.name == "run",
@@ -253,6 +249,7 @@ class LLVMBuilder() satisfies Visitor {
         }
 
         that.definition?.visit(this);
+
         pop();
     }
 

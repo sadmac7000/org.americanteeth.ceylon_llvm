@@ -163,6 +163,48 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
     "Add instructions to initialize the frame object"
     shared actual default void initFrame() {
         body.setInsertPosition(0);
+        if (model.\iformal || model.\idefault) {
+            /* FIXME: SOOO MUCH HACKING */
+            value vtable = body.register(".context").load(I64Lit(1)).i64p();
+
+            if (model.\idefault) {
+                assert(is DeclarationModel parent = model.container);
+                value expectedVt =
+                    body.global<Ptr<I64>>("``declarationName(parent)``$vtable")
+                    .load();
+                body.instruction(
+                    "%.dispatchCond = icmp eq ``expectedVt``, \
+                     ``vtable.identifier``");
+                body.instruction(
+                    "br i1 %.dispatchCond, label %.main, label %.dispatch");
+                body.instruction(".dispatch:");
+            }
+
+            variable value refined = model;
+
+            while (refined.refinedDeclaration != refined) {
+                refined = refined.refinedDeclaration;
+            }
+
+            value position = body.global<I64>(
+                "``declarationName(refined)``$vtPosition").load();
+            value jumpTargetAsInt = vtable.load(position);
+
+            body.instruction(
+                    "%.newCall = inttoptr ``jumpTargetAsInt`` to \
+                     ``body.llvmType``*");
+            body.instruction(
+                "%.ret = tail call i64* %.newCall(``body.argList``)");
+            body.ret(body.register(".ret"));
+
+            if (model.\idefault) {
+                body.instruction(".main:");
+            } else {
+                body.setInsertPosition();
+                return;
+            }
+        }
+
         if (allocatedBlocks == 0 && model.toplevel) {
             body.instruction("%.frame = bitcast i64* null to i64*");
             body.setInsertPosition();
@@ -187,6 +229,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
 "Scope of a class body"
 class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     value vtable = ArrayList<DeclarationModel>();
+    value vtableOverrides = ArrayList<DeclarationModel>();
     value parent = model.extendedType.declaration;
 
     {LLVMDeclaration+} globals = [
@@ -240,9 +283,9 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         directConstructor.instruction(
             "%.frame = call i64* @malloc(``bytes``)");
 
-        if (!vtable.empty) {
-            directConstructor.register(".frame").store(I64Lit(0), I64Lit(1));
-        }
+        value vt = directConstructor.global<Ptr<I64>>(
+            "``declarationName(model)``$vtable").load().i64();
+        directConstructor.register(".frame").store(vt, I64Lit(1));
 
         directConstructor.call<>("``declarationName(model)``$init",
                 *arguments);
@@ -251,6 +294,10 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
 
         return directConstructor;
     }
+
+    {LLVMGlobal*} vtPositions()
+        => vtable.map((x) => LLVMGlobal("``declarationName(x)``$vtPosition",
+                    I64Lit(0)));
 
     shared actual {LLVMDeclaration*} results {
         value setupFunction =
@@ -285,15 +332,63 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         setupFunction.global<Ptr<I64>>("``declarationName(model)``$vtable")
             .store(vt);
 
+        /* Set up vtPosition variables */
+        variable value i = 0;
+
+        void setVtEntry(DeclarationModel decl, I64 vtPosition) {
+            value intValue = setupFunction.registerInt();
+            /* FIXME: Hardcoded types and manual instructions and sadness oh
+             * my! Seriously though, this code won't work with even slightly
+             * more complex dispatch. Just a hack until LLVMCode supports
+             * function types somehow.
+             */
+            setupFunction.instruction(
+                    "``intValue.identifier`` = ptrtoint i64*(i64*)* \
+                     @``declarationName(decl)`` to i64");
+            vt.store(intValue, vtPosition);
+        }
+
+        for (decl in vtable) {
+            value vtPosition = setupFunction.add(vtParentSize, i++);
+            setupFunction.global<I64>(
+                    "``declarationName(decl)``$vtPosition").store(vtPosition);
+
+            if (!decl.\idefault) {
+                continue;
+            }
+
+            setVtEntry(decl, vtPosition);
+        }
+
+        /* Set up vtable overrides */
+        for (decl in vtableOverrides) {
+            variable value rootDecl = decl;
+
+            while (rootDecl.refinedDeclaration != rootDecl) {
+                rootDecl = rootDecl.refinedDeclaration;
+            }
+
+            value vtPosition = setupFunction.global<I64>(
+                    "``declarationName(rootDecl)``$vtPosition").load();
+
+            setVtEntry(decl, vtPosition);
+        }
+
+        /* Install setup function as a constructor */
         assert(exists priority = declarationOrder[model]);
         setupFunction.makeConstructor(priority + constructorPriorityOffset);
 
         return super.results.chain(globals).chain{directConstructor(),
-            setupFunction};
+            setupFunction}.chain(vtPositions());
     }
 
-    shared actual void vtableEntry(DeclarationModel d)
-        => vtable.add(d);
+    shared actual void vtableEntry(DeclarationModel d) {
+        if (! d.\iactual) {
+            vtable.add(d);
+        } else {
+            vtableOverrides.add(d);
+        }
+    }
 }
 
 "Scope of a getter method"
