@@ -39,6 +39,9 @@ abstract class LLVMDeclaration(shared String name) {
     assert(exists major = nums[0],
            exists minor = nums[1]);
 
+    "LLVM version should be = 3.x"
+    assert(major == 3);
+
     return [major, minor];
 }
 
@@ -111,6 +114,23 @@ interface LLVMBlock {
 
         return result;
     }
+
+    "Load from a pointer"
+    shared T load<T>(Ptr<T> ptr, I64? off = null) {
+        if (exists off) {
+            return load(offset(ptr, off));
+        }
+
+        assert(exists result = registerFor<T>());
+
+        if (llvmVersion[1] < 7) {
+            instruction("``result.identifier`` = load ``ptr``");
+        } else {
+            instruction("``result.identifier`` = load ``result.typeName``, ``ptr``");
+        }
+
+        return result;
+    }
 }
 
 "An LLVM typed value"
@@ -122,7 +142,6 @@ interface LLVMValue {
 
 "An LLVM pointer value"
 interface Ptr<T> satisfies LLVMValue given T satisfies LLVMValue {
-    shared default T load(I64? off=null) { assert(false); }
     shared actual default String typeName => "i64*";
     shared formal I64 i64();
     shared formal void store(T val, I64? off=null);
@@ -329,22 +348,6 @@ class LLVMFunction(String n, shared String returnType,
         T writeReg() {
             assert(exists ret = registerFor<T>());
             return ret;
-        }
-
-        shared actual T load(I64? off) {
-            if (exists off) {
-                return offset(this, off).load();
-            }
-
-            value result = writeReg();
-
-            if (llvmVersion[1] < 7) {
-                instruction("``result.identifier`` = load ``this``");
-            } else {
-                instruction("``result.identifier`` = load ``result.typeName``, ``this``");
-            }
-
-            return result;
         }
 
         shared actual I64 i64() {

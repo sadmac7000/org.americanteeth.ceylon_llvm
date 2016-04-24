@@ -66,7 +66,7 @@ abstract class Scope() of CallableScope|UnitScope {
 
         value offset = getAllocationOffset(slot, getter);
 
-        getter.ret(getter.register(".context").load(offset).i64p());
+        getter.ret(getter.load(getter.register(".context"), offset).i64p());
 
         return getter;
     }
@@ -149,7 +149,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         variable Ptr<I64> context = body.register(".context");
 
         while (is DeclarationModel v = visitedContainer, v != container) {
-            context = context.load().i64p();
+            context = body.load(context).i64p();
             visitedContainer = v.container;
         }
 
@@ -165,13 +165,14 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         body.setInsertPosition(0);
         if (model.\iformal || model.\idefault) {
             /* FIXME: SOOO MUCH HACKING */
-            value vtable = body.register(".context").load(I64Lit(1)).i64p();
+            value vtable = body.load(body.register(".context"),
+                    I64Lit(1)).i64p();
 
             if (model.\idefault) {
                 assert(is DeclarationModel parent = model.container);
                 value expectedVt =
-                    body.global<Ptr<I64>>("``declarationName(parent)``$vtable")
-                    .load();
+                    body.load(body.global<Ptr<I64>>(
+                                "``declarationName(parent)``$vtable"));
                 body.instruction(
                     "%.dispatchCond = icmp eq ``expectedVt``, \
                      ``vtable.identifier``");
@@ -186,9 +187,9 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
                 refined = refined.refinedDeclaration;
             }
 
-            value position = body.global<I64>(
-                "``declarationName(refined)``$vtPosition").load();
-            value jumpTargetAsInt = vtable.load(position);
+            value position = body.load(body.global<I64>(
+                "``declarationName(refined)``$vtPosition"));
+            value jumpTargetAsInt = body.load(vtable, position);
 
             body.instruction(
                     "%.newCall = inttoptr ``jumpTargetAsInt`` to \
@@ -268,7 +269,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     shared actual I64 getAllocationOffset(Integer slot, LLVMFunction func) {
         value parent = model.extendedType.declaration;
 
-        value shift = func.global<I64>("``declarationName(parent)``$size").load();
+        value shift = func.load(func.global<I64>(
+                    "``declarationName(parent)``$size"));
         value ret = func.add(shift, slot);
         return ret;
     }
@@ -276,15 +278,15 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     LLVMDeclaration directConstructor() {
         value directConstructor = LLVMFunction(declarationName(model), "i64*",
                 "", parameterListToLLVMStrings(model.parameterList));
-        value size = directConstructor.global<I64>(
-                "``declarationName(model)``$size").load();
+        value size = directConstructor.load(directConstructor.global<I64>(
+                "``declarationName(model)``$size"));
         value bytes = directConstructor.mul(size, 8);
 
         directConstructor.instruction(
             "%.frame = call i64* @malloc(``bytes``)");
 
-        value vt = directConstructor.global<Ptr<I64>>(
-            "``declarationName(model)``$vtable").load().i64();
+        value vt = directConstructor.load(directConstructor.global<Ptr<I64>>(
+            "``declarationName(model)``$vtable")).i64();
         directConstructor.register(".frame").store(vt, I64Lit(1));
 
         directConstructor.call<>("``declarationName(model)``$init",
@@ -307,14 +309,14 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         /* Setup size value */
         value sizeGlobal = setupFunction.global<I64>(
                 "``declarationName(model)``$size");
-        value parentSize = setupFunction.global<I64>(
-                "``declarationName(parent)``$size").load();
+        value parentSize = setupFunction.load(setupFunction.global<I64>(
+                "``declarationName(parent)``$size"));
         value size = setupFunction.add(parentSize, allocatedBlocks);
         sizeGlobal.store(size);
 
         /* Setup vtable size value */
-        value vtParentSize = setupFunction.global<I64>(
-                "``declarationName(parent)``$vtsize").load();
+        value vtParentSize = setupFunction.load(setupFunction.global<I64>(
+                "``declarationName(parent)``$vtsize"));
         value vtParentSizeBytes = setupFunction.mul(vtParentSize, 8);
         value vtSizeGlobal = setupFunction.global<I64>(
                 "``declarationName(model)``$vtsize");
@@ -324,8 +326,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
 
         /* Setup vtable */
         value vt = setupFunction.call<Ptr<I64>>("malloc", vtSizeBytes);
-        value parentvt = setupFunction.global<Ptr<I64>>(
-                "``declarationName(parent)``$vtable").load();
+        value parentvt = setupFunction.load(setupFunction.global<Ptr<I64>>(
+                "``declarationName(parent)``$vtable"));
         setupFunction.call<>("llvm.memcpy.p0i64.p0i64.i64", vt, parentvt,
                 vtParentSizeBytes, I32Lit(8), I1Lit(0));
 
@@ -368,8 +370,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
                 rootDecl = rootDecl.refinedDeclaration;
             }
 
-            value vtPosition = setupFunction.global<I64>(
-                    "``declarationName(rootDecl)``$vtPosition").load();
+            value vtPosition = setupFunction.load(setupFunction.global<I64>(
+                    "``declarationName(rootDecl)``$vtPosition"));
 
             setVtEntry(decl, vtPosition);
         }
@@ -417,7 +419,7 @@ class UnitScope() extends Scope() {
     LLVMFunction getterFor(ValueModel model) {
         value getter = LLVMFunction(declarationName(model) + "$get",
                 "i64*", "", []);
-        value ret = getter.global<Ptr<I64>>(declarationName(model)).load();
+        value ret = getter.load(getter.global<Ptr<I64>>(declarationName(model)));
         getter.ret(ret);
         return getter;
     }
