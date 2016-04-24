@@ -131,6 +131,22 @@ interface LLVMBlock {
 
         return result;
     }
+
+    "Cast an I64 to a Ptr<I64>"
+    shared Ptr<I64> toPtr(I64 ptr) {
+        assert(exists result = registerFor<Ptr<I64>>());
+        instruction("``result.identifier`` = inttoptr ``ptr`` \
+                     to ``result.typeName``");
+        return result;
+    }
+
+    "Cast a Ptr<I64> to an I64"
+    shared I64 toI64(Ptr<I64> ptr) {
+        assert(exists result = registerFor<I64>());
+        instruction("``result.identifier`` = ptrtoint ``ptr`` \
+                     to ``result.typeName``");
+        return result;
+    }
 }
 
 "An LLVM typed value"
@@ -143,7 +159,6 @@ interface LLVMValue {
 "An LLVM pointer value"
 interface Ptr<T> satisfies LLVMValue given T satisfies LLVMValue {
     shared actual default String typeName => "i64*";
-    shared formal I64 i64();
     shared formal void store(T val, I64? off=null);
 }
 
@@ -151,13 +166,11 @@ interface Ptr<T> satisfies LLVMValue given T satisfies LLVMValue {
 "An LLVM 64-bit integer value"
 interface I64 satisfies LLVMValue {
     typeName => "i64";
-    shared formal Ptr<I64> i64p();
 }
 
 "A literal LLVM i64"
 final class I64Lit(Integer val) satisfies I64 {
     identifier = val.string;
-    shared actual Ptr<I64> i64p() { assert(false); }
 }
 
 "An LLVM 32-bit integer value"
@@ -183,7 +196,6 @@ final class I1Lit(Integer val) satisfies I1 {
 "An LLVM Null value"
 object llvmNull satisfies Ptr<I64> {
     identifier = "null";
-    shared actual I64 i64() => I64Lit(0);
     shared actual void store(I64 val, I64? off) {
         "Cannot store to null pointer."
         assert(false);
@@ -350,13 +362,6 @@ class LLVMFunction(String n, shared String returnType,
             return ret;
         }
 
-        shared actual I64 i64() {
-            value result = registerInt();
-
-            instruction("``result.identifier`` = ptrtoint ``this`` to i64");
-            return result;
-        }
-
         shared actual void store(T val, I64? off) {
             if (exists off) {
                 offset(this, off).store(val);
@@ -376,12 +381,6 @@ class LLVMFunction(String n, shared String returnType,
     "Get a new i64 register"
     shared I64 registerInt(String? regNameIn = null)
         => object extends Register(regNameIn) satisfies I64 {
-            shared actual Ptr<I64> i64p() {
-                value result = register();
-                instruction("``result.identifier`` = inttoptr ``this`` \
-                             to ``result.typeName``");
-                return result;
-            }
         };
 
     "Access a global from this function"

@@ -66,7 +66,8 @@ abstract class Scope() of CallableScope|UnitScope {
 
         value offset = getAllocationOffset(slot, getter);
 
-        getter.ret(getter.load(getter.register(".context"), offset).i64p());
+        getter.ret(getter.toPtr(getter.load(getter.register(".context"),
+                        offset)));
 
         return getter;
     }
@@ -89,7 +90,7 @@ abstract class Scope() of CallableScope|UnitScope {
             value slotOffset = getAllocationOffset(allocationBlock - 1,
                     body);
 
-            body.register(".frame").store(startValue.i64(), slotOffset);
+            body.register(".frame").store(body.toI64(startValue), slotOffset);
         }
 
         getters.add(getterFor(declaration));
@@ -149,7 +150,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         variable Ptr<I64> context = body.register(".context");
 
         while (is DeclarationModel v = visitedContainer, v != container) {
-            context = body.load(context).i64p();
+            context = body.toPtr(body.load(context));
             visitedContainer = v.container;
         }
 
@@ -165,8 +166,8 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         body.setInsertPosition(0);
         if (model.\iformal || model.\idefault) {
             /* FIXME: SOOO MUCH HACKING */
-            value vtable = body.load(body.register(".context"),
-                    I64Lit(1)).i64p();
+            value vtable = body.toPtr(body.load(body.register(".context"),
+                    I64Lit(1)));
 
             if (model.\idefault) {
                 assert(is DeclarationModel parent = model.container);
@@ -221,7 +222,8 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         body.instruction("%.frame = call i64* @malloc(i64 ``bytesTotal``)");
 
         if (!model.toplevel) {
-            body.register(".frame").store(body.register(".context").i64());
+            body.register(".frame").store(body.toI64(
+                        body.register(".context")));
         }
         body.setInsertPosition();
     }
@@ -285,8 +287,9 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         directConstructor.instruction(
             "%.frame = call i64* @malloc(``bytes``)");
 
-        value vt = directConstructor.load(directConstructor.global<Ptr<I64>>(
-            "``declarationName(model)``$vtable")).i64();
+        value vt = directConstructor.toI64(
+                directConstructor.load(directConstructor.global<Ptr<I64>>(
+            "``declarationName(model)``$vtable")));
         directConstructor.register(".frame").store(vt, I64Lit(1));
 
         directConstructor.call<>("``declarationName(model)``$init",
