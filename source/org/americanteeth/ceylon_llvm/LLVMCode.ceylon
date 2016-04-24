@@ -18,12 +18,6 @@ abstract class LLVMDeclaration(shared String name) {
     shared default String? declarationMade = null;
 }
 
-"Get the dereference of an LLVM pointer type"
-String unPointer(String type) {
-    assert(type.endsWith("*"));
-    return type.spanTo(type.size - 2);
-}
-
 "Get the current LLVM version"
 [Integer, Integer] getLLVMVersion() {
     value proc = createProcess {
