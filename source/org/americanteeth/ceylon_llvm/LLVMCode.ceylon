@@ -132,6 +132,16 @@ interface LLVMBlock {
         return result;
     }
 
+    "Store to a pointer"
+    shared void store<T>(Ptr<T> ptr, T val, I64? off = null)
+            given T satisfies LLVMValue {
+        if (exists off) {
+            store(offset(ptr, off), val);
+        } else {
+            instruction("store ``val``, ``ptr``");
+        }
+    }
+
     "Cast an I64 to a Ptr<I64>"
     shared Ptr<I64> toPtr(I64 ptr) {
         assert(exists result = registerFor<Ptr<I64>>());
@@ -159,7 +169,6 @@ interface LLVMValue {
 "An LLVM pointer value"
 interface Ptr<T> satisfies LLVMValue given T satisfies LLVMValue {
     shared actual default String typeName => "i64*";
-    shared formal void store(T val, I64? off=null);
 }
 
 
@@ -196,10 +205,6 @@ final class I1Lit(Integer val) satisfies I1 {
 "An LLVM Null value"
 object llvmNull satisfies Ptr<I64> {
     identifier = "null";
-    shared actual void store(I64 val, I64? off) {
-        "Cannot store to null pointer."
-        assert(false);
-    }
 }
 
 "An LLVM compilation unit."
@@ -360,14 +365,6 @@ class LLVMFunction(String n, shared String returnType,
         T writeReg() {
             assert(exists ret = registerFor<T>());
             return ret;
-        }
-
-        shared actual void store(T val, I64? off) {
-            if (exists off) {
-                offset(this, off).store(val);
-            } else {
-                instruction("store ``val``, ``this``");
-            }
         }
 
         shared String targetTypeName => writeReg().typeName;

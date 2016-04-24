@@ -90,7 +90,9 @@ abstract class Scope() of CallableScope|UnitScope {
             value slotOffset = getAllocationOffset(allocationBlock - 1,
                     body);
 
-            body.register(".frame").store(body.toI64(startValue), slotOffset);
+            body.store(
+                    body.register(".frame"), body.toI64(startValue),
+                    slotOffset);
         }
 
         getters.add(getterFor(declaration));
@@ -222,8 +224,8 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         body.instruction("%.frame = call i64* @malloc(i64 ``bytesTotal``)");
 
         if (!model.toplevel) {
-            body.register(".frame").store(body.toI64(
-                        body.register(".context")));
+            body.store(body.register(".frame"),
+                    body.toI64(body.register(".context")));
         }
         body.setInsertPosition();
     }
@@ -290,7 +292,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         value vt = directConstructor.toI64(
                 directConstructor.load(directConstructor.global<Ptr<I64>>(
             "``declarationName(model)``$vtable")));
-        directConstructor.register(".frame").store(vt, I64Lit(1));
+        directConstructor.store(directConstructor.register(".frame"),
+                vt, I64Lit(1));
 
         directConstructor.call<>("``declarationName(model)``$init",
                 *arguments);
@@ -315,7 +318,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         value parentSize = setupFunction.load(setupFunction.global<I64>(
                 "``declarationName(parent)``$size"));
         value size = setupFunction.add(parentSize, allocatedBlocks);
-        sizeGlobal.store(size);
+        setupFunction.store(sizeGlobal, size);
 
         /* Setup vtable size value */
         value vtParentSize = setupFunction.load(setupFunction.global<I64>(
@@ -325,7 +328,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
                 "``declarationName(model)``$vtsize");
         value vtSize = setupFunction.add(vtParentSize, vtable.size);
         value vtSizeBytes = setupFunction.mul(vtSize, 8);
-        vtSizeGlobal.store(vtSize);
+        setupFunction.store(vtSizeGlobal, vtSize);
 
         /* Setup vtable */
         value vt = setupFunction.call<Ptr<I64>>("malloc", vtSizeBytes);
@@ -334,8 +337,9 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         setupFunction.call<>("llvm.memcpy.p0i64.p0i64.i64", vt, parentvt,
                 vtParentSizeBytes, I32Lit(8), I1Lit(0));
 
-        setupFunction.global<Ptr<I64>>("``declarationName(model)``$vtable")
-            .store(vt);
+        setupFunction.store(
+                setupFunction.global<Ptr<I64>>(
+                    "``declarationName(model)``$vtable"), vt);
 
         /* Set up vtPosition variables */
         variable value i = 0;
@@ -350,13 +354,14 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
             setupFunction.instruction(
                     "``intValue.identifier`` = ptrtoint i64*(i64*)* \
                      @``declarationName(decl)`` to i64");
-            vt.store(intValue, vtPosition);
+            setupFunction.store(vt, intValue, vtPosition);
         }
 
         for (decl in vtable) {
             value vtPosition = setupFunction.add(vtParentSize, i++);
-            setupFunction.global<I64>(
-                    "``declarationName(decl)``$vtPosition").store(vtPosition);
+            setupFunction.store(
+                    setupFunction.global<I64>(
+                        "``declarationName(decl)``$vtPosition"), vtPosition);
 
             if (!decl.\idefault) {
                 continue;
