@@ -96,6 +96,21 @@ interface LLVMBlock {
 
     "Add a mul instruction to this block"
     shared I64 mul(I64|Integer a, I64|Integer b) => intOp("mul", a, b);
+
+    "Offset a pointer"
+    shared Ptr<T> offset<T>(Ptr<T> ptr, I64 amount) {
+        assert(exists result = registerFor<Ptr<T>>());
+        assert(exists dummy = registerFor<T>());
+
+        if (llvmVersion[1] < 7) {
+            instruction("``result.identifier`` = getelementptr ``ptr``, ``amount``");
+        } else {
+            instruction("``result.identifier`` = getelementptr ``dummy.typeName``, \
+                         ``ptr``, ``amount``");
+        }
+
+        return result;
+    }
 }
 
 "An LLVM typed value"
@@ -107,7 +122,6 @@ interface LLVMValue {
 
 "An LLVM pointer value"
 interface Ptr<T> satisfies LLVMValue given T satisfies LLVMValue {
-    shared default Ptr<T> offset(I64 amount) { assert(false); }
     shared default T load(I64? off=null) { assert(false); }
     shared actual default String typeName => "i64*";
     shared formal I64 i64();
@@ -312,34 +326,14 @@ class LLVMFunction(String n, shared String returnType,
 
     "Implementation for pointers"
     interface PointerImpl<T> satisfies Ptr<T> given T satisfies LLVMValue {
-        Ptr<T> offsetReg() {
-            assert(exists ret = registerFor<Ptr<T>>());
-            return ret;
-        }
-
         T writeReg() {
             assert(exists ret = registerFor<T>());
             return ret;
         }
 
-        shared actual Ptr<T> offset(I64 amount) {
-            value result = offsetReg();
-            value dummy = writeReg(); // If you think this hack is bad you
-                                      // should see the other things I tried.
-
-            if (llvmVersion[1] < 7) {
-                instruction("``result.identifier`` = getelementptr ``this``, ``amount``");
-            } else {
-                instruction("``result.identifier`` = getelementptr ``dummy.typeName``, \
-                             ``this``, ``amount``");
-            }
-
-            return result;
-        }
-
         shared actual T load(I64? off) {
             if (exists off) {
-                return offset(off).load();
+                return offset(this, off).load();
             }
 
             value result = writeReg();
@@ -362,7 +356,7 @@ class LLVMFunction(String n, shared String returnType,
 
         shared actual void store(T val, I64? off) {
             if (exists off) {
-                offset(off).store(val);
+                offset(this, off).store(val);
             } else {
                 instruction("store ``val``, ``this``");
             }
