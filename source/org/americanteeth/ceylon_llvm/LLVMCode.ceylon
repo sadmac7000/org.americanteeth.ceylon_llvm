@@ -209,7 +209,7 @@ class LLVMUnit() {
 "An LLVM function declaration."
 class LLVMFunction(String n, shared LLVMType? returnType,
                    shared String modifiers,
-                   shared [String*] arguments)
+                   shared [AnyLLVMValue*] arguments)
         extends LLVMDeclaration(n)
         satisfies LLVMBlock {
     "Counter for auto-naming temporary registers."
@@ -222,8 +222,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     value declarationList = ArrayList<String>();
 
     "Types of the arguments"
-    value argumentTypes =
-        arguments.map((x) => x.split()).map((x) => x.first).narrow<String>();
+    value argumentTypes = arguments.map((x) => x.type);
 
     "LLVM list of the types of the arguments"
     value typeList = ", ".join(argumentTypes);
@@ -238,7 +237,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     shared String llvmType => "``returnType else "void"``(``typeList``)";
 
     "The argument list as a single code string."
-    shared String argList => ", ".join(arguments);
+    shared String argList => ", ".join(arguments.map(Object.string));
 
     "Memoization of constructorPriority."
     variable Integer? constructorPriority_ = null;

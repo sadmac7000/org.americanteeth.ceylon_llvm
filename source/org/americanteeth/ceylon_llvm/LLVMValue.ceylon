@@ -44,3 +44,10 @@ final class I1Lit(Integer val) extends I1(i1) {
 object llvmNull extends Ptr<I64Type>(ptr(i64)) {
     identifier = "null";
 }
+
+"Constructor for LLVM values"
+LLVMValue<T> val<T>(T t, String ident)
+        given T satisfies LLVMType
+    => object extends LLVMValue<T>(t) {
+        identifier = ident;
+    };

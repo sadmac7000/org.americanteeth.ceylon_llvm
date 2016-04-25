@@ -31,10 +31,9 @@ Integer toplevelConstructorPriority = constructorPriorityOffset + 65535;
     => CeylonList(parameterList.parameters).collect((x) => "i64* %``x.name``");
 
 "Convert a parameter list to a sequence of LLVM values"
-[AnyLLVMValue*] parameterListToLLVMValues(LLVMFunction func,
-        ParameterList parameterList)
+[AnyLLVMValue*] parameterListToLLVMValues(ParameterList parameterList)
     => CeylonList(parameterList.parameters).collect((x)
-            => func.register(x.name));
+            => val(ptr(i64), "%``x.name``"));
 
 "A scope containing instructions"
 abstract class Scope() of CallableScope|UnitScope {
@@ -62,7 +61,7 @@ abstract class Scope() of CallableScope|UnitScope {
         assert(exists slot = allocations[model]);
 
         value getter = LLVMFunction(declarationName(model) + "$get",
-                ptr(i64), "", ["i64* %.context"]);
+                ptr(i64), "", [val(ptr(i64), "%.context")]);
 
         value offset = getAllocationOffset(slot, getter);
 
@@ -130,7 +129,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
     shared actual default LLVMFunction body
         = LLVMFunction(declarationName(model) + namePostfix, ptr(i64), "",
                 if (!model.toplevel)
-                then ["i64* %.context"]
+                then [val(ptr(i64), "%.context")]
                 else []);
 
     shared actual Ptr<I64Type>? getFrameFor(DeclarationModel declaration) {
@@ -245,29 +244,19 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
 
     shared actual void initFrame() {}
 
-    [String*] argumentStrings {
+    [AnyLLVMValue*] arguments {
         value prepend =
             if (!model.toplevel)
-            then ["i64* %.context", "i64* %.frame"]
-            else ["i64* %.frame"];
+            then [val(ptr(i64), "%.context"), val(ptr(i64), "%.frame")]
+            else [val(ptr(i64), "%.frame")];
 
-        return prepend.chain(parameterListToLLVMStrings(
+        return prepend.chain(parameterListToLLVMValues(
                     model.parameterList)).sequence();
     }
 
     shared actual LLVMFunction body
         = LLVMFunction(declarationName(model) + "$init", null, "",
-                argumentStrings);
-
-    [AnyLLVMValue*] arguments {
-        value prepend =
-            if (!model.toplevel)
-            then [body.register(".context"), body.register(".frame")]
-            else [body.register(".frame")];
-
-        return prepend.chain(parameterListToLLVMValues(body,
-                    model.parameterList)).sequence();
-    }
+                arguments);
 
     "The allocation offset for this item"
     shared actual I64 getAllocationOffset(Integer slot, LLVMFunction func) {
@@ -281,7 +270,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
 
     LLVMDeclaration directConstructor() {
         value directConstructor = LLVMFunction(declarationName(model), ptr(i64),
-                "", parameterListToLLVMStrings(model.parameterList));
+                "", parameterListToLLVMValues(model.parameterList));
         value size = directConstructor.load(directConstructor.global(i64,
                 "``declarationName(model)``$size"));
         value bytes = directConstructor.mul(size, 8);
@@ -412,8 +401,9 @@ class FunctionScope(FunctionModel model) extends CallableScope(model) {
     shared actual LLVMFunction body
         = LLVMFunction(declarationName(model), ptr(i64), "",
                 if (!model.toplevel)
-                then ["i64* %.context", *parameterListToLLVMStrings(model.firstParameterList)]
-                else parameterListToLLVMStrings(model.firstParameterList));
+                then [val(ptr(i64), "%.context"),
+                    *parameterListToLLVMValues(model.firstParameterList)]
+                else parameterListToLLVMValues(model.firstParameterList));
 }
 
 "The outermost scope of the compilation unit"
