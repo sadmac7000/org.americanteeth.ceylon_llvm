@@ -15,20 +15,23 @@ alias AnyLLVMPointerType => PtrType<LLVMType>;
 PtrType<T> ptr<T>(T targetType) given T satisfies LLVMType
     => PtrType<T>(targetType);
 
+"An LLVM Integer type"
+abstract class IntegerType(Integer bits) extends LLVMType("i``bits``") {}
+
 "i64 LLVM type base class"
-abstract class I64Type() of i64 extends LLVMType("i64") {}
+abstract class I64Type() of i64 extends IntegerType(64) {}
 
 "i64 LLVM type instance"
 object i64 extends I64Type() {}
 
 "i32 LLVM type base class"
-abstract class I32Type() of i32 extends LLVMType("i32") {}
+abstract class I32Type() of i32 extends IntegerType(32) {}
 
 "i32 LLVM type instance"
 object i32 extends I32Type() {}
 
 "i1 LLVM type base class"
-abstract class I1Type() of i1 extends LLVMType("i1") {}
+abstract class I1Type() of i1 extends IntegerType(1) {}
 
 "i1 LLVM type instance"
 object i1 extends I1Type() {}
