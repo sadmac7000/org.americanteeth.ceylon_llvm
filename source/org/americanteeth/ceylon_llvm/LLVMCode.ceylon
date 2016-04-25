@@ -51,35 +51,36 @@ abstract class LLVMDeclaration(shared String name) {
 "A sequence of LLVM instructions"
 interface LLVMBlock {
     shared formal void instruction(String instruction);
-    shared formal <T&LLVMValue>? registerFor<T>(String? regNameIn = null);
+    shared formal LLVMValue<T> registerFor<T>(T type, String? regNameIn = null)
+            given T satisfies LLVMType;
     shared default void declaration(String declaration) {}
 
-    "Emit a call instruction"
-    shared T call<T=Anything>(String name, LLVMValue* args) {
+    shared void callVoid(String name, AnyLLVMValue* args) {
         value argList = ", ".join(args);
         value typeList = ", ".join(args.map((x) => x.typeName));
 
-        String resultType;
-        String equality;
-        value result = registerFor<T>();
+        instruction("call void @``name``(``argList``)");
+        declaration("declare void @``name``(``typeList``)");
+    }
 
-        if (exists result) {
-            resultType = result.typeName;
-            equality = "``result.identifier`` = ";
-        } else {
-            resultType = "void";
-            equality = "";
-        }
+    "Emit a call instruction"
+    shared LLVMValue<T> call<T>(T type, String name, AnyLLVMValue* args)
+            given T satisfies LLVMType {
+        value argList = ", ".join(args);
+        value typeList = ", ".join(args.map((x) => x.typeName));
 
-        instruction("``equality``call ``resultType`` @``name``(``argList``)");
-        declaration("declare ``resultType`` @``name``(``typeList``)");
+        value result = registerFor(type);
 
-        assert(is T result);
+        instruction("``result.identifier`` = \
+                     call ``type`` @``name``(``argList``)");
+        declaration("declare ``type`` @``name``(``typeList``)");
+
         return result;
     }
 
     "Add a return statement to this block"
-    shared void ret(LLVMValue? val) {
+    shared void ret<T>(LLVMValue<T>? val)
+            given T satisfies LLVMType {
         if (exists val) {
             instruction("ret ``val``");
         } else {
@@ -89,7 +90,7 @@ interface LLVMBlock {
 
     "Add an integer operation instruction to this block"
     I64 intOp(String op, I64|Integer a, I64|Integer b) {
-        assert(exists ret = registerFor<I64>());
+        value ret = registerFor(i64);
         instruction("``ret.identifier`` = ``op`` ``a``, ``b``");
         return ret;
     }
@@ -101,14 +102,14 @@ interface LLVMBlock {
     shared I64 mul(I64|Integer a, I64|Integer b) => intOp("mul", a, b);
 
     "Offset a pointer"
-    shared Ptr<T> offset<T>(Ptr<T> ptr, I64 amount) {
-        assert(exists result = registerFor<Ptr<T>>());
-        assert(exists dummy = registerFor<T>());
+    shared Ptr<T> offset<T>(Ptr<T> ptr, I64 amount)
+            given T satisfies LLVMType {
+        value result = registerFor(ptr.type);
 
         if (llvmVersion[1] < 7) {
             instruction("``result.identifier`` = getelementptr ``ptr``, ``amount``");
         } else {
-            instruction("``result.identifier`` = getelementptr ``dummy.typeName``, \
+            instruction("``result.identifier`` = getelementptr ``ptr.type.targetType``, \
                          ``ptr``, ``amount``");
         }
 
@@ -116,25 +117,26 @@ interface LLVMBlock {
     }
 
     "Load from a pointer"
-    shared T load<T>(Ptr<T> ptr, I64? off = null) {
+    shared LLVMValue<T> load<T>(Ptr<T> ptr, I64? off = null)
+            given T satisfies LLVMType {
         if (exists off) {
             return load(offset(ptr, off));
         }
 
-        assert(exists result = registerFor<T>());
+        value result = registerFor(ptr.type.targetType);
 
         if (llvmVersion[1] < 7) {
             instruction("``result.identifier`` = load ``ptr``");
         } else {
-            instruction("``result.identifier`` = load ``result.typeName``, ``ptr``");
+            instruction("``result.identifier`` = load ``result.type``, ``ptr``");
         }
 
         return result;
     }
 
     "Store to a pointer"
-    shared void store<T>(Ptr<T> ptr, T val, I64? off = null)
-            given T satisfies LLVMValue {
+    shared void store<T>(Ptr<T> ptr, LLVMValue<T> val, I64? off = null)
+            given T satisfies LLVMType {
         if (exists off) {
             store(offset(ptr, off), val);
         } else {
@@ -143,68 +145,20 @@ interface LLVMBlock {
     }
 
     "Cast an I64 to a Ptr<I64>"
-    shared Ptr<I64> toPtr(I64 ptr) {
-        assert(exists result = registerFor<Ptr<I64>>());
-        instruction("``result.identifier`` = inttoptr ``ptr`` \
-                     to ``result.typeName``");
+    shared Ptr<I64Type> toPtr(I64 p) {
+        value result = registerFor(ptr(i64));
+        instruction("``result.identifier`` = inttoptr ``p`` \
+                     to ``result.type``");
         return result;
     }
 
     "Cast a Ptr<I64> to an I64"
-    shared I64 toI64(Ptr<I64> ptr) {
-        assert(exists result = registerFor<I64>());
+    shared I64 toI64(Ptr<I64Type> ptr) {
+        value result = registerFor(i64);
         instruction("``result.identifier`` = ptrtoint ``ptr`` \
-                     to ``result.typeName``");
+                     to ``result.type``");
         return result;
     }
-}
-
-"An LLVM typed value"
-interface LLVMValue {
-    shared formal String identifier;
-    shared formal String typeName;
-    string => "``typeName`` ``identifier``";
-}
-
-"An LLVM pointer value"
-interface Ptr<T> satisfies LLVMValue given T satisfies LLVMValue {
-    shared actual default String typeName => "i64*";
-}
-
-
-"An LLVM 64-bit integer value"
-interface I64 satisfies LLVMValue {
-    typeName => "i64";
-}
-
-"A literal LLVM i64"
-final class I64Lit(Integer val) satisfies I64 {
-    identifier = val.string;
-}
-
-"An LLVM 32-bit integer value"
-interface I32 satisfies LLVMValue {
-    typeName => "i32";
-}
-
-"A literal LLVM i32"
-final class I32Lit(Integer val) satisfies I32 {
-    identifier = val.string;
-}
-
-"An LLVM 1-bit integer value"
-interface I1 satisfies LLVMValue {
-    typeName => "i1";
-}
-
-"A literal LLVM i1"
-final class I1Lit(Integer val) satisfies I1 {
-    identifier = val.string;
-}
-
-"An LLVM Null value"
-object llvmNull satisfies Ptr<I64> {
-    identifier = "null";
 }
 
 "An LLVM compilation unit."
@@ -340,7 +294,9 @@ class LLVMFunction(String n, shared String returnType,
                }";
 
     "Register value objects for this function."
-    abstract class Register(String? regNameIn) satisfies LLVMValue {
+    class Register<T>(T type, String? regNameIn)
+            extends LLVMValue<T>(type)
+            given T satisfies LLVMType {
         identifier =
             if (exists regNameIn)
             then "%``regNameIn``"
@@ -348,41 +304,21 @@ class LLVMFunction(String n, shared String returnType,
     }
 
     "Get a register for a given type"
-    shared actual <T&LLVMValue>? registerFor<T>(String? regNameIn) {
-        value ret = {register, registerInt}.narrow<T(String?)>();
-
-        if (ret.size > 1) {
-            return null;
-        } else if (exists r = ret.first) {
-            return r(regNameIn);
-        } else {
-            return null;
-        }
-    }
-
-    "Implementation for pointers"
-    interface PointerImpl<T> satisfies Ptr<T> given T satisfies LLVMValue {
-        T writeReg() {
-            assert(exists ret = registerFor<T>());
-            return ret;
-        }
-
-        shared String targetTypeName => writeReg().typeName;
-        shared actual String typeName => targetTypeName + "*";
-    }
+    shared actual LLVMValue<T> registerFor<T>(T type, String? regNameIn)
+            given T satisfies LLVMType
+        => Register(type, regNameIn);
 
     "Get a new i64* register"
-    shared Ptr<I64> register(String? regNameIn = null)
-        => object extends Register(regNameIn) satisfies PointerImpl<I64> {};
+    shared Ptr<I64Type> register(String? regNameIn = null)
+        => registerFor(ptr(i64), regNameIn);
 
     "Get a new i64 register"
     shared I64 registerInt(String? regNameIn = null)
-        => object extends Register(regNameIn) satisfies I64 {
-        };
+        => registerFor(i64, regNameIn);
 
     "Access a global from this function"
-    shared Ptr<T> global<T>(String name) given T satisfies LLVMValue {
-        value ret = object satisfies PointerImpl<T> {
+    shared Ptr<T> global<T>(T t, String name) given T satisfies LLVMType {
+        value ret = object extends Ptr<T>(ptr(t)) {
             identifier = "@``name``";
         };
         if (name.startsWith(".str")) {
@@ -391,14 +327,18 @@ class LLVMFunction(String n, shared String returnType,
         if (name.endsWith("$Basic$vtable")) {
             return ret;
         }
-        declaration("``ret.identifier`` = external global ``ret.targetTypeName``");
+        declaration("``ret.identifier`` = external global ``t``");
         return ret;
     }
 }
 
 "An LLVM global variable declaration."
-class LLVMGlobal(String n, LLVMValue startValue = llvmNull, String modifiers = "")
-        extends LLVMDeclaration(n) {
+class LLVMGlobal<out T>(String n, LLVMValue<T> startValue, String modifiers = "")
+        extends LLVMDeclaration(n)
+        given T satisfies LLVMType {
     string => "@``name`` = ``modifiers`` global ``startValue``";
-    declarationMade => "@``name`` = external global ``startValue.typeName``";
+    declarationMade => "@``name`` = external global ``startValue.type``";
 }
+
+"Alias supertype of all globals"
+alias AnyLLVMGlobal => LLVMGlobal<LLVMType>;

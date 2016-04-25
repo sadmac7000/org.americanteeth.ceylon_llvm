@@ -91,7 +91,7 @@ class LLVMBuilder() satisfies Visitor {
     }
 
     "Return value from the most recent instruction"
-    variable Ptr<I64>? lastReturn = null;
+    variable Ptr<I64Type>? lastReturn = null;
 
     "Stack of declarations we are processing"
     value scopeStack = ArrayList<Scope>();
@@ -159,7 +159,7 @@ class LLVMBuilder() satisfies Visitor {
     shared actual void visitStringLiteral(StringLiteral that) {
         value idNumber = nextStringLiteral++;
         stringLiterals.put(idNumber, that.text);
-        lastReturn = scope.body.global<I64>(".str``idNumber``");
+        lastReturn = scope.body.global(i64, ".str``idNumber``");
     }
 
     shared actual void visitClassDefinition(ClassDefinition that) {
@@ -184,7 +184,7 @@ class LLVMBuilder() satisfies Visitor {
         assert(is Tree.InvocationExpression tc = target.get(keys.tcNode));
         assert(is Tree.ExtendedTypeExpression te = tc.primary);
 
-        value arguments = ArrayList<Ptr<I64>>();
+        value arguments = ArrayList<Ptr<I64Type>>();
 
         if (exists argNode = target.arguments) {
             for (argument in argNode.argumentList.children) {
@@ -196,7 +196,7 @@ class LLVMBuilder() satisfies Visitor {
             }
         }
 
-        scope.body.call<>("``declarationName(te.declaration)``$init",
+        scope.body.callVoid("``declarationName(te.declaration)``$init",
                 scope.body.register(".frame"), *arguments);
     }
 
@@ -209,7 +209,7 @@ class LLVMBuilder() satisfies Visitor {
     }
 
     shared actual void visitReturn(Return that) {
-        Ptr<I64> val;
+        Ptr<I64Type> val;
         if (! that.result exists) {
             val = llvmNull;
         } else {
@@ -259,7 +259,7 @@ class LLVMBuilder() satisfies Visitor {
 
         "Base expressions should have Base Member or Base Type RH nodes"
         assert(is Tree.MemberOrTypeExpression bt = b.get(keys.tcNode));
-        value arguments = ArrayList<Ptr<I64>>();
+        value arguments = ArrayList<Ptr<I64Type>>();
 
         "We don't support named arguments yet"
         assert(is PositionalArguments pa = that.arguments);
@@ -285,7 +285,7 @@ class LLVMBuilder() satisfies Visitor {
         }
 
         lastReturn =
-            scope.body.call<Ptr<I64>>(declarationName(bt.declaration),
+            scope.body.call(ptr(i64), declarationName(bt.declaration),
                                       *arguments);
     }
 
@@ -307,6 +307,6 @@ class LLVMBuilder() satisfies Visitor {
         that.receiverExpression.visit(this);
         assert(exists target = lastReturn);
 
-        lastReturn = scope.body.call<Ptr<I64>>(getterName, target);
+        lastReturn = scope.body.call(ptr(i64), getterName, target);
     }
 }
