@@ -207,7 +207,7 @@ class LLVMUnit() {
 }
 
 "An LLVM function declaration."
-class LLVMFunction(String n, shared String returnType,
+class LLVMFunction(String n, shared LLVMType? returnType,
                    shared String modifiers,
                    shared [String*] arguments)
         extends LLVMDeclaration(n)
@@ -233,9 +233,9 @@ class LLVMFunction(String n, shared String returnType,
 
     "The declaration that we don't need because we have this definition"
     shared actual String declarationMade
-        => "declare ``returnType`` @``n``(``typeList``)";
+        => "declare ``returnType else "void"`` @``n``(``typeList``)";
 
-    shared String llvmType => "``returnType``(``typeList``)";
+    shared String llvmType => "``returnType else "void"``(``typeList``)";
 
     "The argument list as a single code string."
     shared String argList => ", ".join(arguments);
@@ -256,10 +256,10 @@ class LLVMFunction(String n, shared String returnType,
         => constructorPriority_ = priority;
 
     "A default return statement, in case none is provided."
-    value stubReturn = switch(returnType)
-        case ("i64*") "ret i64* null"
-        case ("void") "ret void"
-        else "/* Could not generate default return */";
+    value stubReturn =
+        if (exists returnType)
+        then "ret ``returnType`` null"
+        else "ret void";
 
     "Instructions in the body of this function that perform the main business
      logic."
@@ -289,7 +289,7 @@ class LLVMFunction(String n, shared String returnType,
     shared actual void declaration(String declaration)
         => declarationList.add(declaration);
 
-    string => "define ``modifiers`` ``returnType`` @``name``(``argList``) {
+    string => "define ``modifiers`` ``returnType else "void"`` @``name``(``argList``) {
                    ``body``
                }";
 

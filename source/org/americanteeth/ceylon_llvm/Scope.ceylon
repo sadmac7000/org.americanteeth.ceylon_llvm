@@ -62,7 +62,7 @@ abstract class Scope() of CallableScope|UnitScope {
         assert(exists slot = allocations[model]);
 
         value getter = LLVMFunction(declarationName(model) + "$get",
-                "i64*", "", ["i64* %.context"]);
+                ptr(i64), "", ["i64* %.context"]);
 
         value offset = getAllocationOffset(slot, getter);
 
@@ -128,7 +128,7 @@ abstract class Scope() of CallableScope|UnitScope {
 abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         extends Scope() {
     shared actual default LLVMFunction body
-        = LLVMFunction(declarationName(model) + namePostfix, "i64*", "",
+        = LLVMFunction(declarationName(model) + namePostfix, ptr(i64), "",
                 if (!model.toplevel)
                 then ["i64* %.context"]
                 else []);
@@ -256,7 +256,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     }
 
     shared actual LLVMFunction body
-        = LLVMFunction(declarationName(model) + "$init", "void", "",
+        = LLVMFunction(declarationName(model) + "$init", null, "",
                 argumentStrings);
 
     [AnyLLVMValue*] arguments {
@@ -280,7 +280,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     }
 
     LLVMDeclaration directConstructor() {
-        value directConstructor = LLVMFunction(declarationName(model), "i64*",
+        value directConstructor = LLVMFunction(declarationName(model), ptr(i64),
                 "", parameterListToLLVMStrings(model.parameterList));
         value size = directConstructor.load(directConstructor.global(i64,
                 "``declarationName(model)``$size"));
@@ -310,7 +310,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     shared actual {LLVMDeclaration*} results {
         value setupFunction =
             LLVMFunction(declarationName(model) + "$setupClass",
-                    "void", "private", []);
+                    null, "private", []);
 
         /* Setup size value */
         value sizeGlobal = setupFunction.global(i64,
@@ -410,7 +410,7 @@ class SetterScope(ValueModel model) extends CallableScope(model, "$set") {}
 "The scope of a function"
 class FunctionScope(FunctionModel model) extends CallableScope(model) {
     shared actual LLVMFunction body
-        = LLVMFunction(declarationName(model), "i64*", "",
+        = LLVMFunction(declarationName(model), ptr(i64), "",
                 if (!model.toplevel)
                 then ["i64* %.context", *parameterListToLLVMStrings(model.firstParameterList)]
                 else parameterListToLLVMStrings(model.firstParameterList));
@@ -422,11 +422,11 @@ class UnitScope() extends Scope() {
     value getters = ArrayList<LLVMDeclaration>();
 
     shared actual LLVMFunction body
-        = LLVMFunction("__ceylon_constructor", "void", "private", []);
+        = LLVMFunction("__ceylon_constructor", null, "private", []);
 
     LLVMFunction getterFor(ValueModel model) {
         value getter = LLVMFunction(declarationName(model) + "$get",
-                "i64*", "", []);
+                ptr(i64), "", []);
         value ret = getter.load(getter.global(ptr(i64),
                     declarationName(model)));
         getter.ret(ret);
