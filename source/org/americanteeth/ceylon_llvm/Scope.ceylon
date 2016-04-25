@@ -66,7 +66,7 @@ abstract class Scope() of CallableScope|UnitScope {
         value offset = getAllocationOffset(slot, getter);
 
         getter.ret(getter.toPtr(getter.load(getter.register(".context"),
-                        offset)));
+                        offset), i64));
 
         return getter;
     }
@@ -151,7 +151,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         variable Ptr<I64Type> context = body.register(".context");
 
         while (is DeclarationModel v = visitedContainer, v != container) {
-            context = body.toPtr(body.load(context));
+            context = body.toPtr(body.load(context), i64);
             visitedContainer = v.container;
         }
 
@@ -168,7 +168,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         if (model.\iformal || model.\idefault) {
             /* FIXME: SOOO MUCH HACKING */
             value vtable = body.toPtr(body.load(body.register(".context"),
-                    I64Lit(1)));
+                    I64Lit(1)), i64);
 
             if (model.\idefault) {
                 assert(is DeclarationModel parent = model.container);
@@ -191,13 +191,12 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
 
             value position = body.load(body.global(i64,
                 "``declarationName(refined)``$vtPosition"));
-            value jumpTargetAsInt = body.load(vtable, position);
+            value jumpTarget =
+                body.toPtr(body.load(vtable, position), body.llvmType);
 
             body.instruction(
-                    "%.newCall = inttoptr ``jumpTargetAsInt`` to \
-                     ``body.llvmType``*");
-            body.instruction(
-                "%.ret = tail call i64* %.newCall(``body.argList``)");
+                "%.ret = tail call i64* \
+                 ``jumpTarget.identifier``(``body.argList``)");
             body.ret(body.register(".ret"));
 
             if (model.\idefault) {
@@ -268,6 +267,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         return ret;
     }
 
+    "Our direct-call constructor that allocates the new object with malloc"
     LLVMDeclaration directConstructor() {
         value directConstructor = LLVMFunction(declarationName(model), ptr(i64),
                 "", parameterListToLLVMValues(model.parameterList));
@@ -292,6 +292,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         return directConstructor;
     }
 
+    "Our vtPosition variables that store the vtable offsets in the binary"
     {AnyLLVMGlobal*} vtPositions()
         => vtable.map((x) => LLVMGlobal("``declarationName(x)``$vtPosition",
                     I64Lit(0)));

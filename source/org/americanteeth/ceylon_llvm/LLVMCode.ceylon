@@ -145,8 +145,9 @@ interface LLVMBlock {
     }
 
     "Cast an I64 to a Ptr<I64>"
-    shared Ptr<I64Type> toPtr(I64 p) {
-        value result = registerFor(ptr(i64));
+    shared Ptr<T> toPtr<T>(I64 p, T t)
+            given T satisfies LLVMType {
+        value result = registerFor(ptr(t));
         instruction("``result.identifier`` = inttoptr ``p`` \
                      to ``result.type``");
         return result;
@@ -222,7 +223,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     value declarationList = ArrayList<String>();
 
     "Types of the arguments"
-    value argumentTypes = arguments.map((x) => x.type);
+    value argumentTypes = arguments.map((x) => x.type).sequence();
 
     "LLVM list of the types of the arguments"
     value typeList = ", ".join(argumentTypes);
@@ -234,7 +235,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     shared actual String declarationMade
         => "declare ``returnType else "void"`` @``n``(``typeList``)";
 
-    shared String llvmType => "``returnType else "void"``(``typeList``)";
+    shared AnyLLVMFunctionType llvmType => FuncType(returnType, argumentTypes);
 
     "The argument list as a single code string."
     shared String argList => ", ".join(arguments.map(Object.string));

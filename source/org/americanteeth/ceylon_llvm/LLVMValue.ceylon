@@ -13,6 +13,11 @@ alias AnyLLVMValue => LLVMValue<LLVMType>;
 abstract class Ptr<out T>(PtrType<T> t) given T satisfies LLVMType
     => LLVMValue<PtrType<T>>(t);
 
+"An LLVM Function"
+abstract class Func<out Ret,in Args>(FuncType<Ret,Args> f)
+        given Args satisfies [LLVMType*]
+    => LLVMValue<FuncType<Ret,Args>>(f);
+
 "An LLVM 64-bit integer value"
 abstract class I64(I64Type t)
     => LLVMValue<I64Type>(t);
