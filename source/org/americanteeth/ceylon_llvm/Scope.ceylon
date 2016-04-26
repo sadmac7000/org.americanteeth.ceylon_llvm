@@ -26,10 +26,6 @@ Integer constructorPriorityOffset = 65536;
  inheritance depth."
 Integer toplevelConstructorPriority = constructorPriorityOffset + 65535;
 
-"Convert a parameter list to a sequence of LLVM strings"
-[String*] parameterListToLLVMStrings(ParameterList parameterList)
-    => CeylonList(parameterList.parameters).collect((x) => "i64* %``x.name``");
-
 "Convert a parameter list to a sequence of LLVM values"
 [AnyLLVMValue*] parameterListToLLVMValues(ParameterList parameterList)
     => CeylonList(parameterList.parameters).collect((x)
@@ -347,8 +343,15 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         variable value i = 0;
 
         void setVtEntry(DeclarationModel decl, I64 vtPosition) {
+            "We only have vtable entries for function models now."
+            assert(is FunctionModel decl);
+            value argTypes =
+                parameterListToLLVMValues(decl.firstParameterList)
+                    .map((x) => x.type)
+                    .follow(ptr(i64))
+                    .sequence();
             /* FIXME: Calculate this type properly, don't hardcode it. */
-            value funcType = FuncType(ptr(i64),[ptr(i64)]);
+            value funcType = FuncType(ptr(i64),argTypes);
             value func = setupFunction.global(funcType, declarationName(decl));
             value intValue = setupFunction.toI64(func);
             setupFunction.store(vt, intValue, vtPosition);
