@@ -48,13 +48,177 @@ abstract class LLVMDeclaration(shared String name) {
 "The current LLVM version"
 [Integer, Integer] llvmVersion = getLLVMVersion();
 
-"A sequence of LLVM instructions"
-interface LLVMBlock {
-    shared formal void instruction(String instruction);
-    shared formal LLVMValue<T> registerFor<T>(T type, String? regNameIn = null)
-            given T satisfies LLVMType;
-    shared default void declaration(String name, LLVMType type) {}
+"An LLVM compilation unit."
+class LLVMUnit() {
+    value items = ArrayList<LLVMDeclaration>();
+    value declarations = HashMap<String,LLVMType>();
+    value unnededDeclarations = HashSet<String>();
 
+    shared void append(LLVMDeclaration item) {
+        items.add(item);
+        declarations.putAll(item.declarationsNeeded);
+        unnededDeclarations.add(item.name);
+    }
+
+    value declarationCode {
+        declarations.removeAll(unnededDeclarations);
+
+        function writeDeclaration(String->LLVMType declaration) {
+            value name->type = declaration;
+            if (is AnyLLVMFunctionType type) {
+                value ret = type.returnType else "void";
+                value args = ", ".join(type.argumentTypes);
+                return "declare ``ret`` @``name``(``args``)";
+            } else {
+                return "@``name`` = external global ``type``";
+            }
+        }
+        return "\n".join(declarations.map(writeDeclaration));
+    }
+
+    String constructorItem {
+        String? constructorString(LLVMDeclaration dec) {
+            if (! is LLVMFunction dec) {
+                return null;
+            }
+
+            if (! dec.isConstructor) {
+                return null;
+            }
+
+            assert(exists priority = dec.constructorPriority);
+
+            return
+                "%.constructor_type { i32 ``priority``, void ()* @``dec.name`` }";
+        }
+
+        value constructors = items.map(constructorString).narrow<String>();
+        return "@llvm.global_ctors = appending global \
+                [``constructors.size`` x %.constructor_type] \
+                [``", ".join(constructors)``]";
+    }
+
+    string => "\n\n".join({declarationCode, constructorItem, *items}
+            .map(Object.string));
+}
+
+"An LLVM function declaration."
+class LLVMFunction(String n, shared LLVMType? returnType,
+                   shared String modifiers,
+                   shared [AnyLLVMValue*] arguments)
+        extends LLVMDeclaration(n) {
+    "Counter for auto-naming temporary registers."
+    variable value nextTemporary = 0;
+
+    "Position where we will insert instructions"
+    variable value insertPos = 0;
+
+    "List of declarations"
+    value declarationList = HashMap<String,LLVMType>();
+
+    "Types of the arguments"
+    value argumentTypes = arguments.map((x) => x.type).sequence();
+
+    "Public list of declarations"
+    shared actual {<String->LLVMType>*} declarationsNeeded => declarationList;
+
+    shared AnyLLVMFunctionType llvmType => FuncType(returnType, argumentTypes);
+
+    "The argument list as a single code string."
+    shared String argList => ", ".join(arguments.map(Object.string));
+
+    "Memoization of constructorPriority."
+    variable Integer? constructorPriority_ = null;
+
+    "If set, this function will be run as a 'constructor' by the linker. The
+     value is a priority that determines what order such functions are run
+     in if multiple are declared."
+    shared Integer? constructorPriority => constructorPriority_;
+
+    "Is this a constructor? (In the LLVM/system linker sense)."
+    shared Boolean isConstructor => constructorPriority_ exists;
+
+    "Make this function a constructor (In the LLVM/system linker sense)."
+    shared void makeConstructor(Integer priority)
+        => constructorPriority_ = priority;
+
+    "A default return statement, in case none is provided."
+    value stubReturn =
+        if (exists returnType)
+        then "ret ``returnType`` null"
+        else "ret void";
+
+    "Instructions in the body of this function that perform the main business
+     logic."
+    value mainBodyItems = ArrayList<String>();
+
+    "All instructions in the body of this function."
+    value bodyItems =>
+        if (exists b = mainBodyItems.last, b.startsWith("ret "))
+        then mainBodyItems
+        else mainBodyItems.sequence().withTrailing(stubReturn);
+
+    "Function body as a single code string."
+    value body => "\n    ".join(bodyItems);
+
+    shared void instruction(String instruction)
+        => mainBodyItems.insert(insertPos++, instruction);
+
+    "Set the index in the instruction list where we will add instructions"
+    shared void setInsertPosition(Integer? pos = null) {
+        if (exists pos) {
+            insertPos = pos;
+        } else {
+            insertPos = mainBodyItems.size;
+        }
+    }
+
+    shared void declaration(String name, LLVMType declaration)
+        => declarationList.put(name, declaration);
+
+    string => "define ``modifiers`` ``returnType else "void"`` @``name``(``argList``) {
+                   ``body``
+               }";
+
+    "Register value objects for this function."
+    class Register<T>(T type, String? regNameIn)
+            extends LLVMValue<T>(type)
+            given T satisfies LLVMType {
+        identifier =
+            if (exists regNameIn)
+            then "%``regNameIn``"
+            else "%.``nextTemporary++``";
+    }
+
+    "Get a register for a given type"
+    shared LLVMValue<T> registerFor<T>(T type, String? regNameIn = null)
+            given T satisfies LLVMType
+        => Register(type, regNameIn);
+
+    "Get a new i64* register"
+    shared Ptr<I64Type> register(String? regNameIn = null)
+        => registerFor(ptr(i64), regNameIn);
+
+    "Get a new i64 register"
+    shared I64 registerInt(String? regNameIn = null)
+        => registerFor(i64, regNameIn);
+
+    "Access a global from this function"
+    shared Ptr<T> global<T>(T t, String name) given T satisfies LLVMType {
+        value ret = object extends Ptr<T>(ptr(t)) {
+            identifier = "@``name``";
+        };
+        if (name.startsWith(".str")) {
+            return ret;
+        }
+        if (name.endsWith("$Basic$vtable")) {
+            return ret;
+        }
+        declaration(name, t);
+        return ret;
+    }
+
+    "Emit a call instruction returning void"
     shared void callVoid(String name, AnyLLVMValue* args) {
         value argList = ", ".join(args);
 
@@ -157,178 +321,6 @@ interface LLVMBlock {
         instruction("``result.identifier`` = ptrtoint ``ptr`` \
                      to ``result.type``");
         return result;
-    }
-}
-
-"An LLVM compilation unit."
-class LLVMUnit() {
-    value items = ArrayList<LLVMDeclaration>();
-    value declarations = HashMap<String,LLVMType>();
-    value unnededDeclarations = HashSet<String>();
-
-    shared void append(LLVMDeclaration item) {
-        items.add(item);
-        declarations.putAll(item.declarationsNeeded);
-        unnededDeclarations.add(item.name);
-    }
-
-    value declarationCode {
-        declarations.removeAll(unnededDeclarations);
-
-        function writeDeclaration(String->LLVMType declaration) {
-            value name->type = declaration;
-            if (is AnyLLVMFunctionType type) {
-                value ret = type.returnType else "void";
-                value args = ", ".join(type.argumentTypes);
-                return "declare ``ret`` @``name``(``args``)";
-            } else {
-                return "@``name`` = external global ``type``";
-            }
-        }
-        return "\n".join(declarations.map(writeDeclaration));
-    }
-
-    String constructorItem {
-        String? constructorString(LLVMDeclaration dec) {
-            if (! is LLVMFunction dec) {
-                return null;
-            }
-
-            if (! dec.isConstructor) {
-                return null;
-            }
-
-            assert(exists priority = dec.constructorPriority);
-
-            return
-                "%.constructor_type { i32 ``priority``, void ()* @``dec.name`` }";
-        }
-
-        value constructors = items.map(constructorString).narrow<String>();
-        return "@llvm.global_ctors = appending global \
-                [``constructors.size`` x %.constructor_type] \
-                [``", ".join(constructors)``]";
-    }
-
-    string => "\n\n".join({declarationCode, constructorItem, *items}
-            .map(Object.string));
-}
-
-"An LLVM function declaration."
-class LLVMFunction(String n, shared LLVMType? returnType,
-                   shared String modifiers,
-                   shared [AnyLLVMValue*] arguments)
-        extends LLVMDeclaration(n)
-        satisfies LLVMBlock {
-    "Counter for auto-naming temporary registers."
-    variable value nextTemporary = 0;
-
-    "Position where we will insert instructions"
-    variable value insertPos = 0;
-
-    "List of declarations"
-    value declarationList = HashMap<String,LLVMType>();
-
-    "Types of the arguments"
-    value argumentTypes = arguments.map((x) => x.type).sequence();
-
-    "Public list of declarations"
-    shared actual {<String->LLVMType>*} declarationsNeeded => declarationList;
-
-    shared AnyLLVMFunctionType llvmType => FuncType(returnType, argumentTypes);
-
-    "The argument list as a single code string."
-    shared String argList => ", ".join(arguments.map(Object.string));
-
-    "Memoization of constructorPriority."
-    variable Integer? constructorPriority_ = null;
-
-    "If set, this function will be run as a 'constructor' by the linker. The
-     value is a priority that determines what order such functions are run
-     in if multiple are declared."
-    shared Integer? constructorPriority => constructorPriority_;
-
-    "Is this a constructor? (In the LLVM/system linker sense)."
-    shared Boolean isConstructor => constructorPriority_ exists;
-
-    "Make this function a constructor (In the LLVM/system linker sense)."
-    shared void makeConstructor(Integer priority)
-        => constructorPriority_ = priority;
-
-    "A default return statement, in case none is provided."
-    value stubReturn =
-        if (exists returnType)
-        then "ret ``returnType`` null"
-        else "ret void";
-
-    "Instructions in the body of this function that perform the main business
-     logic."
-    value mainBodyItems = ArrayList<String>();
-
-    "All instructions in the body of this function."
-    value bodyItems =>
-        if (exists b = mainBodyItems.last, b.startsWith("ret "))
-        then mainBodyItems
-        else mainBodyItems.sequence().withTrailing(stubReturn);
-
-    "Function body as a single code string."
-    value body => "\n    ".join(bodyItems);
-
-    shared actual void instruction(String instruction)
-        => mainBodyItems.insert(insertPos++, instruction);
-
-    "Set the index in the instruction list where we will add instructions"
-    shared void setInsertPosition(Integer? pos = null) {
-        if (exists pos) {
-            insertPos = pos;
-        } else {
-            insertPos = mainBodyItems.size;
-        }
-    }
-
-    shared actual void declaration(String name, LLVMType declaration)
-        => declarationList.put(name, declaration);
-
-    string => "define ``modifiers`` ``returnType else "void"`` @``name``(``argList``) {
-                   ``body``
-               }";
-
-    "Register value objects for this function."
-    class Register<T>(T type, String? regNameIn)
-            extends LLVMValue<T>(type)
-            given T satisfies LLVMType {
-        identifier =
-            if (exists regNameIn)
-            then "%``regNameIn``"
-            else "%.``nextTemporary++``";
-    }
-
-    "Get a register for a given type"
-    shared actual LLVMValue<T> registerFor<T>(T type, String? regNameIn)
-            given T satisfies LLVMType
-        => Register(type, regNameIn);
-
-    "Get a new i64* register"
-    shared Ptr<I64Type> register(String? regNameIn = null)
-        => registerFor(ptr(i64), regNameIn);
-
-    "Get a new i64 register"
-    shared I64 registerInt(String? regNameIn = null)
-        => registerFor(i64, regNameIn);
-
-    "Access a global from this function"
-    shared Ptr<T> global<T>(T t, String name) given T satisfies LLVMType {
-        value ret = object extends Ptr<T>(ptr(t)) {
-            identifier = "@``name``";
-        };
-        if (name.startsWith(".str")) {
-            return ret;
-        }
-        if (name.endsWith("$Basic$vtable")) {
-            return ret;
-        }
-        declaration(name, t);
-        return ret;
     }
 }
 
