@@ -335,15 +335,10 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         variable value i = 0;
 
         void setVtEntry(DeclarationModel decl, I64 vtPosition) {
-            value intValue = setupFunction.registerInt();
-            /* FIXME: Hardcoded types and manual instructions and sadness oh
-             * my! Seriously though, this code won't work with even slightly
-             * more complex dispatch. Just a hack until LLVMCode supports
-             * function types somehow.
-             */
-            setupFunction.instruction(
-                    "``intValue.identifier`` = ptrtoint i64*(i64*)* \
-                     @``declarationName(decl)`` to i64");
+            /* FIXME: Calculate this type properly, don't hardcode it. */
+            value funcType = FuncType(ptr(i64),[ptr(i64)]);
+            value func = setupFunction.global(funcType, declarationName(decl));
+            value intValue = setupFunction.toI64(func);
             setupFunction.store(vt, intValue, vtPosition);
         }
 
