@@ -50,7 +50,8 @@ abstract class Scope() of CallableScope|UnitScope {
     shared Boolean allocates(ValueModel v) => allocations.defines(v);
 
     "Get the frame variable for a nested declaration"
-    shared default Ptr<I64Type>? getFrameFor(DeclarationModel declaration) => null;
+    shared default Ptr<I64Type>? getFrameFor(DeclarationModel declaration)
+        => null;
 
     "The allocation offset for this item"
     shared default I64 getAllocationOffset(Integer slot, LLVMFunction func)
@@ -164,23 +165,35 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
 
     "Add instructions to initialize the frame object"
     shared actual default void initFrame() {
-        body.setInsertPosition(0);
+        value block = body.block;
+        value entryPoint = body.entryPoint;
+
+        if (! model.\iformal) {
+            body.block = body.newBlock();
+            body.entryPoint = body.block;
+        } else {
+            "Formal methods should not contain code."
+            assert(block == entryPoint);
+        }
+
         if (model.\iformal || model.\idefault) {
-            /* FIXME: SOOO MUCH HACKING */
             value vtable = body.toPtr(body.load(body.register(".context"),
                     I64Lit(1)), i64);
+
+            Label newHead;
 
             if (model.\idefault) {
                 assert(is DeclarationModel parent = model.container);
                 value expectedVt =
                     body.load(body.global(ptr(i64),
                                 "``declarationName(parent)``$vtable"));
-                body.instruction(
-                    "%.dispatchCond = icmp eq ``expectedVt``, \
-                     ``vtable.identifier``");
-                body.instruction(
-                    "br i1 %.dispatchCond, label %.main, label %.dispatch");
-                body.instruction(".dispatch:");
+                value dispatchCond = body.compareEq(expectedVt, vtable);
+                value next = body.newBlock();
+                newHead = body.newBlock();
+                body.branch(dispatchCond, newHead, next);
+                body.block = next;
+            } else {
+                newHead = block;
             }
 
             variable value refined = model;
@@ -191,25 +204,23 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
 
             value position = body.load(body.global(i64,
                 "``declarationName(refined)``$vtPosition"));
-            value jumpTarget =
-                body.toPtr(body.load(vtable, position), body.llvmType);
+            value jumpTarget = body.toPtr(body.load(vtable, position),
+                    body.llvmType);
 
-            body.instruction(
-                "%.ret = tail call i64* \
-                 ``jumpTarget.identifier``(``body.argList``)");
-            body.ret(body.register(".ret"));
+            assert(is LLVMValue<LLVMType> ret =
+                    body.tailCallPtr(jumpTarget, *body.arguments));
+            body.ret(ret);
+            body.block = newHead;
 
-            if (model.\idefault) {
-                body.instruction(".main:");
-            } else {
-                body.setInsertPosition();
+            if (model.\iformal) {
                 return;
             }
         }
 
         if (allocatedBlocks == 0 && model.toplevel) {
             body.instruction("%.frame = bitcast i64* null to i64*");
-            body.setInsertPosition();
+            body.jump(entryPoint);
+            body.block = block;
             return;
         }
 
@@ -225,7 +236,9 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
             body.store(body.register(".frame"),
                     body.toI64(body.register(".context")));
         }
-        body.setInsertPosition();
+
+        body.jump(entryPoint);
+        body.block = block;
     }
 }
 
@@ -234,14 +247,13 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
     value vtable = ArrayList<DeclarationModel>();
     value vtableOverrides = ArrayList<DeclarationModel>();
     value parent = model.extendedType.declaration;
+    shared actual void initFrame() {}
 
     {LLVMDeclaration+} globals = [
         LLVMGlobal("``declarationName(model)``$size", I64Lit(0)),
         LLVMGlobal("``declarationName(model)``$vtsize", I64Lit(0)),
         LLVMGlobal(declarationName(model) + "$vtable", llvmNull)
     ];
-
-    shared actual void initFrame() {}
 
     [AnyLLVMValue*] arguments {
         value prepend =

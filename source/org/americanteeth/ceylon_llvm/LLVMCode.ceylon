@@ -110,9 +110,6 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Counter for auto-naming temporary registers."
     variable value nextTemporary = 0;
 
-    "Position where we will insert instructions"
-    variable value insertPos = 0;
-
     "List of declarations"
     value declarationList = HashMap<String,LLVMType>();
 
@@ -148,36 +145,99 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         then "ret ``returnType`` null"
         else "ret void";
 
-    "Instructions in the body of this function that perform the main business
-     logic."
-    value mainBodyItems = ArrayList<String>();
+    "Counter for auto-naming labels."
+    variable value nextTemporaryLabel = 0;
 
-    "All instructions in the body of this function."
-    value bodyItems =>
-        if (exists b = mainBodyItems.last, b.startsWith("ret "))
-        then mainBodyItems
-        else mainBodyItems.sequence().withTrailing(stubReturn);
-
-    "Function body as a single code string."
-    value body => "\n    ".join(bodyItems);
-
-    shared void instruction(String instruction)
-        => mainBodyItems.insert(insertPos++, instruction);
-
-    "Set the index in the instruction list where we will add instructions"
-    shared void setInsertPosition(Integer? pos = null) {
-        if (exists pos) {
-            insertPos = pos;
-        } else {
-            insertPos = mainBodyItems.size;
-        }
+    "An LLVM label for this function."
+    class FuncLabel() extends Label(label) {
+        shared String tag = ".l``nextTemporaryLabel++``";
+        identifier = "%``tag``";
     }
 
+    "An LLVM logical block."
+    class Block() {
+        "The jump label at the start of this block."
+        shared FuncLabel label = FuncLabel();
+
+        "List of instructions."
+        value instructions_ = ArrayList<String>();
+
+        "Whether we've had a terminating instruction.
+         Updated from outside the class."
+        variable value terminated_ = false;
+
+        "Read accessor for terminated_."
+        shared Boolean terminated => terminated_;
+
+        "Mark that we've had a terminating instruction."
+        shared void terminate() {
+            "Block should not be terminated twice."
+            assert(!terminated);
+            terminated_ = true;
+        }
+
+        "Accessor for instructions with appended default return."
+        shared [String*] instructions =>
+            if (terminated)
+            then instructions_.sequence()
+            else instructions_.sequence().withTrailing(stubReturn);
+
+        "Add an instruction to this logical block."
+        shared void instruction(String instruction) {
+            "Block should not have instructions after termination."
+            assert(!terminated);
+            instructions_.add(instruction);
+        }
+
+        string => "``label.tag``:\n    "
+            + "\n    ".join(instructions);
+    }
+
+    "The logical block we are currently adding instructions to."
+    variable value currentBlock = Block();
+
+    "Instructions in the body of this function that perform the main business
+     logic."
+    value blocks = ArrayList{currentBlock};
+
+    "Label for the block we are currently adding instructions to."
+    shared Label block => currentBlock.label;
+
+    "Switch to an existing block."
+    assign block {
+        value candidates = blocks.select((x) => x.label == block);
+
+        "Label should match exactly one block."
+        assert(candidates.size == 1);
+
+        assert(exists newBlock = candidates.first);
+
+        currentBlock = newBlock;
+    }
+
+    "The entry point for the function."
+    shared variable Label entryPoint = block;
+
+    "Create a new block."
+    shared Label newBlock() {
+        value newBlock = Block();
+        blocks.add(newBlock);
+        return newBlock.label;
+    }
+
+    "Function body as a single code string."
+    value body => "\n  ".join(blocks);
+
+    shared void instruction(String instruction)
+        => currentBlock.instruction(instruction);
+
+    "Note that a declaration is required for this function."
     shared void declaration(String name, LLVMType declaration)
         => declarationList.put(name, declaration);
 
     string => "define ``modifiers`` ``returnType else "void"`` @``name``(``argList``) {
-                   ``body``
+                   br ``entryPoint``
+                 ``body``
                }";
 
     "Register value objects for this function."
@@ -218,6 +278,24 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         return ret;
     }
 
+    "Emit a call instruction for a function pointer"
+    shared LLVMValue<R>? tailCallPtr<R>(Ptr<FuncType<R,Nothing>> func, AnyLLVMValue* args) {
+        value argList = ", ".join(args);
+        value retType = func.type.targetType.returnType;
+        value ret = retType?.string else "void";
+        value register =
+            if (exists retType)
+            then registerFor(retType)
+            else null;
+        value assignment =
+            if (exists register)
+            then "``register.identifier`` = "
+            else "";
+
+        instruction("``assignment``tail call ``ret`` ``func.identifier``(``argList``)");
+        return register;
+    }
+
     "Emit a call instruction returning void"
     shared void callVoid(String name, AnyLLVMValue* args) {
         value argList = ", ".join(args);
@@ -248,6 +326,8 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         } else {
             instruction("ret void");
         }
+
+        currentBlock.terminate();
     }
 
     "Add an integer operation instruction to this block"
@@ -321,6 +401,26 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         instruction("``result.identifier`` = ptrtoint ``ptr`` \
                      to ``result.type``");
         return result;
+    }
+
+    "Compare two values and see if they are equal."
+    shared I1 compareEq<T>(T a, T b)
+            given T satisfies AnyLLVMValue {
+        value result = registerFor(i1);
+        instruction("``result.identifier`` = icmp eq ``a``, ``b.identifier``");
+        return result;
+    }
+
+    "Jump to the given label."
+    shared void jump(Label l) {
+        instruction("br ``l``");
+        currentBlock.terminate();
+    }
+
+    "Branch on the given conditional"
+    shared void branch(I1 condition, Label t, Label f) {
+        instruction("br ``condition``, ``t``, ``f``");
+        currentBlock.terminate();
     }
 }
 

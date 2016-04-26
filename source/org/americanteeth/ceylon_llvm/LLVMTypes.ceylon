@@ -1,6 +1,10 @@
 "An LLVM type"
 abstract class LLVMType(shared String name) {
     string = name;
+    hash = string.hash;
+
+    shared actual Boolean equals(Object other)
+        => other is LLVMType && other.string == string;
 }
 
 "An LLVM Pointer type"
@@ -20,6 +24,12 @@ class FuncType<out Ret,in Args>(shared Ret&LLVMType? returnType, Args args)
 
 "Alias supertype of all LLVM Function types"
 alias AnyLLVMFunctionType => FuncType<Anything,Nothing>;
+
+"LLVM Label type base class"
+abstract class LabelType() of label extends LLVMType("label") {}
+
+"LLVM Label type instance"
+object label extends LabelType() {}
 
 "Abbreviated constructor for pointer types"
 PtrType<T> ptr<T>(T targetType) given T satisfies LLVMType

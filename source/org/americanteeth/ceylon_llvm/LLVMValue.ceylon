@@ -4,10 +4,14 @@ abstract class LLVMValue<out T>(shared T type)
     shared formal String identifier;
     shared String typeName = type.name;
     string => "``typeName`` ``identifier``";
+    hash => string.hash;
+
+    shared actual Boolean equals(Object other)
+        => other is AnyLLVMValue && other.string == string;
 }
 
 "Alias supertype of all values"
-alias AnyLLVMValue => LLVMValue<LLVMType>;
+abstract class AnyLLVMValue(LLVMType t) => LLVMValue<LLVMType>(t);
 
 "An LLVM pointer value"
 abstract class Ptr<out T>(PtrType<T> t) given T satisfies LLVMType
@@ -17,6 +21,10 @@ abstract class Ptr<out T>(PtrType<T> t) given T satisfies LLVMType
 abstract class Func<out Ret,in Args>(FuncType<Ret,Args> f)
         given Args satisfies [LLVMType*]
     => LLVMValue<FuncType<Ret,Args>>(f);
+
+"An LLVM label"
+abstract class Label(LabelType t)
+    => LLVMValue<LabelType>(t);
 
 "An LLVM 64-bit integer value"
 abstract class I64(I64Type t)
