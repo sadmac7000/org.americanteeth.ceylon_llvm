@@ -1,6 +1,7 @@
 import ceylon.collection {
     ArrayList,
-    HashSet
+    HashSet,
+    HashMap
 }
 
 import ceylon.process {
@@ -14,8 +15,7 @@ import ceylon.file {
 
 "Any top-level declaration in an LLVM compilation unit."
 abstract class LLVMDeclaration(shared String name) {
-    shared default {String*} declarationsNeeded = {};
-    shared default String? declarationMade = null;
+    shared default {<String->LLVMType>*} declarationsNeeded = {};
 }
 
 "Get the current LLVM version"
@@ -53,27 +53,25 @@ interface LLVMBlock {
     shared formal void instruction(String instruction);
     shared formal LLVMValue<T> registerFor<T>(T type, String? regNameIn = null)
             given T satisfies LLVMType;
-    shared default void declaration(String declaration) {}
+    shared default void declaration(String name, LLVMType type) {}
 
     shared void callVoid(String name, AnyLLVMValue* args) {
         value argList = ", ".join(args);
-        value typeList = ", ".join(args.map((x) => x.typeName));
 
         instruction("call void @``name``(``argList``)");
-        declaration("declare void @``name``(``typeList``)");
+        declaration(name, FuncType(null, args.collect((x) => x.type)));
     }
 
     "Emit a call instruction"
     shared LLVMValue<T> call<T>(T type, String name, AnyLLVMValue* args)
             given T satisfies LLVMType {
         value argList = ", ".join(args);
-        value typeList = ", ".join(args.map((x) => x.typeName));
 
         value result = registerFor(type);
 
         instruction("``result.identifier`` = \
                      call ``type`` @``name``(``argList``)");
-        declaration("declare ``type`` @``name``(``typeList``)");
+        declaration(name, FuncType(type, args.collect((x) => x.type)));
 
         return result;
     }
@@ -154,7 +152,7 @@ interface LLVMBlock {
     }
 
     "Cast a Ptr<I64> to an I64"
-    shared I64 toI64(Ptr<I64Type> ptr) {
+    shared I64 toI64<T>(Ptr<T> ptr) given T satisfies LLVMType {
         value result = registerFor(i64);
         instruction("``result.identifier`` = ptrtoint ``ptr`` \
                      to ``result.type``");
@@ -165,20 +163,29 @@ interface LLVMBlock {
 "An LLVM compilation unit."
 class LLVMUnit() {
     value items = ArrayList<LLVMDeclaration>();
-    value declarations = HashSet<String>();
+    value declarations = HashMap<String,LLVMType>();
     value unnededDeclarations = HashSet<String>();
 
     shared void append(LLVMDeclaration item) {
         items.add(item);
-        declarations.addAll(item.declarationsNeeded);
-        if (exists i = item.declarationMade) {
-            unnededDeclarations.add(i);
-        }
+        declarations.putAll(item.declarationsNeeded);
+        unnededDeclarations.add(item.name);
     }
 
     value declarationCode {
         declarations.removeAll(unnededDeclarations);
-        return "\n".join(declarations);
+
+        function writeDeclaration(String->LLVMType declaration) {
+            value name->type = declaration;
+            if (is AnyLLVMFunctionType type) {
+                value ret = type.returnType else "void";
+                value args = ", ".join(type.argumentTypes);
+                return "declare ``ret`` @``name``(``args``)";
+            } else {
+                return "@``name`` = external global ``type``";
+            }
+        }
+        return "\n".join(declarations.map(writeDeclaration));
     }
 
     String constructorItem {
@@ -220,20 +227,13 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     variable value insertPos = 0;
 
     "List of declarations"
-    value declarationList = ArrayList<String>();
+    value declarationList = HashMap<String,LLVMType>();
 
     "Types of the arguments"
     value argumentTypes = arguments.map((x) => x.type).sequence();
 
-    "LLVM list of the types of the arguments"
-    value typeList = ", ".join(argumentTypes);
-
     "Public list of declarations"
-    shared actual {String*} declarationsNeeded => declarationList;
-
-    "The declaration that we don't need because we have this definition"
-    shared actual String declarationMade
-        => "declare ``returnType else "void"`` @``n``(``typeList``)";
+    shared actual {<String->LLVMType>*} declarationsNeeded => declarationList;
 
     shared AnyLLVMFunctionType llvmType => FuncType(returnType, argumentTypes);
 
@@ -286,8 +286,8 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         }
     }
 
-    shared actual void declaration(String declaration)
-        => declarationList.add(declaration);
+    shared actual void declaration(String name, LLVMType declaration)
+        => declarationList.put(name, declaration);
 
     string => "define ``modifiers`` ``returnType else "void"`` @``name``(``argList``) {
                    ``body``
@@ -327,7 +327,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         if (name.endsWith("$Basic$vtable")) {
             return ret;
         }
-        declaration("``ret.identifier`` = external global ``t``");
+        declaration(name, t);
         return ret;
     }
 }
@@ -337,7 +337,6 @@ class LLVMGlobal<out T>(String n, LLVMValue<T> startValue, String modifiers = ""
         extends LLVMDeclaration(n)
         given T satisfies LLVMType {
     string => "@``name`` = ``modifiers`` global ``startValue``";
-    declarationMade => "@``name`` = external global ``startValue.type``";
 }
 
 "Alias supertype of all globals"

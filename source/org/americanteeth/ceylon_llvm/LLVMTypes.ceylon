@@ -12,9 +12,11 @@ class PtrType<out T>(shared T targetType)
 alias AnyLLVMPointerType => PtrType<LLVMType>;
 
 "An LLVM Function type"
-class FuncType<out Ret,in Args>(shared Ret&LLVMType? ret, Args args)
-        extends LLVMType("``ret else "void"``(``",".join(args)``)")
-        given Args satisfies [LLVMType*] {}
+class FuncType<out Ret,in Args>(shared Ret&LLVMType? returnType, Args args)
+        extends LLVMType("``returnType else "void"``(``",".join(args)``)")
+        given Args satisfies [LLVMType*] {
+    shared [LLVMType*] argumentTypes = args;
+}
 
 "Alias supertype of all LLVM Function types"
 alias AnyLLVMFunctionType => FuncType<Anything,Nothing>;

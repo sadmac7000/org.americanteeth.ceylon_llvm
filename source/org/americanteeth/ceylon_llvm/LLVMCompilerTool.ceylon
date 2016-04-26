@@ -183,7 +183,7 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
                 });
             }
 
-            assert(is File|Nil f = parsePath("``file``").resource);
+            assert(is File|Nil f = parsePath(file).resource);
 
             try (w = createFileIfNil(f).Overwriter()) {
                 w.write(result.string);
