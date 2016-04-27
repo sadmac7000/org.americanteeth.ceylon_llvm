@@ -218,6 +218,9 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "The entry point for the function."
     shared variable Label entryPoint = block;
 
+    "Register names to be used ahead of the temp names"
+    value regNames = ArrayList<String>();
+
     "Create a new block."
     shared Label newBlock() {
         value newBlock = Block();
@@ -227,9 +230,6 @@ class LLVMFunction(String n, shared LLVMType? returnType,
 
     "Function body as a single code string."
     value body => "\n  ".join(blocks);
-
-    shared void instruction(String instruction)
-        => currentBlock.instruction(instruction);
 
     "Note that a declaration is required for this function."
     shared void declaration(String name, LLVMType declaration)
@@ -250,8 +250,14 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             else "%.``nextTemporary++``";
     }
 
+    "Set the next register name to be assigned"
+    shared LLVMFunction assignTo(String regName) {
+        regNames.add(regName);
+        return this;
+    }
+
     "Get a register for a given type"
-    shared LLVMValue<T> register<T>(T type, String? regNameIn = null)
+    shared LLVMValue<T> register<T>(T type, String? regNameIn = regNames.deleteLast())
             given T satisfies LLVMType
         => Register(type, regNameIn);
 
@@ -284,7 +290,9 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             then "``reg.identifier`` = "
             else "";
 
-        instruction("``assignment``tail call ``ret`` ``func.identifier``(``argList``)");
+        currentBlock.instruction(
+                "``assignment``tail call ``ret`` \
+                 ``func.identifier``(``argList``)");
         return reg;
     }
 
@@ -292,7 +300,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     shared void callVoid(String name, AnyLLVMValue* args) {
         value argList = ", ".join(args);
 
-        instruction("call void @``name``(``argList``)");
+        currentBlock.instruction("call void @``name``(``argList``)");
         declaration(name, FuncType(null, args.collect((x) => x.type)));
     }
 
@@ -303,8 +311,8 @@ class LLVMFunction(String n, shared LLVMType? returnType,
 
         value result = register(type);
 
-        instruction("``result.identifier`` = \
-                     call ``type`` @``name``(``argList``)");
+        currentBlock.instruction("``result.identifier`` = \
+                                  call ``type`` @``name``(``argList``)");
         declaration(name, FuncType(type, args.collect((x) => x.type)));
 
         return result;
@@ -314,9 +322,9 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     shared void ret<T>(LLVMValue<T>? val)
             given T satisfies LLVMType {
         if (exists val) {
-            instruction("ret ``val``");
+            currentBlock.instruction("ret ``val``");
         } else {
-            instruction("ret void");
+            currentBlock.instruction("ret void");
         }
 
         currentBlock.terminate();
@@ -325,7 +333,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Add an integer operation instruction to this block"
     I64 intOp(String op, I64|Integer a, I64|Integer b) {
         value ret = register(i64);
-        instruction("``ret.identifier`` = ``op`` ``a``, ``b``");
+        currentBlock.instruction("``ret.identifier`` = ``op`` ``a``, ``b``");
         return ret;
     }
 
@@ -341,10 +349,14 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         value result = register(ptr.type);
 
         if (llvmVersion[1] < 7) {
-            instruction("``result.identifier`` = getelementptr ``ptr``, ``amount``");
+            currentBlock.instruction(
+                    "``result.identifier`` = \
+                     getelementptr ``ptr``, ``amount``");
         } else {
-            instruction("``result.identifier`` = getelementptr ``ptr.type.targetType``, \
-                         ``ptr``, ``amount``");
+            currentBlock.instruction(
+                    "``result.identifier`` = \
+                     getelementptr ``ptr.type.targetType``, \
+                     ``ptr``, ``amount``");
         }
 
         return result;
@@ -360,9 +372,10 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         value result = register(ptr.type.targetType);
 
         if (llvmVersion[1] < 7) {
-            instruction("``result.identifier`` = load ``ptr``");
+            currentBlock.instruction("``result.identifier`` = load ``ptr``");
         } else {
-            instruction("``result.identifier`` = load ``result.type``, ``ptr``");
+            currentBlock.instruction("``result.identifier`` = \
+                                      load ``result.type``, ``ptr``");
         }
 
         return result;
@@ -374,7 +387,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         if (exists off) {
             store(offset(ptr, off), val);
         } else {
-            instruction("store ``val``, ``ptr``");
+            currentBlock.instruction("store ``val``, ``ptr``");
         }
     }
 
@@ -382,16 +395,16 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     shared Ptr<T> toPtr<T>(I64 p, T t)
             given T satisfies LLVMType {
         value result = register(ptr(t));
-        instruction("``result.identifier`` = inttoptr ``p`` \
-                     to ``result.type``");
+        currentBlock.instruction("``result.identifier`` = inttoptr ``p`` \
+                                  to ``result.type``");
         return result;
     }
 
     "Cast a Ptr<I64> to an I64"
     shared I64 toI64<T>(Ptr<T> ptr) given T satisfies LLVMType {
         value result = register(i64);
-        instruction("``result.identifier`` = ptrtoint ``ptr`` \
-                     to ``result.type``");
+        currentBlock.instruction("``result.identifier`` = ptrtoint ``ptr`` \
+                                  to ``result.type``");
         return result;
     }
 
@@ -399,20 +412,30 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     shared I1 compareEq<T>(T a, T b)
             given T satisfies AnyLLVMValue {
         value result = register(i1);
-        instruction("``result.identifier`` = icmp eq ``a``, ``b.identifier``");
+        currentBlock.instruction("``result.identifier`` = \
+                                  icmp eq ``a``, ``b.identifier``");
         return result;
     }
 
     "Jump to the given label."
     shared void jump(Label l) {
-        instruction("br ``l``");
+        currentBlock.instruction("br ``l``");
         currentBlock.terminate();
     }
 
     "Branch on the given conditional"
     shared void branch(I1 condition, Label t, Label f) {
-        instruction("br ``condition``, ``t``, ``f``");
+        currentBlock.instruction("br ``condition``, ``t``, ``f``");
         currentBlock.terminate();
+    }
+
+    "LLVM bitcast cast"
+    shared LLVMValue<T> bitcast<T>(AnyLLVMValue v, T t)
+            given T satisfies LLVMType {
+        value result = register(t);
+        currentBlock.instruction("``result.identifier`` = \
+                                  bitcast ``v`` to ``t``");
+        return result;
     }
 }
 

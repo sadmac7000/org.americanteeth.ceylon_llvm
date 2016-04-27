@@ -215,7 +215,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         }
 
         if (allocatedBlocks == 0 && model.toplevel) {
-            body.instruction("%.frame = bitcast i64* null to i64*");
+            body.assignTo(".frame").bitcast(llvmNull, ptr(i64));
             body.jump(entryPoint);
             body.block = block;
             return;
@@ -227,7 +227,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
             else allocatedBlocks;
         value bytesTotal = blocksTotal * 8;
 
-        body.instruction("%.frame = call i64* @malloc(i64 ``bytesTotal``)");
+        body.assignTo(".frame").call(ptr(i64), "malloc", I64Lit(bytesTotal));
 
         if (!model.toplevel) {
             body.store(body.register(ptr(i64), ".frame"),
@@ -284,8 +284,7 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
                 "``declarationName(model)``$size"));
         value bytes = directConstructor.mul(size, 8);
 
-        directConstructor.instruction(
-            "%.frame = call i64* @malloc(``bytes``)");
+        directConstructor.assignTo(".frame").call(ptr(i64), "malloc", bytes);
 
         value vt = directConstructor.toI64(
                 directConstructor.load(directConstructor.global(ptr(i64),
