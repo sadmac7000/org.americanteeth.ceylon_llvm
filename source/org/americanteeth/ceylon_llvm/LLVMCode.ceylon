@@ -251,17 +251,9 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     }
 
     "Get a register for a given type"
-    shared LLVMValue<T> registerFor<T>(T type, String? regNameIn = null)
+    shared LLVMValue<T> register<T>(T type, String? regNameIn = null)
             given T satisfies LLVMType
         => Register(type, regNameIn);
-
-    "Get a new i64* register"
-    shared Ptr<I64Type> register(String? regNameIn = null)
-        => registerFor(ptr(i64), regNameIn);
-
-    "Get a new i64 register"
-    shared I64 registerInt(String? regNameIn = null)
-        => registerFor(i64, regNameIn);
 
     "Access a global from this function"
     shared Ptr<T> global<T>(T t, String name) given T satisfies LLVMType {
@@ -283,17 +275,17 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         value argList = ", ".join(args);
         value retType = func.type.targetType.returnType;
         value ret = retType?.string else "void";
-        value register =
+        value reg =
             if (exists retType)
-            then registerFor(retType)
+            then register(retType)
             else null;
         value assignment =
-            if (exists register)
-            then "``register.identifier`` = "
+            if (exists reg)
+            then "``reg.identifier`` = "
             else "";
 
         instruction("``assignment``tail call ``ret`` ``func.identifier``(``argList``)");
-        return register;
+        return reg;
     }
 
     "Emit a call instruction returning void"
@@ -309,7 +301,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             given T satisfies LLVMType {
         value argList = ", ".join(args);
 
-        value result = registerFor(type);
+        value result = register(type);
 
         instruction("``result.identifier`` = \
                      call ``type`` @``name``(``argList``)");
@@ -332,7 +324,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
 
     "Add an integer operation instruction to this block"
     I64 intOp(String op, I64|Integer a, I64|Integer b) {
-        value ret = registerFor(i64);
+        value ret = register(i64);
         instruction("``ret.identifier`` = ``op`` ``a``, ``b``");
         return ret;
     }
@@ -346,7 +338,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Offset a pointer"
     shared Ptr<T> offset<T>(Ptr<T> ptr, I64 amount)
             given T satisfies LLVMType {
-        value result = registerFor(ptr.type);
+        value result = register(ptr.type);
 
         if (llvmVersion[1] < 7) {
             instruction("``result.identifier`` = getelementptr ``ptr``, ``amount``");
@@ -365,7 +357,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             return load(offset(ptr, off));
         }
 
-        value result = registerFor(ptr.type.targetType);
+        value result = register(ptr.type.targetType);
 
         if (llvmVersion[1] < 7) {
             instruction("``result.identifier`` = load ``ptr``");
@@ -389,7 +381,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Cast an I64 to a Ptr<I64>"
     shared Ptr<T> toPtr<T>(I64 p, T t)
             given T satisfies LLVMType {
-        value result = registerFor(ptr(t));
+        value result = register(ptr(t));
         instruction("``result.identifier`` = inttoptr ``p`` \
                      to ``result.type``");
         return result;
@@ -397,7 +389,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
 
     "Cast a Ptr<I64> to an I64"
     shared I64 toI64<T>(Ptr<T> ptr) given T satisfies LLVMType {
-        value result = registerFor(i64);
+        value result = register(i64);
         instruction("``result.identifier`` = ptrtoint ``ptr`` \
                      to ``result.type``");
         return result;
@@ -406,7 +398,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Compare two values and see if they are equal."
     shared I1 compareEq<T>(T a, T b)
             given T satisfies AnyLLVMValue {
-        value result = registerFor(i1);
+        value result = register(i1);
         instruction("``result.identifier`` = icmp eq ``a``, ``b.identifier``");
         return result;
     }

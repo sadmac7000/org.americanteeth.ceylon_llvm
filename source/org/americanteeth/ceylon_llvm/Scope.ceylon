@@ -62,8 +62,8 @@ abstract class Scope() of CallableScope|UnitScope {
 
         value offset = getAllocationOffset(slot, getter);
 
-        getter.ret(getter.toPtr(getter.load(getter.register(".context"),
-                        offset), i64));
+        getter.ret(getter.toPtr(getter.load(getter.register(ptr(i64),
+                            ".context"), offset), i64));
 
         return getter;
     }
@@ -87,7 +87,8 @@ abstract class Scope() of CallableScope|UnitScope {
                     body);
 
             body.store(
-                    body.register(".frame"), body.toI64(startValue),
+                    body.register(ptr(i64), ".frame"),
+                    body.toI64(startValue),
                     slotOffset);
         }
 
@@ -131,7 +132,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
 
     shared actual Ptr<I64Type>? getFrameFor(DeclarationModel declaration) {
         if (is ValueModel declaration, allocates(declaration)) {
-            return body.register(".frame");
+            return body.register(ptr(i64), ".frame");
         }
 
         if (declaration.toplevel) {
@@ -141,11 +142,11 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         value container = declaration.container;
 
         if (container == model) {
-            return body.register(".frame");
+            return body.register(ptr(i64), ".frame");
         }
 
         variable Anything visitedContainer = model.container;
-        variable Ptr<I64Type> context = body.register(".context");
+        variable Ptr<I64Type> context = body.register(ptr(i64), ".context");
 
         while (is DeclarationModel v = visitedContainer, v != container) {
             context = body.toPtr(body.load(context), i64);
@@ -173,8 +174,8 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         }
 
         if (model.\iformal || model.\idefault) {
-            value vtable = body.toPtr(body.load(body.register(".context"),
-                    I64Lit(1)), i64);
+            value vtable = body.toPtr(body.load(body.register(ptr(i64),
+                            ".context"), I64Lit(1)), i64);
 
             Label newHead;
 
@@ -229,8 +230,8 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         body.instruction("%.frame = call i64* @malloc(i64 ``bytesTotal``)");
 
         if (!model.toplevel) {
-            body.store(body.register(".frame"),
-                    body.toI64(body.register(".context")));
+            body.store(body.register(ptr(i64), ".frame"),
+                    body.toI64(body.register(ptr(i64), ".context")));
         }
 
         body.jump(entryPoint);
@@ -289,13 +290,13 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         value vt = directConstructor.toI64(
                 directConstructor.load(directConstructor.global(ptr(i64),
             "``declarationName(model)``$vtable")));
-        directConstructor.store(directConstructor.register(".frame"),
+        directConstructor.store(directConstructor.register(ptr(i64), ".frame"),
                 vt, I64Lit(1));
 
         directConstructor.callVoid("``declarationName(model)``$init",
                 *arguments);
 
-        directConstructor.ret(directConstructor.register(".frame"));
+        directConstructor.ret(directConstructor.register(ptr(i64), ".frame"));
 
         return directConstructor;
     }

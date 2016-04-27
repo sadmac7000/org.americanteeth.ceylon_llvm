@@ -170,7 +170,7 @@ class LLVMBuilder() satisfies Visitor {
 
         for (parameter in CeylonList(model.parameterList.parameters)) {
             assert(is ValueModel v = parameter.model);
-            scope.allocate(v, scope.body.register(parameter.name));
+            scope.allocate(v, scope.body.register(ptr(i64), parameter.name));
         }
 
         that.extendedType?.visit(this);
@@ -197,7 +197,7 @@ class LLVMBuilder() satisfies Visitor {
         }
 
         scope.body.callVoid("``declarationName(te.declaration)``$init",
-                scope.body.register(".frame"), *arguments);
+                scope.body.register(ptr(i64), ".frame"), *arguments);
     }
 
     shared actual void visitLazySpecifier(LazySpecifier that) {
@@ -245,7 +245,7 @@ class LLVMBuilder() satisfies Visitor {
 
         for (parameter in CeylonList(firstParameterList.parameters)) {
             assert(is ValueModel v = parameter.model);
-            scope.allocate(v, scope.body.register(parameter.name));
+            scope.allocate(v, scope.body.register(ptr(i64), parameter.name));
         }
 
         that.definition?.visit(this);
