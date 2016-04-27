@@ -15,16 +15,18 @@ import com.redhat.ceylon.compiler.typechecker.tree {
 }
 
 import com.redhat.ceylon.model.typechecker.model {
-    ScopeModel = Scope,
-    FunctionOrValueModel = FunctionOrValue,
-    DeclarationModel = Declaration,
-    ClassModel = Class,
-    ClassOrInterfaceModel = ClassOrInterface,
-    ModuleModel = Module,
-    TypeModel = Type
+    ScopeModel=Scope,
+    FunctionOrValueModel=FunctionOrValue,
+    DeclarationModel=Declaration,
+    ClassModel=Class,
+    ClassOrInterfaceModel=ClassOrInterface,
+    ModuleModel=Module,
+    TypeModel=Type
 }
 
-import ceylon.interop.java { CeylonList }
+import ceylon.interop.java {
+    CeylonList
+}
 
 "An ordering for declarations that says when we should initialize their
  vtables"
@@ -40,12 +42,12 @@ object preprocessVisitor satisfies Visitor {
     "The current scope. Asserts that we are currently within a scope"
     ScopeModel current {
         "Current scope should be set"
-        assert(exists c = current_);
+        assert (exists c = current_);
         return c;
     }
 
     shared actual void visitNode(Node that)
-        => that.visitChildren(this);
+            => that.visitChildren(this);
 
     "Mark a declaration with a number that gives an inheritance ordering of all
      declarations."
@@ -62,7 +64,7 @@ object preprocessVisitor satisfies Visitor {
             }
 
             Integer? doMarkForType(TypeModel t) {
-                assert(is ClassOrInterfaceModel m = t.declaration);
+                assert (is ClassOrInterfaceModel m = t.declaration);
                 return doMark(m);
             }
 
@@ -81,26 +83,26 @@ object preprocessVisitor satisfies Visitor {
             }
         }
 
-        assert(is ClassOrInterfaceModel d);
+        assert (is ClassOrInterfaceModel d);
         doMark(d);
     }
 
     shared actual void visitDeclaration(Declaration that) {
-        assert(is Tree.Declaration tc = that.get(keys.tcNode));
+        assert (is Tree.Declaration tc = that.get(keys.tcNode));
 
         value scope = tc.declarationModel;
 
         if (is Tree.ObjectDefinition tc) {
             /* The model type is Value */
             "We don't yet support singleton definitions"
-            assert(false);
+            assert (false);
         }
 
         if (is Tree.AnyClass|Tree.AnyInterface|Tree.ObjectDefinition tc) {
             markDeclarationOrder(scope);
         }
 
-        if (! is ScopeModel scope) {
+        if (!is ScopeModel scope) {
             return;
         }
 
@@ -112,11 +114,11 @@ object preprocessVisitor satisfies Visitor {
 
     "Set the captured property on a used symbol if it needs it."
     void setCapturedIfNeeded(BaseExpression|QualifiedExpression that) {
-        assert(is Tree.MemberOrTypeExpression tb = that.get(keys.tcNode));
+        assert (is Tree.MemberOrTypeExpression tb = that.get(keys.tcNode));
 
         value declaration = tb.declaration;
 
-        if (! is FunctionOrValueModel declaration) {
+        if (!is FunctionOrValueModel declaration) {
             return;
         }
 
@@ -132,12 +134,12 @@ object preprocessVisitor satisfies Visitor {
             return;
         }
 
-        declaration.captured = declaration.scope != current;
+        declaration.captured = declaration.scope!=current;
     }
 
     shared actual void visitBaseExpression(BaseExpression that)
-        => setCapturedIfNeeded(that);
+            => setCapturedIfNeeded(that);
 
     shared actual void visitQualifiedExpression(QualifiedExpression that)
-        => setCapturedIfNeeded(that);
+            => setCapturedIfNeeded(that);
 }

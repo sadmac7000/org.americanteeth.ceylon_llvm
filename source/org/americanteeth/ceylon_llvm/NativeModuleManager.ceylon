@@ -21,12 +21,12 @@ import com.redhat.ceylon.common {
 }
 
 import java.lang {
-    JIterable = Iterable,
-    JString = String
+    JIterable=Iterable,
+    JString=String
 }
 
 import java.util {
-    JList = List
+    JList=List
 }
 
 import ceylon.interop.java {
@@ -41,21 +41,22 @@ class NativeModuleSourceMapper(Context c, ModuleManager m)
 
 class NativeModuleManager() extends ModuleManager() {
     shared actual JIterable<JString> searchedArtifactExtensions
-        => JavaIterable({javaString("src")});
+            => JavaIterable({ javaString("src") });
 
     shared actual Backends supportedBackends => backend.asSet();
 
-    shared actual Module createModule(JList<JString> modNameIn, String modVersion) {
+    shared actual Module createModule(JList<JString> modNameIn, String
+        modVersion) {
         value mod = Module();
         mod.name = modNameIn;
         mod.version = modVersion;
 
-        if (!(mod.nameAsString == Module.\iDEFAULT_MODULE_NAME
-                || mod.nameAsString == Module.\iLANGUAGE_MODULE_NAME)) {
+        if (!(mod.nameAsString==Module.\iDEFAULT_MODULE_NAME
+                        || mod.nameAsString==Module.\iLANGUAGE_MODULE_NAME)) {
 
             value languageModule =
                 findLoadedModule(Module.\iLANGUAGE_MODULE_NAME, null)
-                else modules.languageModule;
+                        else modules.languageModule;
 
             value moduleImport = ModuleImport(languageModule, false, false);
 

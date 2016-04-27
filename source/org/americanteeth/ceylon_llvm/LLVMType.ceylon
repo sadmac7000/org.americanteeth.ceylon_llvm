@@ -4,7 +4,7 @@ abstract class LLVMType(shared String name) {
     hash = string.hash;
 
     shared actual Boolean equals(Object other)
-        => other is LLVMType && other.string == string;
+            => other is LLVMType && other.string==string;
 }
 
 "An LLVM Pointer type"
@@ -16,8 +16,8 @@ class PtrType<out T>(shared T targetType)
 alias AnyLLVMPointerType => PtrType<LLVMType>;
 
 "An LLVM Function type"
-class FuncType<out Ret,in Args>(shared Ret&LLVMType? returnType, Args args)
-        extends LLVMType("``returnType else "void"``(``",".join(args)``)")
+class FuncType<out Ret, in Args>(shared Ret&LLVMType? returnType, Args args)
+        extends LLVMType("`` returnType else "void" ``(``",".join(args)``)")
         given Args satisfies [LLVMType*] {
     shared [LLVMType*] argumentTypes = args;
 }
@@ -33,7 +33,7 @@ object label extends LabelType() {}
 
 "Abbreviated constructor for pointer types"
 PtrType<T> ptr<T>(T targetType) given T satisfies LLVMType
-    => PtrType<T>(targetType);
+        => PtrType<T>(targetType);
 
 "An LLVM Integer type"
 abstract class IntegerType(Integer bits) extends LLVMType("i``bits``") {}

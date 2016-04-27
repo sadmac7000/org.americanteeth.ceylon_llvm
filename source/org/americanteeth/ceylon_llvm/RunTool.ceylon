@@ -7,18 +7,15 @@ import com.redhat.ceylon.common {
 }
 
 import com.redhat.ceylon.cmr.api {
-    ArtifactContext,
     ModuleQuery
 }
 
 import com.redhat.ceylon.common.tool {
-        argument=argument__SETTER
+    argument=argument__SETTER
 }
 
-shared
-class NativeRunTool() extends RepoUsingTool(null) {
-    shared variable
-    argument {
+shared class RunTool() extends RepoUsingTool(null) {
+    shared variable argument {
         argumentName = "module";
         multiplicity = "1";
         order = 1;
@@ -29,8 +26,8 @@ class NativeRunTool() extends RepoUsingTool(null) {
         String moduleName = ModuleUtil.moduleName(moduleString);
         String? moduleVersion =
             checkModuleVersionsOrShowSuggestions(repositoryManager, moduleName,
-                    ModuleUtil.moduleVersion(moduleString),
-                    ModuleQuery.Type.\iALL, null, null, null, null, null);
+                ModuleUtil.moduleVersion(moduleString),
+                ModuleQuery.Type.\iALL, null, null, null, null, null);
         print(moduleName);
         print(moduleVersion);
     }

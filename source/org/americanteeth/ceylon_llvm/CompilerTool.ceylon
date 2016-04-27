@@ -60,11 +60,20 @@ import com.redhat.ceylon.cmr.api {
     ArtifactContext
 }
 
-import ceylon.formatter { format }
-import ceylon.formatter.options { FormattingOptions }
+import ceylon.formatter {
+    format
+}
+import ceylon.formatter.options {
+    FormattingOptions
+}
 
-import java.util { List, JArrayList = ArrayList }
-import java.lang { JString = String }
+import java.util {
+    List,
+    JArrayList=ArrayList
+}
+import java.lang {
+    JString=String
+}
 
 import ceylon.process {
     createProcess,
@@ -77,7 +86,9 @@ import ceylon.collection {
     HashMap
 }
 
-import java.io { JFile = File }
+import java.io {
+    JFile=File
+}
 
 "Options for formatting code output"
 FormattingOptions formatOpts = FormattingOptions {
@@ -87,26 +98,26 @@ FormattingOptions formatOpts = FormattingOptions {
 "Recover the source from the AST"
 void printNodeAsCode(Node node) {
     TCNode tcNode(Node node)
-    =>  node.transform(
-            RedHatTransformer(
-                SimpleTokenFactory()));
+            => node.transform(
+                RedHatTransformer(
+                    SimpleTokenFactory()));
 
     print(format(tcNode(node), formatOpts));
 }
 
-"Compiler utility for LLVM compilation"
-shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
+"Compiler utility for baremetal compilation"
+shared class CompilerTool() extends OutputRepoUsingTool(null) {
     variable List<JString> moduleOrFile_ = JArrayList<JString>();
     shared List<JString> moduleOrFile => moduleOrFile_;
 
-    argument{argumentName = "moduleOrFile"; multiplicity = "*";}
+    argument { argumentName = "moduleOrFile"; multiplicity = "*"; }
     assign moduleOrFile { moduleOrFile_ = moduleOrFile; }
 
     variable String triple_ = "";
     shared JString triple => javaString(triple_);
 
-    optionArgument{longName = "triple"; argumentName = "target-triple";}
-    description("Specify output target triple")
+    optionArgument { longName = "triple"; argumentName = "target-triple"; }
+    description ("Specify output target triple")
     assign triple { triple_ = triple.string; }
 
     shared actual void initialize(CeylonTool mt) {}
@@ -125,8 +136,8 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
 
             confProc.waitForExit();
 
-            assert(is Reader r = confProc.output);
-            assert(exists result = r.readLine()?.trim(Character.whitespace));
+            assert (is Reader r = confProc.output);
+            assert (exists result = r.readLine()?.trim(Character.whitespace));
             triple_ = result;
         }
 
@@ -140,12 +151,13 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
         builder.setSourceFiles(resolver.sourceFiles);
         builder.setRepositoryManager(repositoryManager);
         builder.moduleManagerFactory(object satisfies ModuleManagerFactory {
-            shared actual ModuleManager createModuleManager(Context c) =>
-                NativeModuleManager();
-            shared actual ModuleSourceMapper createModuleManagerUtil(Context c,
+                shared actual ModuleManager createModuleManager(Context c) =>
+                    NativeModuleManager();
+                shared actual ModuleSourceMapper createModuleManagerUtil(
+                    Context c,
                     ModuleManager m)
-                => NativeModuleSourceMapper(c, m);
-        });
+                        => NativeModuleSourceMapper(c, m);
+            });
 
         if (!resolver.sourceModules.empty) {
             builder.setModuleFilters(resolver.sourceModules);
@@ -155,18 +167,18 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
         typeChecker.process();
 
         value phasedUnits = CeylonIterable(
-                typeChecker.phasedUnits.phasedUnits);
+            typeChecker.phasedUnits.phasedUnits);
 
         variable value tmpIdx = 0;
 
-        value argsMap = HashMap<Module, ArrayList<String>>();
+        value argsMap = HashMap<Module,ArrayList<String>>();
 
         for (phasedUnit in phasedUnits) {
             value unit = anyCompilationUnitToCeylon(
-                    phasedUnit.compilationUnit,
-                    augmentNode);
+                phasedUnit.compilationUnit,
+                augmentNode);
             value mod = phasedUnit.\ipackage.\imodule;
-            value file = "/tmp/tmp``tmpIdx++``.ll";
+            value file = "/tmp/tmp`` tmpIdx++ ``.ll";
 
             unit.visit(preprocessVisitor);
             value bld = LLVMBuilder();
@@ -176,14 +188,16 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
             if (exists argList = argsMap[mod]) {
                 argList.add(file);
             } else {
-                argsMap.put(mod, ArrayList{
-                    "-target", triple_, "-shared", "-fPIC", "-g", "-lceylon",
-                    "-o/tmp/``mod.nameAsString``-``mod.version``.cso.``triple``",
-                    file
-                });
+                argsMap.put(mod, ArrayList {
+                        "-target", triple_, "-shared", "-fPIC", "-g",
+                        "-lceylon",
+                        "-o/tmp/``mod.nameAsString``-``mod.version``.cso.``
+                        triple``",
+                        file
+                    });
             }
 
-            assert(is File|Nil f = parsePath(file).resource);
+            assert (is File|Nil f = parsePath(file).resource);
 
             try (w = createFileIfNil(f).Overwriter()) {
                 w.write(result.string);
@@ -192,7 +206,7 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
 
         if (tmpIdx == 0) { return; }
 
-        for (mod -> args in argsMap) {
+        for (mod->args in argsMap) {
             createProcess {
                 command = "/usr/bin/clang";
                 arguments = args;
@@ -200,9 +214,11 @@ shared class LLVMCompilerTool() extends OutputRepoUsingTool(null) {
                 error = currentError;
             }.waitForExit();
 
-            outputRepositoryManager.putArtifact(ArtifactContext(mod.nameAsString,
-                        mod.version, ".cso.``triple``"),
-                    JFile("/tmp/``mod.nameAsString``-``mod.version``.cso.``triple``"));
+            outputRepositoryManager.putArtifact(ArtifactContext(mod
+                        .nameAsString,
+                    mod.version, ".cso.``triple``"),
+                JFile("/tmp/``mod.nameAsString``-``mod.version``.cso.``triple
+                    ``"));
         }
     }
 }

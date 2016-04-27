@@ -1,5 +1,9 @@
-import ceylon.buffer.base { base64StringUrl }
-import ceylon.buffer.charset { utf8 }
+import ceylon.buffer.base {
+    base64StringUrl
+}
+import ceylon.buffer.charset {
+    utf8
+}
 
 import com.redhat.ceylon.model.typechecker.model {
     Declaration,
@@ -23,18 +27,18 @@ String declarationName(Declaration|Scope p) {
         return declarationName(p.container) + ".``p.name``";
     }
 
-    assert(is Package p);
+    assert (is Package p);
 
     String? v = p.\imodule.version;
     value pkg = CeylonList(p.name)
         .reduce<String>((x, y) => x.string + ".``y.string``")?.string;
-    assert(exists pkg);
-    
-    value vEncoded = 
+    assert (exists pkg);
+
+    value vEncoded =
         if (exists v)
         then base64StringUrl.encode(utf8.encode(v))
-            .replace("=", "")
-            .replace("-", "$")
+                .replace("=", "")
+                .replace("-", "$")
         else "";
 
     return "c``vEncoded``.``pkg``";

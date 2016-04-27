@@ -1,111 +1,12 @@
 import ceylon.collection {
     ArrayList,
-    HashSet,
     HashMap
-}
-
-import ceylon.process {
-    createProcess,
-    currentError
-}
-
-import ceylon.file {
-    Reader
-}
-
-"Any top-level declaration in an LLVM compilation unit."
-abstract class LLVMDeclaration(shared String name) {
-    shared default {<String->LLVMType>*} declarationsNeeded = {};
-}
-
-"Get the current LLVM version"
-[Integer, Integer] getLLVMVersion() {
-    value proc = createProcess {
-        command = "/usr/bin/llvm-config";
-        arguments = ["--version"];
-        error = currentError;
-    };
-
-    proc.waitForExit();
-
-    assert(is Reader r = proc.output);
-    assert(exists result = r.readLine());
-
-    value nums = result.split((x) => x == '.')
-        .map((x) => x.trimmed)
-        .take(2)
-        .map(parseInteger).sequence();
-
-    assert(exists major = nums[0],
-           exists minor = nums[1]);
-
-    "LLVM version should be = 3.x"
-    assert(major == 3);
-
-    return [major, minor];
-}
-
-"The current LLVM version"
-[Integer, Integer] llvmVersion = getLLVMVersion();
-
-"An LLVM compilation unit."
-class LLVMUnit() {
-    value items = ArrayList<LLVMDeclaration>();
-    value declarations = HashMap<String,LLVMType>();
-    value unnededDeclarations = HashSet<String>();
-
-    shared void append(LLVMDeclaration item) {
-        items.add(item);
-        declarations.putAll(item.declarationsNeeded);
-        unnededDeclarations.add(item.name);
-    }
-
-    value declarationCode {
-        declarations.removeAll(unnededDeclarations);
-
-        function writeDeclaration(String->LLVMType declaration) {
-            value name->type = declaration;
-            if (is AnyLLVMFunctionType type) {
-                value ret = type.returnType else "void";
-                value args = ", ".join(type.argumentTypes);
-                return "declare ``ret`` @``name``(``args``)";
-            } else {
-                return "@``name`` = external global ``type``";
-            }
-        }
-        return "\n".join(declarations.map(writeDeclaration));
-    }
-
-    String constructorItem {
-        String? constructorString(LLVMDeclaration dec) {
-            if (! is LLVMFunction dec) {
-                return null;
-            }
-
-            if (! dec.isConstructor) {
-                return null;
-            }
-
-            assert(exists priority = dec.constructorPriority);
-
-            return
-                "%.constructor_type { i32 ``priority``, void ()* @``dec.name`` }";
-        }
-
-        value constructors = items.map(constructorString).narrow<String>();
-        return "@llvm.global_ctors = appending global \
-                [``constructors.size`` x %.constructor_type] \
-                [``", ".join(constructors)``]";
-    }
-
-    string => "\n\n".join({declarationCode, constructorItem, *items}
-            .map(Object.string));
 }
 
 "An LLVM function declaration."
 class LLVMFunction(String n, shared LLVMType? returnType,
-                   shared String modifiers,
-                   shared [AnyLLVMValue*] arguments)
+    shared String modifiers,
+    shared [AnyLLVMValue*] arguments)
         extends LLVMDeclaration(n) {
     "Counter for auto-naming temporary registers."
     variable value nextTemporary = 0;
@@ -119,6 +20,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Public list of declarations"
     shared actual {<String->LLVMType>*} declarationsNeeded => declarationList;
 
+    "Full LLVM type of this function"
     shared AnyLLVMFunctionType llvmType => FuncType(returnType, argumentTypes);
 
     "The argument list as a single code string."
@@ -137,7 +39,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
 
     "Make this function a constructor (In the LLVM/system linker sense)."
     shared void makeConstructor(Integer priority)
-        => constructorPriority_ = priority;
+            => constructorPriority_ = priority;
 
     "A default return statement, in case none is provided."
     value stubReturn =
@@ -150,7 +52,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
 
     "An LLVM label for this function."
     class FuncLabel() extends Label(label) {
-        shared String tag = ".l``nextTemporaryLabel++``";
+        shared String tag = ".l`` nextTemporaryLabel++ ``";
         identifier = "%``tag``";
     }
 
@@ -172,7 +74,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         "Mark that we've had a terminating instruction."
         shared void terminate() {
             "Block should not be terminated twice."
-            assert(!terminated);
+            assert (!terminated);
             terminated_ = true;
         }
 
@@ -185,12 +87,12 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         "Add an instruction to this logical block."
         shared void instruction(String instruction) {
             "Block should not have instructions after termination."
-            assert(!terminated);
+            assert (!terminated);
             instructions_.add(instruction);
         }
 
         string => "``label.tag``:\n    "
-            + "\n    ".join(instructions);
+                + "\n    ".join(instructions);
     }
 
     "The logical block we are currently adding instructions to."
@@ -198,7 +100,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
 
     "Instructions in the body of this function that perform the main business
      logic."
-    value blocks = ArrayList{currentBlock};
+    value blocks = ArrayList { currentBlock };
 
     "Label for the block we are currently adding instructions to."
     shared Label block => currentBlock.label;
@@ -208,9 +110,9 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         value candidates = blocks.select((x) => x.label == block);
 
         "Label should match exactly one block."
-        assert(candidates.size == 1);
+        assert (candidates.size == 1);
 
-        assert(exists newBlock = candidates.first);
+        assert (exists newBlock = candidates.first);
 
         currentBlock = newBlock;
     }
@@ -233,9 +135,10 @@ class LLVMFunction(String n, shared LLVMType? returnType,
 
     "Note that a declaration is required for this function."
     shared void declaration(String name, LLVMType declaration)
-        => declarationList.put(name, declaration);
+            => declarationList.put(name, declaration);
 
-    string => "define ``modifiers`` ``returnType else "void"`` @``name``(``argList``) {
+    string => "define ``modifiers`` `` returnType else "void" `` @``name``(``
+    argList``) {
                    br ``entryPoint``
                  ``body``
                }";
@@ -247,7 +150,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         identifier =
             if (exists regNameIn)
             then "%``regNameIn``"
-            else "%.``nextTemporary++``";
+            else "%.`` nextTemporary++ ``";
     }
 
     "Set the next register name to be assigned"
@@ -257,9 +160,10 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     }
 
     "Get a register for a given type"
-    shared LLVMValue<T> register<T>(T type, String? regNameIn = regNames.deleteLast())
+    shared LLVMValue<T> register<T>(T type, String? regNameIn = regNames
+            .deleteLast())
             given T satisfies LLVMType
-        => Register(type, regNameIn);
+            => Register(type, regNameIn);
 
     "Access a global from this function"
     shared Ptr<T> global<T>(T t, String name) given T satisfies LLVMType {
@@ -277,7 +181,8 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     }
 
     "Emit a call instruction for a function pointer"
-    shared LLVMValue<R>? tailCallPtr<R>(Ptr<FuncType<R,Nothing>> func, AnyLLVMValue* args) {
+    shared LLVMValue<R>? tailCallPtr<R>(Ptr<FuncType<R,Nothing>> func,
+        AnyLLVMValue* args) {
         value argList = ", ".join(args);
         value retType = func.type.targetType.returnType;
         value ret = retType?.string else "void";
@@ -291,8 +196,8 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             else "";
 
         currentBlock.instruction(
-                "``assignment``tail call ``ret`` \
-                 ``func.identifier``(``argList``)");
+            "``assignment``tail call ``ret`` \
+             ``func.identifier``(``argList``)");
         return reg;
     }
 
@@ -350,13 +255,13 @@ class LLVMFunction(String n, shared LLVMType? returnType,
 
         if (llvmVersion[1] < 7) {
             currentBlock.instruction(
-                    "``result.identifier`` = \
-                     getelementptr ``ptr``, ``amount``");
+                "``result.identifier`` = \
+                 getelementptr ``ptr``, ``amount``");
         } else {
             currentBlock.instruction(
-                    "``result.identifier`` = \
-                     getelementptr ``ptr.type.targetType``, \
-                     ``ptr``, ``amount``");
+                "``result.identifier`` = \
+                 getelementptr ``ptr.type.targetType``, \
+                 ``ptr``, ``amount``");
         }
 
         return result;
@@ -438,13 +343,3 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         return result;
     }
 }
-
-"An LLVM global variable declaration."
-class LLVMGlobal<out T>(String n, LLVMValue<T> startValue, String modifiers = "")
-        extends LLVMDeclaration(n)
-        given T satisfies LLVMType {
-    string => "@``name`` = ``modifiers`` global ``startValue``";
-}
-
-"Alias supertype of all globals"
-alias AnyLLVMGlobal => LLVMGlobal<LLVMType>;
