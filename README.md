@@ -32,15 +32,10 @@ You'll also need an install of [clang](http://clang.llvm.org) on top of LLVM
 3.6 or 3.7. Other versions may work, but the LLVM IR format is slightly
 unstable, and only those two versions are explicitly checked for.
 
-To compile for the LLVM back end, you first will have to compile your module
-for JavaScript, as this will generate the necessary metamodel data (baremetal
-Ceylon modules don't yet encode metamodel data). You can do this as normal with
-`ceylon compile-js mymodule`. Just make sure you do both your JS compile and
-your native compile in the same source and module root.
+## Compiling and Running Baremetal modules
 
-Once you have a JS compile, you can compile your native modules with
-`ceylon compile-native mymodule`. This will create module files in your output
-repository with the extension `.cso`.
+You can compile your native modules with `ceylon compile-native mymodule`. This
+will create module files in your output repository with the extension `.cso`.
 
 Running your `.cso` is slightly more complex, as there isn't yet a working
 `ceylon run-native`. You will have to run `ceylon-launcher` out of `libexec`
@@ -53,6 +48,5 @@ your `run` function) should come first.
 Not much right now. The only supported data types are classes you create and
 `String`s. `print` is working. Most expressions and operators do not yet work.
 Interfaces do not work. Variadic arguments do not work. Multiple parameter
-lists do not work. Anything that interacts with a type other than `String`
-(including all boolean conditional stuff) does not work. Like I said, not much
-works.
+lists do not work. Modules cannot export anything other than functions, or
+anything with type parameters, to other modules. Like I said, not much works.

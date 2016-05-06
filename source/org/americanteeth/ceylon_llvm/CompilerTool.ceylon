@@ -152,11 +152,11 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
         builder.setRepositoryManager(repositoryManager);
         builder.moduleManagerFactory(object satisfies ModuleManagerFactory {
                 shared actual ModuleManager createModuleManager(Context c) =>
-                    NativeModuleManager();
+                    CSOModuleManager(triple_);
                 shared actual ModuleSourceMapper createModuleManagerUtil(
                     Context c,
                     ModuleManager m)
-                        => NativeModuleSourceMapper(c, m);
+                        => CSOModuleSourceMapper(c, m);
             });
 
         if (!resolver.sourceModules.empty) {
@@ -204,6 +204,21 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
         }
 
         if (tmpIdx == 0) { return; }
+
+        for (mod->cmd in argsMap) {
+            value metaPath = "/tmp/tmp`` tmpIdx++ ``.ll";
+
+            assert (is File|Nil metaFile = parsePath(metaPath).resource);
+            try (w = createFileIfNil(metaFile).Overwriter()) {
+                assert(is CSOModule mod);
+                value bytes = mod.binData;
+                value data = ", ".join(bytes.map((x) => "i8 ``x``"));
+                w.write("@model = constant [``bytes.size`` x i8] [``data``], \
+                         section \"ceylon.module\", align 1\n");
+            }
+
+            cmd.add(metaPath);
+        }
 
         for (mod->args in argsMap) {
             createProcess {
