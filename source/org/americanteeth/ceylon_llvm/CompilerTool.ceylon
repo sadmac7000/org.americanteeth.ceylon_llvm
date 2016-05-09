@@ -191,8 +191,7 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
                 argsMap.put(mod, ArrayList {
                         "-target", triple_, "-shared", "-fPIC", "-g",
                         "-lceylon",
-                        "-o/tmp/``mod.nameAsString``-``mod.version``.cso.``
-                        triple``",
+                        "-o/tmp/``mod.nameAsString``-``mod.version``.cso",
                         file
                     });
             }
@@ -216,9 +215,8 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
 
             outputRepositoryManager.putArtifact(ArtifactContext(mod
                         .nameAsString,
-                    mod.version, ".cso.``triple``"),
-                JFile("/tmp/``mod.nameAsString``-``mod.version``.cso.``triple
-                    ``"));
+                    mod.version, ".cso"),
+                JFile("/tmp/``mod.nameAsString``-``mod.version``.cso"));
         }
     }
 }

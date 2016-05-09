@@ -40,8 +40,7 @@ your native compile in the same source and module root.
 
 Once you have a JS compile, you can compile your native modules with
 `ceylon compile-native mymodule`. This will create module files in your output
-repository with the extension `.cso.x86_64-pc-linux-gnu`, where the final
-portion is the "target triple" identifying the architecture of your machine.
+repository with the extension `.cso`.
 
 Running your `.cso` is slightly more complex, as there isn't yet a working
 `ceylon run-native`. You will have to run `ceylon-launcher` out of `libexec`
