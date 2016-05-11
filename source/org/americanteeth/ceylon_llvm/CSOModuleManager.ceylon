@@ -38,7 +38,7 @@ import ceylon.interop.java {
 }
 
 import com.redhat.ceylon.model.cmr {
-        ArtifactResult
+    ArtifactResult
 }
 
 import ceylon.process {
@@ -90,7 +90,7 @@ class CSOModuleSourceMapper(Context c, ModuleManager m)
     }
 }
 
-class CSOModuleManager(String triple) extends ModuleManager() {
+class CSOModuleManager() extends ModuleManager() {
     shared actual JIterable<JString> searchedArtifactExtensions
             => JavaIterable([ javaString("cso"),
                     javaString("src") ]);

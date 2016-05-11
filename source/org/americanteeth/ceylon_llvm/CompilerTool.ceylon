@@ -152,7 +152,7 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
         builder.setRepositoryManager(repositoryManager);
         builder.moduleManagerFactory(object satisfies ModuleManagerFactory {
                 shared actual ModuleManager createModuleManager(Context c) =>
-                    CSOModuleManager(triple_);
+                    CSOModuleManager();
                 shared actual ModuleSourceMapper createModuleManagerUtil(
                     Context c,
                     ModuleManager m)
