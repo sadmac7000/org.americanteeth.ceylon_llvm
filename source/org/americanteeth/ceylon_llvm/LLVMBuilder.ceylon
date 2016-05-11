@@ -79,7 +79,7 @@ class LLVMBuilder() satisfies Visitor {
 
     /* Default items */
     value basicSize = LLVMGlobal("cMS4yLjM.ceylon.language.$Basic$size",
-        I64Lit(16), "private");
+        I64Lit(2), "private");
     value basicVtSize = LLVMGlobal("cMS4yLjM.ceylon.language.$Basic$vtsize",
         I64Lit(0), "private");
 
