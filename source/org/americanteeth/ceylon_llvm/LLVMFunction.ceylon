@@ -173,9 +173,6 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         if (name.startsWith(".str")) {
             return ret;
         }
-        if (name.endsWith("$Basic$vtable")) {
-            return ret;
-        }
         declaration(name, t);
         return ret;
     }

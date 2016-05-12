@@ -46,8 +46,7 @@ class LLVMBuilder() satisfies Visitor {
                            [``sz`` x i8] c\"``str``\"
                            @.str``id``.object = private unnamed_addr constant \
                            [3 x i64] [i64 0, i64 ``sz``, \
-                           i64 ptrtoint([``sz`` x i8]* @.str``id
-                ``.data to i64)]
+                           i64 ptrtoint([``sz`` x i8]* @.str``id``.data to i64)]
                            @.str``id`` = private alias i64* \
                            bitcast([3 x i64]* @.str``id``.object to i64*)\n\n"
             );
@@ -57,10 +56,7 @@ class LLVMBuilder() satisfies Visitor {
     }
 
     "Prefix for all units"
-    String preamble = "%.constructor_type = type { i32, void ()* }
-
-                       @cMS4yLjM.ceylon.language.$Basic$vtable = private global i64* null\n\n"
-    ;
+    String preamble = "%.constructor_type = type { i32, void ()* }\n\n";
 
     "The run() method"
     variable FunctionModel? runSymbol = null;
@@ -76,15 +72,6 @@ class LLVMBuilder() satisfies Visitor {
 
     "The code we are outputting"
     value output = LLVMUnit();
-
-    /* Default items */
-    value basicSize = LLVMGlobal("cMS4yLjM.ceylon.language.$Basic$size",
-        I64Lit(2), "private");
-    value basicVtSize = LLVMGlobal("cMS4yLjM.ceylon.language.$Basic$vtsize",
-        I64Lit(0), "private");
-
-    output.append(basicSize);
-    output.append(basicVtSize);
 
     shared actual String string {
         for (item in unitScope.results) {
