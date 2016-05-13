@@ -178,11 +178,15 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     }
 
     "Emit a call instruction for a function pointer"
-    shared LLVMValue<R>? tailCallPtr<R>(Ptr<FuncType<R,Nothing>> func,
+    LLVMValue<R>? doCallPtr<R>(Boolean tail, Ptr<FuncType<R,Nothing>> func,
         AnyLLVMValue* args) {
         value argList = ", ".join(args);
         value retType = func.type.targetType.returnType;
         value ret = retType?.string else "void";
+        value tailString =
+            if (tail)
+            then "tail "
+            else "";
         value reg =
             if (exists retType)
             then register(retType)
@@ -193,9 +197,21 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             else "";
 
         currentBlock.instruction(
-            "``assignment``tail call ``ret`` \
+            "``assignment````tailString``call ``ret`` \
              ``func.identifier``(``argList``)");
         return reg;
+    }
+
+    "Emit a call instruction for a function pointer"
+    shared LLVMValue<R>? callPtr<R>(Ptr<FuncType<R,Nothing>> func,
+        AnyLLVMValue* args) {
+        return doCallPtr(false, func, *args);
+    }
+
+    "Emit a call instruction for a function pointer"
+    shared LLVMValue<R>? tailCallPtr<R>(Ptr<FuncType<R,Nothing>> func,
+        AnyLLVMValue* args) {
+        return doCallPtr(true, func, *args);
     }
 
     "Emit a call instruction returning void"
@@ -235,7 +251,9 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Add an integer operation instruction to this block"
     I64 intOp(String op, I64|Integer a, I64|Integer b) {
         value ret = register(i64);
-        currentBlock.instruction("``ret.identifier`` = ``op`` ``a``, ``b``");
+        value bIdent = if (is I64 b) then b.identifier else b;
+        currentBlock.instruction(
+                "``ret.identifier`` = ``op`` ``a``, ``bIdent``");
         return ret;
     }
 

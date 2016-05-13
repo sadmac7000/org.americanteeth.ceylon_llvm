@@ -24,7 +24,8 @@ import com.redhat.ceylon.model.typechecker.model {
 class LLVMBuilder() satisfies Visitor {
     "Nodes to handle by just visiting all children"
     alias StandardNode =>
-        ClassBody|ExpressionStatement|Block|CompilationUnit|InvocationStatement;
+        ClassBody|InterfaceBody|ExpressionStatement|
+        Block|CompilationUnit|InvocationStatement;
 
     "Nodes to ignore completely"
     alias IgnoredNode =>
@@ -198,6 +199,13 @@ class LLVMBuilder() satisfies Visitor {
         "Lazy Specifier expression should have a value"
         assert (exists l = lastReturn);
         scope.body.ret(l);
+    }
+
+    shared actual void visitInterfaceDefinition(InterfaceDefinition that) {
+        assert(is Tree.InterfaceDefinition tc = that.get(keys.tcNode));
+        push(InterfaceScope(tc.declarationModel));
+        that.body.visit(this);
+        pop();
     }
 
     shared actual void visitReturn(Return that) {
