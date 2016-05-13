@@ -181,7 +181,7 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
             value file = "/tmp/tmp`` tmpIdx++ ``.ll";
 
             unit.visit(preprocessVisitor);
-            value bld = LLVMBuilder();
+            value bld = LLVMBuilder(triple_);
             unit.visit(bld);
             value result = bld.string;
 
@@ -213,8 +213,10 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
                 assert(is CSOModule mod);
                 value bytes = mod.binData;
                 value data = ", ".join(bytes.map((x) => "i8 ``x``"));
-                w.write("@model = constant [``bytes.size`` x i8] [``data``], \
-                         section \"ceylon.module\", align 1\n");
+                w.write("target triple = \"``triple_``\"
+
+                         @model = constant [``bytes.size`` x i8] [``data``], \
+                         section \"ceylon.module\", align 1");
             }
 
             cmd.add(metaPath);

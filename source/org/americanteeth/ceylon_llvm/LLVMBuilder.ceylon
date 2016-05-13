@@ -21,7 +21,7 @@ import com.redhat.ceylon.model.typechecker.model {
     PackageModel=Package
 }
 
-class LLVMBuilder() satisfies Visitor {
+class LLVMBuilder(String triple) satisfies Visitor {
     "Nodes to handle by just visiting all children"
     alias StandardNode =>
         ClassBody|InterfaceBody|ExpressionStatement|
@@ -57,7 +57,8 @@ class LLVMBuilder() satisfies Visitor {
     }
 
     "Prefix for all units"
-    String preamble = "%.constructor_type = type { i32, void ()* }\n\n";
+    String preamble = "%.constructor_type = type { i32, void ()* }
+                       target triple = \"``triple``\"\n\n";
 
     "The run() method"
     variable FunctionModel? runSymbol = null;
