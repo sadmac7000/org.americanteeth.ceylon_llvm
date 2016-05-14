@@ -99,9 +99,3 @@ abstract class Scope() of CallableScope | UnitScope {
         return { body, *getters };
     }
 }
-
-"Scope of a getter method"
-class GetterScope(ValueModel model) extends CallableScope(model, "$get") {}
-
-"Scope of a setter method"
-class SetterScope(ValueModel model) extends CallableScope(model, "$set") {}
