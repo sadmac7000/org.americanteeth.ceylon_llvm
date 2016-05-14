@@ -1,7 +1,6 @@
 import ceylon.collection {
     ArrayList,
-    HashMap,
-    HashSet
+    HashMap
 }
 
 import com.redhat.ceylon.model.typechecker.model {
@@ -17,8 +16,6 @@ abstract class Scope() of CallableScope | UnitScope {
     variable value allocationBlock = 0;
 
     shared Integer allocatedBlocks => allocationBlock;
-
-    shared HashSet<ValueModel> usedItems = HashSet<ValueModel>();
 
     "Is there an allocation for this value in the frame for this scope"
     shared Boolean allocates(ValueModel v) => allocations.defines(v);
@@ -78,8 +75,6 @@ abstract class Scope() of CallableScope | UnitScope {
         if (exists cached = currentValues[declaration]) {
             return cached;
         }
-
-        usedItems.add(declaration);
 
         return body.call(ptr(i64), "``declarationName(declaration)``$get",
             *{ getFrameFor(declaration) }.coalesced);
