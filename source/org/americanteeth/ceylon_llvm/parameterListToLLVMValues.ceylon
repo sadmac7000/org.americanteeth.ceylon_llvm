@@ -1,0 +1,12 @@
+import ceylon.interop.java {
+    CeylonList
+}
+
+import com.redhat.ceylon.model.typechecker.model {
+    ParameterList
+}
+
+"Convert a parameter list to a sequence of LLVM values"
+[AnyLLVMValue*] parameterListToLLVMValues(ParameterList parameterList)
+        => CeylonList(parameterList.parameters).collect((x) => val(ptr(i64),
+                      "%``x.name``"));
