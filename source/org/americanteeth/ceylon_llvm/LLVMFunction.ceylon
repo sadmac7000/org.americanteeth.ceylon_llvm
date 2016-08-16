@@ -209,9 +209,9 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     }
 
     "Emit a call instruction for a function pointer"
-    shared LLVMValue<R>? tailCallPtr<R>(Ptr<FuncType<R,Nothing>> func,
-        AnyLLVMValue* args) {
-        return doCallPtr(true, func, *args);
+    shared void tailCallPtr(Ptr<AnyLLVMFunctionType> func, AnyLLVMValue* args) {
+        assert(is LLVMValue<LLVMType>? d = doCallPtr(true, func, *args));
+        ret(d);
     }
 
     "Emit a call instruction returning void"
@@ -301,7 +301,12 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         return result;
     }
 
-    "Store to a pointer"
+    "Load from a global variable."
+    shared LLVMValue<T> loadGlobal<T>(T t, String name)
+            given T satisfies LLVMType
+        => load(global(t, name));
+
+    "Store to a pointer."
     shared void store<T>(Ptr<T> ptr, LLVMValue<T> val, I64? off = null)
             given T satisfies LLVMType {
         if (exists off) {
@@ -310,6 +315,11 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             currentBlock.instruction("store ``val``, ``ptr``");
         }
     }
+
+    "Store to a global variable."
+    shared void storeGlobal<T>(String name, LLVMValue<T> val)
+            given T satisfies LLVMType
+        => store(global(val.type, name), val);
 
     "Cast an I64 to a Ptr<I64>"
     shared Ptr<T> toPtr<T>(I64 p, T t)

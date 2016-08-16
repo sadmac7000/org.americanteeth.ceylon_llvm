@@ -227,20 +227,24 @@ class LLVMBuilder(String triple) satisfies Visitor {
     shared actual void visitAnyFunction(AnyFunction that) {
         assert (is Tree.AnyMethod tc = that.get(keys.tcNode));
 
-        if (tc.declarationModel.\iformal ||
-                    tc.declarationModel.\idefault || tc.declarationModel.\iactual) {
-            scope.vtableEntry(tc.declarationModel);
-        }
-
         if (tc.declarationModel.name == "run",
             tc.declarationModel.container is PackageModel) {
             runSymbol = tc.declarationModel;
         }
 
-        "TODO: support multiple parameter lists"
+        /* TODO: */
+        "We don't support multiple parameter lists yet."
         assert (that.parameterLists.size == 1);
 
         value firstParameterList = tc.declarationModel.firstParameterList;
+
+        if (tc.declarationModel.\iformal || tc.declarationModel.\idefault) {
+            output.append(vtDispatchFunction(tc.declarationModel));
+        }
+
+        if (tc.declarationModel.\iformal) {
+            return;
+        }
 
         push(FunctionScope(tc.declarationModel));
 

@@ -211,8 +211,8 @@ class CSOBlob({Byte*} blobData = {}) {
 
         value version = getString();
         value flags = get();
-        value optional = flags.and(optionalFlag) != 0;
-        value export = flags.and(exportFlag) != 0;
+        value optional = flags.and(optionalFlag) != 0.byte;
+        value export = flags.and(exportFlag) != 0.byte;
         value mod = moduleManager.getOrCreateModule(jName, version);
         value backends = mod.nativeBackends;
         return ModuleImport(mod, optional, export, backends);
