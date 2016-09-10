@@ -134,7 +134,7 @@ abstract class LazyPackage() extends Package() {
 
     shared actual JMap<JString,DeclarationWithProximity>
         getMatchingDeclarations(Unit unit, String startingWith,
-            Integer proximity, Cancellable canceller) {
+            Integer proximity, Cancellable? canceller) {
         load();
         return super.getMatchingDeclarations(unit, startingWith,
                 proximity, canceller);
@@ -142,17 +142,17 @@ abstract class LazyPackage() extends Package() {
 
     shared actual JMap<JString,DeclarationWithProximity>
         getMatchingDirectDeclarations(String startingWith,
-            Integer proximity) {
+            Integer proximity, Cancellable? canceller) {
         load();
-        return super.getMatchingDirectDeclarations(startingWith, proximity);
+        return super.getMatchingDirectDeclarations(startingWith, proximity, canceller);
     }
 
     shared actual JMap<JString,DeclarationWithProximity>
         getImportableDeclarations(Unit unit, String startingWith,
-            JList<Import> imports, Integer proximity) {
+            JList<Import> imports, Integer proximity, Cancellable? canceller) {
         load();
         return super.getImportableDeclarations(unit, startingWith,
-                imports, proximity);
+                imports, proximity, canceller);
     }
 
     shared actual Boolean equals(Object other) {

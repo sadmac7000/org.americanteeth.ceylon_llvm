@@ -151,10 +151,6 @@ void loadAnnotations(CSOBlob data, Declaration target) {
 void storeModuleAnnotations(CSOBlob buf, Module m) {
     variable value packed1 = 0.byte;
 
-    if (m.\idefault) {
-        packed1 = packed1.or(packedAnnotations1.\idefault);
-    }
-
     /* TODO: Native? */
 
     buf.put(packed1);
@@ -171,8 +167,6 @@ void storeModuleAnnotations(CSOBlob buf, Module m) {
 void loadModuleAnnotations(CSOBlob data, Module target) {
     variable value packed1 = data.get();
     data.get(); // Throw away always-empty byte.
-
-    target.\idefault = packed1.and(packedAnnotations1.\idefault) != 0.byte;
 
     if (packed1.and(packedAnnotations1.\inative) != 0.byte) {
         target.nativeBackends = backend.asSet();

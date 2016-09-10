@@ -209,12 +209,12 @@ class CSOPackage() extends LazyPackage() {
 
         param.name = name;
         param.declaration = owner;
-        param.hidden = flags.and(parameterFlags.hidden) != 0;
-        param.defaulted = flags.and(parameterFlags.defaulted) != 0;
-        param.sequenced = flags.and(parameterFlags.sequenced) != 0;
-        param.atLeastOne = flags.and(parameterFlags.atLeastOne) != 0;
+        param.hidden = flags.and(parameterFlags.hidden) != 0.byte;
+        param.defaulted = flags.and(parameterFlags.defaulted) != 0.byte;
+        param.sequenced = flags.and(parameterFlags.sequenced) != 0.byte;
+        param.atLeastOne = flags.and(parameterFlags.atLeastOne) != 0.byte;
 
-        if (flags.and(parameterFlags.functionParameter) != 0) {
+        if (flags.and(parameterFlags.functionParameter) != 0.byte) {
             value f = Function();
             param.model = f;
 

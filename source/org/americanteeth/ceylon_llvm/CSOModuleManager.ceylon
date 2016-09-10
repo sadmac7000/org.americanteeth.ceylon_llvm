@@ -115,7 +115,7 @@ class CSOModuleManager() extends ModuleManager() {
             findLoadedModule(Module.\iLANGUAGE_MODULE_NAME, null)
                     else modules.languageModule;
 
-        value moduleImport = ModuleImport(languageModule, false, false);
+        value moduleImport = ModuleImport(null, languageModule, false, false);
 
         mod.addImport(moduleImport);
         mod.languageModule = languageModule;
