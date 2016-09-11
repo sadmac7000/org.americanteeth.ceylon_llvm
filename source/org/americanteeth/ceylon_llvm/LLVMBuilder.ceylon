@@ -48,7 +48,7 @@ class LLVMBuilder(String triple) satisfies Visitor {
                            @.str``id``.object = private unnamed_addr constant \
                            [3 x i64] [i64 0, i64 ``sz``, \
                            i64 ptrtoint([``sz`` x i8]* @.str``id``.data to i64)]
-                           @.str``id`` = private alias i64* \
+                           @.str``id`` = private alias i64,i64* \
                            bitcast([3 x i64]* @.str``id``.object to i64*)\n\n"
             );
         }
@@ -66,7 +66,7 @@ class LLVMBuilder(String triple) satisfies Visitor {
     "Emitted LLVM for the run() method alias"
     String runSymbolAlias
             => if (exists r = runSymbol)
-            then "@__ceylon_run = alias i64*()* @``declarationName(r)``\n"
+            then "@__ceylon_run = alias i64*(),i64*()* @``declarationName(r)``\n"
             else "";
 
     "Top-level scope of the compilation unit"
@@ -227,20 +227,24 @@ class LLVMBuilder(String triple) satisfies Visitor {
     shared actual void visitAnyFunction(AnyFunction that) {
         assert (is Tree.AnyMethod tc = that.get(keys.tcNode));
 
-        if (tc.declarationModel.\iformal ||
-                    tc.declarationModel.\idefault || tc.declarationModel.\iactual) {
-            scope.vtableEntry(tc.declarationModel);
-        }
-
         if (tc.declarationModel.name == "run",
             tc.declarationModel.container is PackageModel) {
             runSymbol = tc.declarationModel;
         }
 
-        "TODO: support multiple parameter lists"
+        /* TODO: */
+        "We don't support multiple parameter lists yet."
         assert (that.parameterLists.size == 1);
 
         value firstParameterList = tc.declarationModel.firstParameterList;
+
+        if (tc.declarationModel.\iformal || tc.declarationModel.\idefault) {
+            output.append(vtDispatchFunction(tc.declarationModel));
+        }
+
+        if (tc.declarationModel.\iformal) {
+            return;
+        }
 
         push(FunctionScope(tc.declarationModel));
 

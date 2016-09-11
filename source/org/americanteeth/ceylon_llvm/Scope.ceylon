@@ -9,7 +9,7 @@ import com.redhat.ceylon.model.typechecker.model {
 }
 
 "A scope containing instructions"
-abstract class Scope() of CallableScope | UnitScope {
+abstract class Scope() of CallableScope | UnitScope | InterfaceScope {
     value getters = ArrayList<LLVMDeclaration>();
     value currentValues = HashMap<ValueModel,Ptr<I64Type>>();
     value allocations = HashMap<ValueModel,Integer>();
