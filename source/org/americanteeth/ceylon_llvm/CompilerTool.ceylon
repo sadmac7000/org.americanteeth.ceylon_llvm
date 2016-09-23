@@ -230,9 +230,12 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
                 error = currentError;
             }.waitForExit();
 
-            outputRepositoryManager.putArtifact(ArtifactContext(mod
-                        .nameAsString,
-                    mod.version, ".cso"),
+            value artifactContext = ArtifactContext(null, mod.nameAsString,
+                    mod.version, ".cso");
+
+            outputRepositoryManager.removeArtifact(artifactContext);
+            outputRepositoryManager.putArtifact(
+                    artifactContext,
                 JFile("/tmp/``mod.nameAsString``-``mod.version``.cso"));
         }
     }
