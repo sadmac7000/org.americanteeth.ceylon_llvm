@@ -105,7 +105,7 @@ abstract class LazyPackage() extends Package() {
         return super.getDirectMember(name, signature, variadic);
     }
 
-    shared actual Declaration getDirectMemberForBackend(String name,
+    shared actual Declaration? getDirectMemberForBackend(String name,
             Backends backends) {
         load();
         return super.getDirectMemberForBackend(name, backends);
