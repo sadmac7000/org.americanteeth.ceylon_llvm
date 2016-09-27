@@ -84,7 +84,11 @@ object preprocessVisitor satisfies Visitor {
             }
         }
 
-        assert (is ClassOrInterfaceModel d);
+        if (! is ClassOrInterfaceModel d) {
+            /* TODO: Value models for singleton objects. */
+            return;
+        }
+
         doMark(d);
     }
 
@@ -92,12 +96,6 @@ object preprocessVisitor satisfies Visitor {
         assert (is Tree.Declaration tc = that.get(keys.tcNode));
 
         value scope = tc.declarationModel;
-
-        if (is Tree.ObjectDefinition tc) {
-            /* The model type is Value */
-            "We don't yet support singleton definitions"
-            assert (false);
-        }
 
         if (is Tree.AnyClass|Tree.AnyInterface|Tree.ObjectDefinition tc) {
             markDeclarationOrder(scope);
