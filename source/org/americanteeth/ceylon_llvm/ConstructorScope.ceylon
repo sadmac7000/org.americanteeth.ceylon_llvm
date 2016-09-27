@@ -34,8 +34,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
             then [val(ptr(i64), "%.context"), val(ptr(i64), "%.frame")]
             else [val(ptr(i64), "%.frame")];
 
-        return prepend.chain(parameterListToLLVMValues(
-                model.parameterList)).sequence();
+        return prepend.chain(parameterListToLLVMValues(model.parameterList))
+            .sequence();
     }
 
     shared actual LLVMFunction body

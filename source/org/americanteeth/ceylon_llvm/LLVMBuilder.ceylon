@@ -142,18 +142,26 @@ class LLVMBuilder(String triple) satisfies Visitor {
         }
 
         scope.allocate(model, lastReturn);
-
-        if (!model.captured,
-            !model.\ishared,
-            !model.container is PackageModel) {
-            return;
-        }
     }
 
     shared actual void visitStringLiteral(StringLiteral that) {
         value idNumber = nextStringLiteral++;
         stringLiterals.put(idNumber, that.text);
         lastReturn = scope.body.global(i64, ".str``idNumber``");
+    }
+
+    shared actual void visitObjectDefinition(ObjectDefinition that) {
+        assert(is Tree.ObjectDefinition tc = that.get(keys.tcNode));
+
+        push(ConstructorScope(tc.anonymousClass));
+        that.extendedType?.visit(this);
+        that.body.visit(this);
+        pop();
+
+        value val = scope.body.call(ptr(i64),
+                declarationName(tc.anonymousClass));
+        scope.allocate(tc.declarationModel, null);
+        scope.body.storeGlobal(declarationName(tc.declarationModel), val);
     }
 
     shared actual void visitClassDefinition(ClassDefinition that) {

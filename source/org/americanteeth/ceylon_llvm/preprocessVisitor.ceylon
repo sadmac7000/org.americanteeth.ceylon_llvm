@@ -51,7 +51,7 @@ object preprocessVisitor satisfies Visitor {
 
     "Mark a declaration with a number that gives an inheritance ordering of all
      declarations."
-    void markDeclarationOrder(DeclarationModel d) {
+    void markDeclarationOrder(ClassOrInterfaceModel d) {
         variable ModuleModel mod = d.unit.\ipackage.\imodule;
 
         Integer? doMark(ClassOrInterfaceModel cur) {
@@ -84,20 +84,17 @@ object preprocessVisitor satisfies Visitor {
             }
         }
 
-        if (! is ClassOrInterfaceModel d) {
-            /* TODO: Value models for singleton objects. */
-            return;
-        }
-
         doMark(d);
     }
 
     shared actual void visitDeclaration(Declaration that) {
         assert (is Tree.Declaration tc = that.get(keys.tcNode));
 
-        value scope = tc.declarationModel;
+        value scope = if (is Tree.ObjectDefinition tc)
+                      then tc.anonymousClass
+                      else tc.declarationModel;
 
-        if (is Tree.AnyClass|Tree.AnyInterface|Tree.ObjectDefinition tc) {
+        if (is ClassOrInterfaceModel scope) {
             markDeclarationOrder(scope);
         }
 

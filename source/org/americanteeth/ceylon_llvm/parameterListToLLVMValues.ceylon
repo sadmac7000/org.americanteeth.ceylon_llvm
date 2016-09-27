@@ -7,6 +7,8 @@ import com.redhat.ceylon.model.typechecker.model {
 }
 
 "Convert a parameter list to a sequence of LLVM values"
-[AnyLLVMValue*] parameterListToLLVMValues(ParameterList parameterList)
-        => CeylonList(parameterList.parameters).collect((x) => val(ptr(i64),
-                      "%``x.name``"));
+[AnyLLVMValue*] parameterListToLLVMValues(ParameterList? parameterList)
+        => if (exists parameterList)
+           then CeylonList(parameterList.parameters)
+                        .collect((x) => val(ptr(i64), "%``x.name``"))
+           else [];
