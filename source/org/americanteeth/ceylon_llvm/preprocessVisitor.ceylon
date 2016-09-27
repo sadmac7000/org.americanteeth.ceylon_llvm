@@ -73,7 +73,8 @@ object preprocessVisitor satisfies Visitor {
                         .narrow<Integer>()) else -1;
 
             if (is ClassModel cur,
-                exists j = doMarkForType(cur.extendedType),
+                exists t = cur.extendedType,
+                exists j = doMarkForType(t),
                 j > satisfiedMax) {
                 declarationOrder.put(cur, j + 1);
                 return j + 1;
@@ -134,7 +135,11 @@ object preprocessVisitor satisfies Visitor {
             return;
         }
 
-        declaration.captured = declaration.scope!=current;
+        if (exists s = declaration.scope) {
+            declaration.captured = s == current;
+        } else {
+            declaration.captured = false;
+        }
     }
 
     shared actual void visitBaseExpression(BaseExpression that)
