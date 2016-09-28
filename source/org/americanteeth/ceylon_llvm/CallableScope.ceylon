@@ -16,27 +16,27 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
             return body.register(ptr(i64), ".frame");
         }
 
-        if (declaration.toplevel) {
+        value container = declaration.container;
+
+        if (! is DeclarationModel container) {
             return null;
         }
 
-        value container = declaration.container;
-
-        if (container == model) {
+        if (model.refines(container)) {
             return body.register(ptr(i64), ".frame");
         }
 
         variable Anything visitedContainer = model.container;
         variable Ptr<I64Type> context = body.register(ptr(i64), ".context");
 
-        while (is DeclarationModel v = visitedContainer, v != container) {
+        while (is DeclarationModel v = visitedContainer, !v.refines(container)) {
             context = body.toPtr(body.load(context), i64);
             visitedContainer = v.container;
         }
 
         "We should always find a parent scope. We'll get to a 'Package' if we
          don't"
-        assert (container is DeclarationModel);
+        assert (visitedContainer is DeclarationModel);
 
         return context;
     }

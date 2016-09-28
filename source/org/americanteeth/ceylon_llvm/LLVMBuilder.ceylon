@@ -280,12 +280,21 @@ class LLVMBuilder(String triple) satisfies Visitor {
         "We don't support sequence arguments yet"
         assert (!pa.argumentList.sequenceArgument exists);
 
-        if (is QualifiedExpression b) {
+        if (is QualifiedExpression b,
+            ! b.receiverExpression is Super|Package|This) {
             b.receiverExpression.visit(this);
             assert (exists l = lastReturn);
             arguments.add(l);
         } else if (exists f = scope.getFrameFor(bt.declaration)) {
             arguments.add(f);
+        }
+
+        String functionName;
+
+        if (is QualifiedExpression b, b.receiverExpression is Super) {
+            functionName = "``declarationName(bt.declaration)``$noDispatch";
+        } else {
+            functionName = declarationName(bt.declaration);
         }
 
         for (arg in pa.argumentList.listedArguments) {
@@ -296,9 +305,7 @@ class LLVMBuilder(String triple) satisfies Visitor {
             arguments.add(l);
         }
 
-        lastReturn =
-            scope.body.call(ptr(i64), declarationName(bt.declaration),
-                *arguments);
+        lastReturn = scope.body.call(ptr(i64), functionName, *arguments);
     }
 
     shared actual void visitBaseExpression(BaseExpression that) {
