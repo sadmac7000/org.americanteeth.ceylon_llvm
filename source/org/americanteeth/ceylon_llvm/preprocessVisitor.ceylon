@@ -131,7 +131,7 @@ object preprocessVisitor satisfies Visitor {
         }
 
         if (exists s = declaration.scope) {
-            declaration.captured = s == current;
+            declaration.captured = s != current;
         } else {
             declaration.captured = false;
         }
