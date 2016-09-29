@@ -328,4 +328,14 @@ class LLVMBuilder(String triple) satisfies Visitor {
 
         lastReturn = scope.body.call(ptr(i64), getterName, target);
     }
+
+    shared actual void visitThis(This that) {
+        assert (is Tree.This tc = that.get(keys.tcNode));
+        lastReturn = scope.getFrameFor(tc.declarationModel);
+    }
+
+    shared actual void visitOuter(Outer that) {
+        assert (is Tree.Outer tc = that.get(keys.tcNode));
+        lastReturn = scope.getFrameFor(tc.declarationModel);
+    }
 }
