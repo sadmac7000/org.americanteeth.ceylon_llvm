@@ -54,12 +54,11 @@ abstract class Scope() of CallableScope | UnitScope | InterfaceScope {
             return;
         }
 
-        allocations.put(declaration, allocationBlock++);
+        value newPosition = allocationBlock++;
+        allocations.put(declaration, newPosition);
 
         if (exists startValue) {
-            /* allocationBlock = the new allocation position + 1 */
-            value slotOffset = getAllocationOffset(allocationBlock - 1,
-                body);
+            value slotOffset = getAllocationOffset(newPosition, body);
 
             body.store(
                 body.register(ptr(i64), ".frame"),
