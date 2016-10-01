@@ -130,6 +130,15 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         return newBlock.label;
     }
 
+    "Split the current block at the insert position. In essence, insert a label
+     at the current position."
+    shared Label splitBlock() {
+        value ret = newBlock();
+        jump(ret);
+        block = ret;
+        return ret;
+    }
+
     "Function body as a single code string."
     value body => "\n  ".join(blocks);
 
@@ -351,9 +360,13 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     }
 
     "Branch on the given conditional"
-    shared void branch(I1 condition, Label t, Label f) {
+    shared Label[2] branch(I1 condition, Label? t_in = null,
+            Label? f_in = null) {
+        Label t = t_in else newBlock();
+        Label f = f_in else newBlock();
         currentBlock.instruction("br ``condition``, ``t``, ``f``");
         currentBlock.terminate();
+        return [t, f];
     }
 
     "LLVM bitcast cast"

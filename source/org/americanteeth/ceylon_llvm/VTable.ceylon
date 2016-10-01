@@ -109,10 +109,8 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
         value ifSizeGlobal = interfaceResolver.global(i64, vtSizeName(iface));
         value comp = interfaceResolver.compareEq(ifaceTarget, ifSizeGlobal);
 
-        value trueBlock = interfaceResolver.newBlock();
-        value falseBlock = interfaceResolver.newBlock();
+        value [trueBlock, falseBlock] = interfaceResolver.branch(comp);
 
-        interfaceResolver.branch(comp, trueBlock, falseBlock);
         interfaceResolver.block = trueBlock;
         value pos = interfaceResolver.loadGlobal(i64, positionName);
         interfaceResolver.ret(pos);
