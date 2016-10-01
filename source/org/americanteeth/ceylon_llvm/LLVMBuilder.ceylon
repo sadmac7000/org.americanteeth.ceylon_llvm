@@ -288,7 +288,7 @@ class LLVMBuilder(String triple) satisfies Visitor {
             b.receiverExpression.visit(this);
             assert (exists l = lastReturn);
             arguments.add(l);
-        } else if (exists f = scope.getFrameFor(bt.declaration, sup)) {
+        } else if (exists f = scope.getContextFor(bt.declaration, sup)) {
             arguments.add(f);
         }
 

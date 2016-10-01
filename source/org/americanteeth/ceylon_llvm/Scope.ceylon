@@ -20,9 +20,13 @@ abstract class Scope() of CallableScope | UnitScope | InterfaceScope {
     "Is there an allocation for this value in the frame for this scope"
     shared Boolean allocates(ValueModel v) => allocations.defines(v);
 
-    "Get the frame variable for a nested declaration"
-    shared default Ptr<I64Type>? getFrameFor(DeclarationModel declaration,
+    "Get the context variable for a nested declaration"
+    shared default Ptr<I64Type>? getContextFor(DeclarationModel declaration,
             Boolean sup = false)
+            => null;
+
+    "Get the frame variable for a nested declaration"
+    shared default Ptr<I64Type>? getFrameFor(DeclarationModel declaration)
             => null;
 
     "The allocation offset for this item"

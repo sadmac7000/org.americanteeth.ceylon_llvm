@@ -13,18 +13,9 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
                 then [val(ptr(i64), "%.context")]
                 else []);
 
-    shared actual Ptr<I64Type>? getFrameFor(DeclarationModel declaration,
-            Boolean sup) {
-        if (is ValueModel declaration, allocates(declaration)) {
-            return body.register(ptr(i64), ".frame");
-        }
-
-        value container = declaration.container;
-
-        if (! is DeclarationModel container) {
-            return null;
-        }
-
+    "Return the frame pointer for the given declaration by starting from the
+     current frame and following the context pointers."
+    Ptr<I64Type>? climbContextStackTo(DeclarationModel container, Boolean sup) {
         if (model == container) {
             return body.register(ptr(i64), ".frame");
         }
@@ -47,6 +38,24 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
         assert (visitedContainer is DeclarationModel);
 
         return context;
+    }
+
+    shared actual Ptr<I64Type>? getFrameFor(DeclarationModel container)
+        => climbContextStackTo(container, false);
+
+    shared actual Ptr<I64Type>? getContextFor(DeclarationModel declaration,
+            Boolean sup) {
+        if (is ValueModel declaration, allocates(declaration)) {
+            return body.register(ptr(i64), ".frame");
+        }
+
+        value container = declaration.container;
+
+        if (! is DeclarationModel container) {
+            return null;
+        }
+
+        return climbContextStackTo(container, sup);
     }
 
     "Add instructions to initialize the frame object"
