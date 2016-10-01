@@ -11,44 +11,41 @@ import ceylon.interop.java {
 Integer constructorPriorityOffset = 65536;
 
 "Scope of a class body"
-class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
+class ConstructorScope(ClassModel model) extends CallableScope(model, initializerName) {
     value parent = model.extendedType.declaration;
     shared actual void initFrame() {}
 
     "Our vtPosition variables that store the vtable offsets in the binary"
     {AnyLLVMGlobal*} vtPositions = CeylonIterable(model.members)
         .select((x) => (x.\iformal || x.\idefault) && !x.\iactual)
-        .map((x) => LLVMGlobal("``declarationName(x)``$vtPosition", I64Lit(0)));
+        .map((x) => LLVMGlobal(vtPositionName(x), I64Lit(0)));
 
     "Global variables that se up the vtable"
     {LLVMDeclaration+} globals = [
-        LLVMGlobal("``declarationName(model)``$vtSize", I64Lit(0)),
-        LLVMGlobal(declarationName(model) + "$vtable", llvmNull),
-        LLVMGlobal("``declarationName(model)``$size", I64Lit(0))
+        LLVMGlobal(vtSizeName(model), I64Lit(0)),
+        LLVMGlobal(vtableName(model), llvmNull),
+        LLVMGlobal(sizeName(model), I64Lit(0))
     ];
 
     "Constructor arguments."
     [AnyLLVMValue*] arguments {
         value prepend =
             if (!model.toplevel)
-            then [val(ptr(i64), "%.context"), val(ptr(i64), "%.frame")]
-            else [val(ptr(i64), "%.frame")];
+            then [contextRegister, frameRegister]
+            else [frameRegister];
 
         return prepend.chain(parameterListToLLVMValues(model.parameterList))
             .sequence();
     }
 
     shared actual LLVMFunction body
-            = LLVMFunction(declarationName(model) + "$init", null, "",
-                arguments);
-
+            = LLVMFunction(initializerName(model), null, "", arguments);
 
     "The allocation offset for this item"
     shared actual I64 getAllocationOffset(Integer slot, LLVMFunction func) {
         value parent = model.extendedType.declaration;
 
-        value shift = func.load(func.global(i64,
-                "``declarationName(parent)``$size"));
+        value shift = func.load(func.global(i64, sizeName(parent)));
         value ret = func.add(shift, slot);
         return ret;
     }
@@ -59,21 +56,20 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
             ),
             "", parameterListToLLVMValues(model.parameterList));
         value size = directConstructor.load(directConstructor.global(i64,
-                "``declarationName(model)``$size"));
+                sizeName(model)));
         value bytes = directConstructor.mul(size, 8);
 
-        directConstructor.assignTo(".frame").call(ptr(i64), "malloc", bytes);
+        value frame = directConstructor.assignTo(frameName).call(ptr(i64),
+                "malloc", bytes);
 
         value vt = directConstructor.toI64(
             directConstructor.load(directConstructor.global(ptr(i64),
-                    "``declarationName(model)``$vtable")));
-        directConstructor.store(directConstructor.register(ptr(i64), ".frame"),
-            vt, I64Lit(1));
+                    vtableName(model))));
+        directConstructor.store(frame, vt, I64Lit(1));
 
-        directConstructor.callVoid("``declarationName(model)``$init",
-            *arguments);
+        directConstructor.callVoid(initializerName(model), *arguments);
 
-        directConstructor.ret(directConstructor.register(ptr(i64), ".frame"));
+        directConstructor.ret(frame);
 
         return directConstructor;
     }
@@ -84,10 +80,8 @@ class ConstructorScope(ClassModel model) extends CallableScope(model, "$init") {
         assert (exists priority = declarationOrder[model]);
         setupFunction.makeConstructor(priority + constructorPriorityOffset);
 
-        value sizeGlobal = setupFunction.global(i64,
-                "``declarationName(model)``$size");
-        value parentSize = setupFunction.loadGlobal(i64,
-                "``declarationName(parent)``$size");
+        value sizeGlobal = setupFunction.global(i64, sizeName(model));
+        value parentSize = setupFunction.loadGlobal(i64, sizeName(parent));
         value size = setupFunction.add(parentSize, allocatedBlocks);
         setupFunction.store(sizeGlobal, size);
 

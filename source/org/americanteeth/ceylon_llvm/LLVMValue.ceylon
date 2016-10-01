@@ -64,3 +64,8 @@ LLVMValue<T> val<T>(T t, String ident)
         => object extends LLVMValue<T>(t) {
             identifier = ident;
         };
+
+"Constructor for LLVM local values"
+LLVMValue<T> loc<T>(T t, String ident)
+        given T satisfies LLVMType
+        => val(t, "%``ident``");

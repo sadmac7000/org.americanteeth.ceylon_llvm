@@ -21,8 +21,7 @@ class UnitScope() extends Scope() {
             = LLVMFunction("__ceylon_constructor", null, "private", []);
 
     LLVMFunction getterFor(ValueModel model) {
-        value getter = LLVMFunction(declarationName(model) + "$get",
-            ptr(i64), "", []);
+        value getter = LLVMFunction(getterName(model), ptr(i64), "", []);
         value ret = getter.load(getter.global(ptr(i64),
                 declarationName(model)));
         getter.ret(ret);

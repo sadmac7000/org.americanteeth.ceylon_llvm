@@ -66,17 +66,14 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
 "Get the vtable setup function and interface resolver function for a given class."
 [LLVMFunction, LLVMFunction, LLVMGlobal<I64Type>*] vtSetupFunction(ClassModel model) {
     value parent = model.extendedType.declaration;
-    value ret = LLVMFunction("``declarationName(model)``$setup", null,
-            "private", []);
+    value ret = LLVMFunction(setupName(model), null, "private", []);
     value interfaceResolver =
-        LLVMFunction("``declarationName(model)``$resolveInterface", i64, "",
-                [val(ptr(i64), "%.target")]);
+        LLVMFunction(resolverName(model), i64, "", [loc(ptr(i64), ".target")]);
     value originalSatisfiers = getOriginalSatisfiers(model);
     value ifacePositions = HashMap<InterfaceModel,I64>();
     value ifacePositionStorage = ArrayList<LLVMGlobal<I64Type>>();
 
-    variable value vtSize = ret.loadGlobal(i64,
-                "``declarationName(parent)``$vtSize");
+    variable value vtSize = ret.loadGlobal(i64, vtSizeName(parent));
     value vtParentSize = vtSize;
 
     "Perform the actual vtable allocation."
@@ -85,8 +82,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
         value vtable = ret.call(ptr(i64), "malloc", vtSizeBytes);
 
         value vtParentSizeBytes = ret.mul(vtParentSize, 8);
-        value parentVtable = ret.loadGlobal(ptr(i64),
-                "``declarationName(parent)``$vtable");
+        value parentVtable = ret.loadGlobal(ptr(i64), vtableName(parent));
         ret.callVoid("llvm.memcpy.p0i64.p0i64.i64", vtable,
                 parentVtable, vtParentSizeBytes, I32Lit(8), I1Lit(0));
         return vtable;
@@ -101,17 +97,16 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
 
         ifacePositions.put(iface, vtSize);
 
-        value ifSize = ret.loadGlobal(i64, "``declarationName(iface)``$vtSize");
+        value ifSize = ret.loadGlobal(i64, vtSizeName(iface));
 
-        value positionName =
-            "``declarationName(model)``$position.``declarationName(iface)``";
+        value positionName = package.positionName(model, iface);
 
         ret.storeGlobal(positionName, vtSize);
         ifacePositionStorage.add(LLVMGlobal(positionName, I64Lit(0)));
 
         vtSize = ret.add(vtSize, ifSize);
 
-        value ifSizeGlobal = interfaceResolver.global(i64, "``declarationName(iface)``$vtSize");
+        value ifSizeGlobal = interfaceResolver.global(i64, vtSizeName(iface));
         value comp = interfaceResolver.compareEq(ifaceTarget, ifSizeGlobal);
 
         value trueBlock = interfaceResolver.newBlock();
@@ -125,11 +120,11 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
     }
 
     value parentInterfaceResolution = interfaceResolver.call(i64,
-            "``declarationName(parent)``$resolveInterface", ifaceTarget);
+            resolverName(parent), ifaceTarget);
     interfaceResolver.ret(parentInterfaceResolution);
 
     value resolver = ret.global(interfaceResolverType,
-            "``declarationName(model)``$resolveInterface");
+            resolverName(model));
     value resolverInt = ret.toI64(resolver);
 
     value newEntries = HashSet{*CeylonIterable(model.members).collect(
@@ -137,25 +132,23 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
 
     variable value nextEntry = vtSize;
     vtSize = ret.add(vtSize, newEntries.size);
-    ret.storeGlobal("``declarationName(model)``$vtSize", vtSize);
+    ret.storeGlobal(vtSizeName(model), vtSize);
 
     value vtable = allocateVTable();
     ret.store(vtable, resolverInt, interfaceResolverPosition);
-    ret.storeGlobal("``declarationName(model)``$vtable", vtable);
+    ret.storeGlobal(vtableName(model), vtable);
 
     for (iface->pos in ifacePositions) {
         value ifaceVtable = ret.offset(vtable, pos);
-        ret.callVoid("``declarationName(iface)``$setup", ifaceVtable);
+        ret.callVoid(setupName(iface), ifaceVtable);
     }
 
     "Resolve the VT position of an interface."
     I64 resolveInterfacePosition(InterfaceModel container) {
         /* We use the load address of the vtable size to identify the
          * interface. */
-        value targetVt = ret.global(i64,
-                "``declarationName(container)``$vtSize");
-        value result = ret.call(i64,
-                "``declarationName(model)``$resolveInterface", targetVt);
+        value targetVt = ret.global(i64, vtSizeName(container));
+        value result = ret.call(i64, resolverName(model), targetVt);
 
         ifacePositions.put(container, result);
         return result;
@@ -165,7 +158,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
     I64 getVtPosition(FunctionModel member) {
         if (! member.\iactual) {
             value position = nextEntry;
-            ret.storeGlobal("``declarationName(member)``$vtPosition",
+            ret.storeGlobal(vtPositionName(member),
                     position);
             nextEntry = ret.add(nextEntry, I64Lit(1));
             return position;
@@ -174,7 +167,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
         value original = member.refinedDeclaration;
         value container = original.container;
         value position = ret.loadGlobal(i64,
-                "``declarationName(original)``$vtPosition");
+                vtPositionName(original));
 
         if (is ClassModel container) {
             return position;
@@ -200,8 +193,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
         assert(is FunctionModel member);
 
         value position = getVtPosition(member);
-        value pointer = ret.global(llvmTypeOf(member),
-                "``declarationName(member)````dispatchTag(member)``");
+        value pointer = ret.global(llvmTypeOf(member), dispatchName(member));
         ret.store(vtable, ret.toI64(pointer), position);
     }
 
@@ -218,8 +210,7 @@ LLVMFunction vtDispatchFunction(FunctionModel model) {
     value func = llvmFunctionForCeylonFunction(model);
     value context = func.register(ptr(i64), ".context");
     value vtable = func.toPtr(func.load(context, I64Lit(1)), i64);
-    value vtPosition = func.loadGlobal(i64,
-            "``declarationName(model.refinedDeclaration)``$vtPosition");
+    value vtPosition = func.loadGlobal(i64, vtPositionName(model.refinedDeclaration));
     value container = model.refinedDeclaration.container;
     I64 correctedPosition;
 
@@ -227,7 +218,7 @@ LLVMFunction vtDispatchFunction(FunctionModel model) {
         value resolver = func.toPtr(func.load(vtable,
                     interfaceResolverPosition), interfaceResolverType);
         value location =
-            func.global(i64, "``declarationName(container)``$vtSize");
+            func.global(i64, vtSizeName(container));
         assert(exists correction = func.callPtr(resolver, location));
         correctedPosition = func.add(vtPosition, correction);
     } else {

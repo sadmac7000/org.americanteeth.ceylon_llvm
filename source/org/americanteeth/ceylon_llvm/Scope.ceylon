@@ -37,8 +37,8 @@ abstract class Scope() of CallableScope | UnitScope | InterfaceScope {
     LLVMFunction getterFor(ValueModel model) {
         assert (exists slot = allocations[model]);
 
-        value getter = LLVMFunction(declarationName(model) + "$get",
-            ptr(i64), "", [val(ptr(i64), "%.context")]);
+        value getter = LLVMFunction(getterName(model), ptr(i64), "",
+                [loc(ptr(i64), ".context")]);
 
         value offset = getAllocationOffset(slot, getter);
 
@@ -66,7 +66,7 @@ abstract class Scope() of CallableScope | UnitScope | InterfaceScope {
             value slotOffset = getAllocationOffset(newPosition, body);
 
             body.store(
-                body.register(ptr(i64), ".frame"),
+                body.register(ptr(i64), frameName),
                 body.toI64(startValue),
                 slotOffset);
         }
@@ -80,7 +80,7 @@ abstract class Scope() of CallableScope | UnitScope | InterfaceScope {
             return cached;
         }
 
-        return body.call(ptr(i64), "``declarationName(declaration)``$get",
+        return body.call(ptr(i64), getterName(declaration),
             *{ getFrameFor(declaration) }.coalesced);
     }
 

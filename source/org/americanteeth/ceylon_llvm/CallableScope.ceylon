@@ -5,23 +5,24 @@ import com.redhat.ceylon.model.typechecker.model {
     ClassOrInterfaceModel=ClassOrInterface
 }
 
-abstract class CallableScope(DeclarationModel model, String namePostfix = "")
+abstract class CallableScope(DeclarationModel model,
+        String(DeclarationModel) namer = declarationName)
         extends Scope() {
     shared actual default LLVMFunction body
-            = LLVMFunction(declarationName(model) + namePostfix, ptr(i64), "",
+            = LLVMFunction(namer(model), ptr(i64), "",
                 if (!model.toplevel)
-                then [val(ptr(i64), "%.context")]
+                then [contextRegister]
                 else []);
 
     "Return the frame pointer for the given declaration by starting from the
      current frame and following the context pointers."
     Ptr<I64Type>? climbContextStackTo(DeclarationModel container, Boolean sup) {
         if (model == container) {
-            return body.register(ptr(i64), ".frame");
+            return body.register(ptr(i64), frameName);
         }
 
         variable Anything visitedContainer = model.container;
-        variable Ptr<I64Type> context = body.register(ptr(i64), ".context");
+        variable Ptr<I64Type> context = body.register(ptr(i64), contextName);
 
         function isMatch(DeclarationModel v)
             => if (sup || container is InterfaceModel)
@@ -46,7 +47,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
     shared actual Ptr<I64Type>? getContextFor(DeclarationModel declaration,
             Boolean sup) {
         if (is ValueModel declaration, allocates(declaration)) {
-            return body.register(ptr(i64), ".frame");
+            return body.register(ptr(i64), frameName);
         }
 
         value container = declaration.container;
@@ -71,14 +72,14 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
             else allocatedBlocks;
 
         if (totalBlocks == 0) {
-            body.assignTo(".frame").bitcast(llvmNull, ptr(i64));
+            body.assignTo(frameName).bitcast(llvmNull, ptr(i64));
         } else {
-            body.assignTo(".frame").call(ptr(i64), "malloc",
+            body.assignTo(frameName).call(ptr(i64), "malloc",
                     I64Lit(totalBlocks * 8));
 
             if (!model.toplevel) {
-                body.store(body.register(ptr(i64), ".frame"),
-                    body.toI64(body.register(ptr(i64), ".context")));
+                body.store(body.register(ptr(i64), frameName),
+                    body.toI64(body.register(ptr(i64), contextName)));
             }
         }
 
@@ -89,7 +90,7 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
 }
 
 "Scope of a getter method"
-class GetterScope(ValueModel model) extends CallableScope(model, "$get") {}
+class GetterScope(ValueModel model) extends CallableScope(model, getterName) {}
 
 "Scope of a setter method"
-class SetterScope(ValueModel model) extends CallableScope(model, "$set") {}
+class SetterScope(ValueModel model) extends CallableScope(model, setterName) {}

@@ -198,8 +198,8 @@ class LLVMBuilder(String triple) satisfies Visitor {
             }
         }
 
-        scope.body.callVoid("``declarationName(te.declaration)``$init",
-            scope.body.register(ptr(i64), ".frame"), *arguments);
+        scope.body.callVoid(initializerName(te.declaration),
+            scope.body.register(ptr(i64), frameName), *arguments);
     }
 
     shared actual void visitLazySpecifier(LazySpecifier that) {
@@ -295,7 +295,7 @@ class LLVMBuilder(String triple) satisfies Visitor {
         String functionName;
 
         if (is QualifiedExpression b, b.receiverExpression is Super) {
-            functionName = "``declarationName(bt.declaration)``$noDispatch";
+            functionName = dispatchName(bt.declaration);
         } else {
             functionName = declarationName(bt.declaration);
         }
@@ -324,12 +324,11 @@ class LLVMBuilder(String triple) satisfies Visitor {
         assert (is Tree.QualifiedMemberOrTypeExpression tc =
                 that.get(keys.tcNode));
 
-        value getterName = "``declarationName(tc.declaration)``$get";
-
         that.receiverExpression.visit(this);
         assert (exists target = lastReturn);
 
-        lastReturn = scope.body.call(ptr(i64), getterName, target);
+        lastReturn = scope.body.call(ptr(i64), getterName(tc.declaration),
+                target);
     }
 
     shared actual void visitThis(This that) {

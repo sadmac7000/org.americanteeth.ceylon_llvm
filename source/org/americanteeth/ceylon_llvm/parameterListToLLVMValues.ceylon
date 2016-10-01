@@ -10,5 +10,5 @@ import com.redhat.ceylon.model.typechecker.model {
 [AnyLLVMValue*] parameterListToLLVMValues(ParameterList? parameterList)
         => if (exists parameterList)
            then CeylonList(parameterList.parameters)
-                        .collect((x) => val(ptr(i64), "%``x.name``"))
+                        .collect((x) => loc(ptr(i64), x.name))
            else [];

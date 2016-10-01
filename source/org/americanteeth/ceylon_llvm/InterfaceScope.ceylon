@@ -15,8 +15,8 @@ class InterfaceScope(InterfaceModel model) extends Scope() {
     }
 
     shared actual {LLVMDeclaration*} results {
-        value setup = LLVMFunction("``declarationName(model)``$setup",
-                null, "private", [val(ptr(i64), "%.vtable")]);
+        value setup = LLVMFunction(setupName(model), null, "private",
+                [loc(ptr(i64), ".vtable")]);
         value vtable = setup.register(ptr(i64), ".vtable");
         value results = ArrayList<LLVMDeclaration>{setup};
         variable value offset = 0;
@@ -38,16 +38,14 @@ class InterfaceScope(InterfaceModel model) extends Scope() {
                     .follow(ptr(i64))
                     .sequence();
             value funcType = FuncType(ptr(i64), argTypes);
-            value func = setup.global(funcType,
-                    "``declarationName(member)````dispatchTag(member)``");
+            value func = setup.global(funcType, dispatchName(member));
             setup.store(vtable, setup.toI64(func), I64Lit(memberOffset));
 
-            results.add(LLVMGlobal("``declarationName(member)``$vtPosition",
+            results.add(LLVMGlobal(vtPositionName(member),
                         I64Lit(memberOffset)));
         }
 
-        results.add(LLVMGlobal("``declarationName(model)``$vtSize",
-                I64Lit(offset)));
+        results.add(LLVMGlobal(vtSizeName(model), I64Lit(offset)));
 
         return results;
     }
