@@ -280,12 +280,15 @@ class LLVMBuilder(String triple) satisfies Visitor {
         "We don't support sequence arguments yet"
         assert (!pa.argumentList.sequenceArgument exists);
 
+        value sup = if (is QualifiedExpression b, b.receiverExpression is Super)
+            then true else false;
+
         if (is QualifiedExpression b,
             ! b.receiverExpression is Super|Package|This) {
             b.receiverExpression.visit(this);
             assert (exists l = lastReturn);
             arguments.add(l);
-        } else if (exists f = scope.getFrameFor(bt.declaration)) {
+        } else if (exists f = scope.getFrameFor(bt.declaration, sup)) {
             arguments.add(f);
         }
 

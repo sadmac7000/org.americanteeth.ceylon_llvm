@@ -1,6 +1,8 @@
 import com.redhat.ceylon.model.typechecker.model {
     ValueModel=Value,
-    DeclarationModel=Declaration
+    DeclarationModel=Declaration,
+    InterfaceModel=Interface,
+    ClassOrInterfaceModel=ClassOrInterface
 }
 
 abstract class CallableScope(DeclarationModel model, String namePostfix = "")
@@ -11,7 +13,8 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
                 then [val(ptr(i64), "%.context")]
                 else []);
 
-    shared actual Ptr<I64Type>? getFrameFor(DeclarationModel declaration) {
+    shared actual Ptr<I64Type>? getFrameFor(DeclarationModel declaration,
+            Boolean sup) {
         if (is ValueModel declaration, allocates(declaration)) {
             return body.register(ptr(i64), ".frame");
         }
@@ -22,14 +25,19 @@ abstract class CallableScope(DeclarationModel model, String namePostfix = "")
             return null;
         }
 
-        if (model.refines(container)) {
+        if (model == container) {
             return body.register(ptr(i64), ".frame");
         }
 
         variable Anything visitedContainer = model.container;
         variable Ptr<I64Type> context = body.register(ptr(i64), ".context");
 
-        while (is DeclarationModel v = visitedContainer, !v.refines(container)) {
+        function isMatch(DeclarationModel v)
+            => if (sup || container is InterfaceModel)
+               then v is ClassOrInterfaceModel
+               else v == container;
+
+        while (is DeclarationModel v = visitedContainer, !isMatch(v)) {
             context = body.toPtr(body.load(context), i64);
             visitedContainer = v.container;
         }
