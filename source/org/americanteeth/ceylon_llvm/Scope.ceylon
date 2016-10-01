@@ -81,7 +81,7 @@ abstract class Scope() of CallableScope | UnitScope | InterfaceScope {
         }
 
         return body.call(ptr(i64), getterName(declaration),
-            *{ getFrameFor(declaration) }.coalesced);
+            *{ getContextFor(declaration) }.coalesced);
     }
 
     "Add a vtable entry for the given declaration model"
