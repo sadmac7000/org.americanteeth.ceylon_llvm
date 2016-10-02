@@ -21,7 +21,8 @@ import com.redhat.ceylon.model.typechecker.model {
     PackageModel=Package
 }
 
-class LLVMBuilder(String triple) satisfies Visitor {
+class LLVMBuilder(String triple, PackageModel languagePackage)
+        satisfies Visitor {
     "Nodes to handle by just visiting all children"
     alias StandardNode =>
         ClassBody|InterfaceBody|ExpressionStatement|
@@ -339,5 +340,51 @@ class LLVMBuilder(String triple) satisfies Visitor {
     shared actual void visitOuter(Outer that) {
         assert (is Tree.Outer tc = that.get(keys.tcNode));
         lastReturn = scope.getFrameFor(tc.declarationModel);
+    }
+
+    shared actual void visitForFail(ForFail that) {
+        that.forClause.iterator.iterated.visit(this);
+        assert(exists iterated = lastReturn);
+
+        /* TODO: Widen this assertion once we figure out how the hell the type
+         * hierarchy is shaped.
+         */
+        assert(is Tree.BaseMemberExpression tc =
+                that.forClause.iterator.iterated.get(keys.tcNode));
+        value iteratedDec = tc.typeModel.declaration;
+        value iteratorGetter = iteratedDec.getMember("iterator", null, false);
+        assert(is FunctionModel iteratorGetter);
+        value iteratorType = iteratorGetter.type.declaration;
+        value iteratorNext = iteratorType.getDirectMember("next", null, false);
+        value finishedDec = languagePackage.getDirectMember("finished", null,
+                false);
+        value finishedVal = scope.body.call(ptr(i64), getterName(finishedDec));
+
+        value iterator = scope.body.call(ptr(i64),
+                declarationName(iteratorGetter));
+
+        value loopStart = scope.body.splitBlock();
+
+        value nextValue = scope.body.call(ptr(i64),
+                declarationName(iteratorNext), iterator);
+
+        value comparison = scope.body.compareEq(nextValue, finishedVal);
+        value [loopEnd, loopBody] = scope.body.branch(comparison);
+
+        Label breakPosition;
+
+        if (exists f = that.failClause) {
+            scope.body.block = loopEnd;
+            f.block.visit(this);
+            breakPosition = scope.body.splitBlock();
+        } else {
+            breakPosition = loopEnd;
+        }
+
+        scope.body.block = loopBody;
+        that.forClause.block.visit(this);
+        scope.body.jump(loopStart);
+
+        scope.body.block = breakPosition;
     }
 }

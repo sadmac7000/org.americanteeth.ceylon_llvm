@@ -181,7 +181,7 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
             value file = "/tmp/tmp`` tmpIdx++ ``.ll";
 
             unit.visit(preprocessVisitor);
-            value bld = LLVMBuilder(triple_);
+            value bld = LLVMBuilder(triple_, mod.languageModule.rootPackage);
             unit.visit(bld);
             value result = bld.string;
 

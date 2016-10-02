@@ -134,7 +134,11 @@ class LLVMFunction(String n, shared LLVMType? returnType,
      at the current position."
     shared Label splitBlock() {
         value ret = newBlock();
-        jump(ret);
+
+        if (! currentBlock.terminated) {
+            jump(ret);
+        }
+
         block = ret;
         return ret;
     }

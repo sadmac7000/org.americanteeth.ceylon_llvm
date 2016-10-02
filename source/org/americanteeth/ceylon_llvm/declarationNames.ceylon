@@ -103,3 +103,6 @@ String frameName = ".frame";
 
 Ptr<I64Type> contextRegister = loc(ptr(i64), contextName);
 Ptr<I64Type> frameRegister = loc(ptr(i64), frameName);
+
+String memberName(ClassOrInterfaceModel model, String method)
+    => "``declarationName(model)``.``method``";
