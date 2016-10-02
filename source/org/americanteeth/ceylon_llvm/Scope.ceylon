@@ -16,6 +16,29 @@ abstract class Scope(Anything(Scope) destroyer)
     value currentValues = HashMap<ValueModel,Ptr<I64Type>>();
     value allocations = HashMap<ValueModel,Integer>();
     variable value allocationBlock = 0;
+    value loopContextStack = ArrayList<LoopContext>();
+
+    "Information about loop we are inside of (break/continue points)."
+    shared class LoopContext(shared Label continuePoint, shared Label breakPoint)
+            satisfies Obtainable {
+        shared actual void obtain() => loopContextStack.add(this);
+        shared actual void release(Throwable? exc) {
+            "LoopContext expects to pop itself on release."
+            assert(exists l = loopContextStack.deleteLast(), l == this);
+        }
+    }
+
+    "Break out of the current loop in this scope."
+    shared void breakLoop() {
+        assert(exists l = loopContextStack.last);
+        body.jump(l.breakPoint);
+    }
+
+    "Continue the current loop in this scope."
+    shared void continueLoop() {
+        assert(exists l = loopContextStack.last);
+        body.jump(l.continuePoint);
+    }
 
     shared actual void obtain() {}
     shared actual void release(Throwable? exc) => destroyer(this);

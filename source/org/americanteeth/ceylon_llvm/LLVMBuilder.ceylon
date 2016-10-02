@@ -395,9 +395,16 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         }
 
         scope.body.block = loopBody;
-        that.forClause.block.visit(this);
+
+        try (scope.LoopContext(loopStart, breakPosition)) {
+            that.forClause.block.visit(this);
+        }
+
         scope.body.jump(loopStart);
 
         scope.body.block = breakPosition;
     }
+
+    shared actual void visitBreak(Break b) => scope.breakLoop();
+    shared actual void visitContinue(Continue b) => scope.continueLoop();
 }
