@@ -18,6 +18,8 @@ import com.redhat.ceylon.compiler.typechecker.tree {
 import com.redhat.ceylon.model.typechecker.model {
     FunctionModel=Function,
     ValueModel=Value,
+    ClassModel=Class,
+    InterfaceModel=Interface,
     PackageModel=Package
 }
 
@@ -95,16 +97,29 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     value scope => scopeStack.last else unitScope;
 
     "Push a new scope"
-    void push(Scope m) => scopeStack.add(m);
+    T push<T>(T m) given T satisfies Scope {
+        scopeStack.add(m);
+        return m;
+    }
 
     "pop a scope"
-    void pop() {
+    void pop(Scope check) {
         "We must pop no more scopes than we push"
         assert (exists scope = scopeStack.deleteLast());
+
+        "We did not pop the scope we expected"
+        assert(scope == check);
+
         for (result in scope.results) {
             output.append(result);
         }
     }
+
+    GetterScope getterScope(ValueModel model) => push(GetterScope(model, pop));
+    SetterScope setterScope(ValueModel model) => push(SetterScope(model, pop));
+    ConstructorScope constructorScope(ClassModel model) => push(ConstructorScope(model, pop));
+    FunctionScope functionScope(FunctionModel model) => push(FunctionScope(model, pop));
+    InterfaceScope interfaceScope(InterfaceModel model) => push(InterfaceScope(model, pop));
 
     shared actual void visitNode(Node that) {
         if (is IgnoredNode that) {
@@ -128,9 +143,10 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         value specifier = that.definition;
 
         if (exists specifier, !is Specifier specifier) {
-            push(GetterScope(model));
-            specifier.visit(this);
-            pop();
+            try (getterScope(model)) {
+                specifier.visit(this);
+            }
+
             return;
         }
 
@@ -154,10 +170,10 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     shared actual void visitObjectDefinition(ObjectDefinition that) {
         assert(is Tree.ObjectDefinition tc = that.get(keys.tcNode));
 
-        push(ConstructorScope(tc.anonymousClass));
-        that.extendedType?.visit(this);
-        that.body.visit(this);
-        pop();
+        try (constructorScope(tc.anonymousClass)) {
+            that.extendedType?.visit(this);
+            that.body.visit(this);
+        }
 
         value val = scope.body.call(ptr(i64),
                 declarationName(tc.anonymousClass));
@@ -169,17 +185,15 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         assert (is Tree.ClassDefinition tc = that.get(keys.tcNode));
         value model = tc.declarationModel;
 
-        push(ConstructorScope(tc.declarationModel));
+        try (constructorScope(tc.declarationModel)) {
+            for (parameter in CeylonList(model.parameterList.parameters)) {
+                assert (is ValueModel v = parameter.model);
+                scope.allocate(v, scope.body.register(ptr(i64), parameter.name));
+            }
 
-        for (parameter in CeylonList(model.parameterList.parameters)) {
-            assert (is ValueModel v = parameter.model);
-            scope.allocate(v, scope.body.register(ptr(i64), parameter.name));
+            that.extendedType?.visit(this);
+            that.body.visit(this);
         }
-
-        that.extendedType?.visit(this);
-        that.body.visit(this);
-
-        pop();
     }
 
     shared actual void visitExtendedType(ExtendedType that) {
@@ -213,9 +227,9 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
     shared actual void visitInterfaceDefinition(InterfaceDefinition that) {
         assert(is Tree.InterfaceDefinition tc = that.get(keys.tcNode));
-        push(InterfaceScope(tc.declarationModel));
-        that.body.visit(this);
-        pop();
+        try (interfaceScope(tc.declarationModel)) {
+            that.body.visit(this);
+        }
     }
 
     shared actual void visitReturn(Return that) {
@@ -255,16 +269,15 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
             return;
         }
 
-        push(FunctionScope(tc.declarationModel));
+        try (functionScope(tc.declarationModel)) {
+            for (parameter in CeylonList(firstParameterList.parameters)) {
+                assert (is ValueModel v = parameter.model);
+                scope.allocate(v, scope.body.register(ptr(i64),
+                            parameter.name));
+            }
 
-        for (parameter in CeylonList(firstParameterList.parameters)) {
-            assert (is ValueModel v = parameter.model);
-            scope.allocate(v, scope.body.register(ptr(i64), parameter.name));
+            that.definition?.visit(this);
         }
-
-        that.definition?.visit(this);
-
-        pop();
     }
 
     shared actual void visitInvocation(Invocation that) {

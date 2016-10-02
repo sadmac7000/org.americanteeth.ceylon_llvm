@@ -6,8 +6,8 @@ import com.redhat.ceylon.model.typechecker.model {
 }
 
 abstract class CallableScope(DeclarationModel model,
-        String(DeclarationModel) namer = declarationName)
-        extends Scope() {
+        String(DeclarationModel) namer, Anything(Scope) destroyer)
+        extends Scope(destroyer) {
     shared actual default LLVMFunction body
             = LLVMFunction(namer(model), ptr(i64), "",
                 if (!model.toplevel)
@@ -90,7 +90,9 @@ abstract class CallableScope(DeclarationModel model,
 }
 
 "Scope of a getter method"
-class GetterScope(ValueModel model) extends CallableScope(model, getterName) {}
+class GetterScope(ValueModel model, Anything(Scope) destroyer)
+        extends CallableScope(model, getterName, destroyer) {}
 
 "Scope of a setter method"
-class SetterScope(ValueModel model) extends CallableScope(model, setterName) {}
+class SetterScope(ValueModel model, Anything(Scope) destroyer)
+        extends CallableScope(model, setterName, destroyer) {}

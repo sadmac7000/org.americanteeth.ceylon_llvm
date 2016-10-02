@@ -8,7 +8,8 @@ import com.redhat.ceylon.model.typechecker.model {
 }
 
 "Scope of an interface."
-class InterfaceScope(InterfaceModel model) extends Scope() {
+class InterfaceScope(InterfaceModel model, Anything(Scope) destroyer)
+        extends Scope(destroyer) {
     shared actual Nothing body {
         "Interfaces are not backed by a function body."
         assert(false);

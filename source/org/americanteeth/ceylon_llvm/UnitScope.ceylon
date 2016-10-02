@@ -13,7 +13,7 @@ import com.redhat.ceylon.model.typechecker.model {
 Integer toplevelConstructorPriority = constructorPriorityOffset + 65535;
 
 "The outermost scope of the compilation unit"
-class UnitScope() extends Scope() {
+class UnitScope() extends Scope((Anything x) => null) {
     value globalVariables = ArrayList<AnyLLVMGlobal>();
     value getters = ArrayList<LLVMDeclaration>();
 

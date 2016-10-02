@@ -9,11 +9,16 @@ import com.redhat.ceylon.model.typechecker.model {
 }
 
 "A scope containing instructions"
-abstract class Scope() of CallableScope | UnitScope | InterfaceScope {
+abstract class Scope(Anything(Scope) destroyer)
+    of CallableScope | UnitScope | InterfaceScope
+        satisfies Obtainable {
     value getters = ArrayList<LLVMDeclaration>();
     value currentValues = HashMap<ValueModel,Ptr<I64Type>>();
     value allocations = HashMap<ValueModel,Integer>();
     variable value allocationBlock = 0;
+
+    shared actual void obtain() {}
+    shared actual void release(Throwable? exc) => destroyer(this);
 
     shared Integer allocatedBlocks => allocationBlock;
 

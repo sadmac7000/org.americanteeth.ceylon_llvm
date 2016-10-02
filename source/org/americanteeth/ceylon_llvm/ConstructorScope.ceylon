@@ -11,7 +11,8 @@ import ceylon.interop.java {
 Integer constructorPriorityOffset = 65536;
 
 "Scope of a class body"
-class ConstructorScope(ClassModel model) extends CallableScope(model, initializerName) {
+class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
+        extends CallableScope(model, initializerName, destroyer) {
     value parent = model.extendedType.declaration;
     shared actual void initFrame() {}
 

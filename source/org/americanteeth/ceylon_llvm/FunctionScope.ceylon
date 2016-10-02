@@ -13,8 +13,8 @@ LLVMFunction llvmFunctionForCeylonFunction(FunctionModel model,
                 else parameterListToLLVMValues(model.firstParameterList));
 
 "The scope of a function"
-class FunctionScope(FunctionModel model)
-        extends CallableScope(model, dispatchName) {
+class FunctionScope(FunctionModel model, Anything(Scope) destroyer)
+        extends CallableScope(model, dispatchName, destroyer) {
     shared actual LLVMFunction body =
         llvmFunctionForCeylonFunction(model, dispatchName);
 }
