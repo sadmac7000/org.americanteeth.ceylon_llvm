@@ -182,7 +182,7 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
 
             unit.visit(preprocessVisitor);
             value bld = LLVMBuilder(triple_, mod.languageModule.rootPackage);
-            unit.visit(bld);
+            unit.transform(bld);
             value result = bld.string;
 
             if (exists argList = argsMap[mod]) {
