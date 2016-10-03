@@ -22,7 +22,7 @@ import com.redhat.ceylon.model.typechecker.model {
     PackageModel=Package
 }
 
-class LLVMBuilder(String triple, shared PackageModel languagePackage)
+class LLVMBuilder(String triple, PackageModel languagePackage)
         satisfies Visitor {
     "Nodes to handle by just visiting all children"
     alias StandardNode =>
