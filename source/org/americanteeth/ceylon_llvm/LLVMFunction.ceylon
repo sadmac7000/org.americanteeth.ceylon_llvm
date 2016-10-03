@@ -105,6 +105,12 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Label for the block we are currently adding instructions to."
     shared Label block => currentBlock.label;
 
+    shared Boolean blockTerminated(Label which = currentBlock.label) {
+        "Label must match a block in this function"
+        assert(exists whichBlock = blocks.select((x) => x.label == block).first);
+        return whichBlock.terminated;
+    }
+
     "Switch to an existing block."
     assign block {
         value candidates = blocks.select((x) => x.label == block);
@@ -133,6 +139,10 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Split the current block at the insert position. In essence, insert a label
      at the current position."
     shared Label splitBlock() {
+        if (currentBlock.instructions.empty) {
+            return block;
+        }
+
         value ret = newBlock();
 
         if (! currentBlock.terminated) {

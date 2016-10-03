@@ -88,7 +88,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     }
 
     "Return value from the most recent instruction"
-    variable Ptr<I64Type>? lastReturn = null;
+    variable Ptr<I64Type>|I1? lastReturn = null;
 
     "Stack of declarations we are processing"
     value scopeStack = ArrayList<Scope>();
@@ -158,7 +158,8 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
             lastReturn = null;
         }
 
-        scope.allocate(model, lastReturn);
+        assert(is Ptr<I64Type>? l = lastReturn);
+        scope.allocate(model, l);
     }
 
     shared actual void visitStringLiteral(StringLiteral that) {
@@ -208,7 +209,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
                 argument.visit(this);
 
                 "Arguments must have a value"
-                assert (exists l = lastReturn);
+                assert (is Ptr<I64Type> l = lastReturn);
                 arguments.add(l);
             }
         }
@@ -221,7 +222,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         that.expression.visit(this);
 
         "Lazy Specifier expression should have a value"
-        assert (exists l = lastReturn);
+        assert (is Ptr<I64Type> l = lastReturn);
         scope.body.ret(l);
     }
 
@@ -240,7 +241,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
             that.result?.visit(this);
 
             "Returned expression should have a value"
-            assert (exists l = lastReturn);
+            assert (is Ptr<I64Type> l = lastReturn);
             val = l;
         }
 
@@ -300,7 +301,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         if (is QualifiedExpression b,
             ! b.receiverExpression is Super|Package|This) {
             b.receiverExpression.visit(this);
-            assert (exists l = lastReturn);
+            assert (is Ptr<I64Type> l = lastReturn);
             arguments.add(l);
         } else if (exists f = scope.getContextFor(bt.declaration, sup)) {
             arguments.add(f);
@@ -318,7 +319,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
             arg.visit(this);
 
             "Arguments should have a value"
-            assert (exists l = lastReturn);
+            assert (is Ptr<I64Type> l = lastReturn);
             arguments.add(l);
         }
 
@@ -339,7 +340,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
                 that.get(keys.tcNode));
 
         that.receiverExpression.visit(this);
-        assert (exists target = lastReturn);
+        assert (is Ptr<I64Type> target = lastReturn);
 
         lastReturn = scope.body.call(ptr(i64), getterName(tc.declaration),
                 target);
@@ -357,7 +358,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
     shared actual void visitForFail(ForFail that) {
         that.forClause.iterator.iterated.visit(this);
-        assert(exists iterated = lastReturn);
+        assert(is Ptr<I64Type> iterated = lastReturn);
 
         /* TODO: Widen this assertion once we figure out how the hell the type
          * hierarchy is shaped.
@@ -405,6 +406,48 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         scope.body.block = breakPosition;
     }
 
-    shared actual void visitBreak(Break b) => scope.breakLoop();
-    shared actual void visitContinue(Continue b) => scope.continueLoop();
+    shared actual void visitBreak(Break that) => scope.breakLoop();
+    shared actual void visitContinue(Continue that) => scope.continueLoop();
+
+    shared actual void visitIfElse(IfElse that) {
+        value checkPosition = scope.body.block;
+        value trueBlock = scope.body.newBlock();
+        value falseBlock = scope.body.newBlock();
+
+        scope.body.block = trueBlock;
+        that.ifClause.block.visit(this);
+        value trueBlockEnd = if (scope.body.blockTerminated())
+            then null
+            else scope.body.block;
+
+        scope.body.block = falseBlock;
+
+        if (exists elseClause = that.elseClause) {
+            elseClause.visit(this);
+        }
+
+        value falseBlockEnd = scope.body.splitBlock();
+
+        if (exists trueBlockEnd, !scope.body.blockTerminated(trueBlockEnd)) {
+            scope.body.block = trueBlockEnd;
+            scope.body.jump(falseBlockEnd);
+        }
+
+        scope.body.block = checkPosition;
+        value lastCodition = that.ifClause.conditions.conditions.last;
+
+        for (condition in that.ifClause.conditions.conditions) {
+            condition.visit(this);
+            assert(is I1 conditionValue = lastReturn);
+
+            Label? next = if (lastCodition == condition)
+                then trueBlock else null;
+
+            value [_, nextBlock] = scope.body.branch(conditionValue, next,
+                    falseBlock);
+            scope.body.block = nextBlock;
+        }
+
+        scope.body.block = falseBlockEnd;
+    }
 }
