@@ -313,15 +313,17 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         => scope.continueLoop();
 
     I1 transformCondition(Condition c) {
-        "TODO: Support exists/nonempty/etc."
-        assert(is BooleanCondition c);
-
-        value booleanValue = c.condition.transform(expressionTransformer);
-        value trueDeclaration =
-            languagePackage.getDirectMember("true", null, false);
-        value trueValue = scope.body.call(ptr(i64),
-                getterName(trueDeclaration));
-        return scope.body.compareEq(booleanValue, trueValue);
+        if (is BooleanCondition c) {
+            value booleanValue = c.condition.transform(expressionTransformer);
+            value trueDeclaration =
+                languagePackage.getDirectMember("true", null, false);
+            value trueValue = scope.body.call(ptr(i64),
+                    getterName(trueDeclaration));
+            return scope.body.compareEq(booleanValue, trueValue);
+        } else {
+            /*TODO: Support exists/nonempty/etc*/
+            return I1Lit(0);
+        }
     }
 
     shared actual void visitIfElse(IfElse that) {
