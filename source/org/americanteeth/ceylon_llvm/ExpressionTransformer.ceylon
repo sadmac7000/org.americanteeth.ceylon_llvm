@@ -155,5 +155,15 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     /* TODO: Implement this once we have callable support */
     shared actual Ptr<I64Type> transformFunctionExpression(
             FunctionExpression that) => llvmNull;
+
+    shared actual Ptr<I64Type> transformEqualOperation(EqualOperation that) {
+        assert(is Tree.Term tc = that.leftOperand.get(keys.tcNode));
+        value leftOperand = that.leftOperand.transform(this);
+        value rightOperand = that.leftOperand.transform(this);
+        value equalsFunction = tc.typeModel.declaration.getMember("equals", null,
+                false);
+        return scope.body.call(ptr(i64), declarationName(equalsFunction),
+                leftOperand, rightOperand);
+    }
 }
 
