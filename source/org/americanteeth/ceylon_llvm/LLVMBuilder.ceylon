@@ -110,6 +110,30 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         }
     }
 
+    shared actual void visitValueSpecification(ValueSpecification that) {
+        assert(is Tree.SpecifierStatement tc = that.get(keys.tcNode));
+
+        assert(is ValueModel model = tc.declaration);
+        value setting =
+            that.specifier.expression.transform(expressionTransformer);
+
+        scope.allocate(model, setting);
+    }
+
+    shared actual void visitLazySpecification(LazySpecification that) {
+        assert(is Tree.SpecifierStatement tc = that.get(keys.tcNode));
+
+        assert(is FunctionModel|ValueModel model = tc.declaration);
+
+        value newScope = if (is FunctionModel model)
+            then functionScope(model)
+            else getterScope(model);
+
+        try(newScope) {
+            that.specifier.visit(this);
+        }
+    }
+
     shared actual void visitAnyValue(AnyValue that) {
         "Should have an AttributeDeclaration from the type checker"
         assert (is Tree.AnyAttribute tc = that.get(keys.tcNode));
