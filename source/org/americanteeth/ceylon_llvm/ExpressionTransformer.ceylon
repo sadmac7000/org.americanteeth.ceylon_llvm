@@ -164,5 +164,11 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         return scope.body.call(ptr(i64), declarationName(equalsFunction),
                 leftOperand, rightOperand);
     }
+
+    /*TODO: Implement this once we figure out how to get the declaration for
+     * the target.
+     */
+    shared actual Ptr<I64Type> transformAddAssignmentOperation(
+            AddAssignmentOperation that) => llvmNull;
 }
 
