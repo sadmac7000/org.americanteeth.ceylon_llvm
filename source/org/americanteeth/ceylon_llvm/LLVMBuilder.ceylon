@@ -359,7 +359,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
             Label? next = if (lastCodition == condition)
                 then trueBlock else null;
 
-            value [_, nextBlock] = scope.body.branch(conditionValue, next,
+            value [nextBlock, _] = scope.body.branch(conditionValue, next,
                     falseBlock);
             scope.body.block = nextBlock;
         }
