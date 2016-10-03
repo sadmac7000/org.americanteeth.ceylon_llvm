@@ -151,5 +151,9 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         return scope.body.call(ptr(i64), declarationName(containsDeclaration),
                 categoryValue, elementValue);
     }
+
+    /* TODO: Implement this once we have callable support */
+    shared actual Ptr<I64Type> transformFunctionExpression(
+            FunctionExpression that) => llvmNull;
 }
 
