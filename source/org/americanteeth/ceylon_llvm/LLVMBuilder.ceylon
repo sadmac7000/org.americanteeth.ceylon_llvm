@@ -260,9 +260,6 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     }
 
     shared actual void visitForFail(ForFail that) {
-        /* TODO: Widen this assertion once we figure out how the hell the type
-         * hierarchy is shaped.
-         */
         assert(is Tree.Term tc =
                 that.forClause.iterator.iterated.get(keys.tcNode));
         value iteratedDec = tc.typeModel.declaration;
