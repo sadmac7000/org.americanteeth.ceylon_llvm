@@ -12,10 +12,11 @@ import com.redhat.ceylon.compiler.typechecker.tree {
 }
 
 import com.redhat.ceylon.model.typechecker.model {
+    PackageModel=Package,
     ValueModel=Value
 }
 
-class ExpressionTransformer(Scope() scopeGetter)
+class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         satisfies WideningTransformer<Ptr<I64Type>> {
 
     "The next string literal ID available"
@@ -123,6 +124,21 @@ class ExpressionTransformer(Scope() scopeGetter)
         "Contexts where `outer` appears should always have a frame"
         assert(exists s = scope.getFrameFor(tc.declarationModel));
         return s;
+    }
+
+    shared actual Ptr<I64Type> transformNotOperation(NotOperation that) {
+        value trueIdentifier = languagePackage.getDirectMember("true", null,
+                false);
+        value falseIdentifier = languagePackage.getDirectMember("false", null,
+                false);
+        value trueObject = scope.body.call(ptr(i64),
+                getterName(trueIdentifier));
+        value falseObject = scope.body.call(ptr(i64),
+                getterName(falseIdentifier));
+        value expression = that.operand.transform(this);
+        value test = scope.body.compareEq(expression, trueObject);
+
+        return scope.body.select(test, ptr(i64), falseObject, trueObject);
     }
 }
 

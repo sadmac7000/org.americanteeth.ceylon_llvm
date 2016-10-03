@@ -60,7 +60,9 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     "The current scope"
     Scope scope => scopeStack.last else unitScope;
 
-    value expressionTransformer = ExpressionTransformer(() => scope);
+    "Our expression transformer"
+    value expressionTransformer =
+        ExpressionTransformer(() => scope, languagePackage);
 
     "Push a new scope"
     T push<T>(T m) given T satisfies Scope {

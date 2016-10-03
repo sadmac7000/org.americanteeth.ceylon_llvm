@@ -367,6 +367,15 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         return result;
     }
 
+    shared LLVMValue<T> select<T>(I1 selector, T type,
+            LLVMValue<T> a, LLVMValue<T> b)
+            given T satisfies LLVMType {
+        value result = register(type);
+        currentBlock.instruction("`` result.identifier`` = \
+                                  select ``selector``, ``a``, ``b``");
+        return result;
+    }
+
     "Jump to the given label."
     shared void jump(Label l) {
         currentBlock.instruction("br ``l``");
