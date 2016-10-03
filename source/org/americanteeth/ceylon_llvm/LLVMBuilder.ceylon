@@ -260,10 +260,8 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     }
 
     shared actual void visitForFail(ForFail that) {
-        assert(is Tree.Term tc =
-                that.forClause.iterator.iterated.get(keys.tcNode));
-        value iteratedDec = tc.typeModel.declaration;
-        value iteratorGetter = iteratedDec.getMember("iterator", null, false);
+        value iteratorGetter = termGetMember(that.forClause.iterator.iterated,
+                "iterator");
         assert(is FunctionModel iteratorGetter);
         value iteratorType = iteratorGetter.type.declaration;
         value iteratorNext = iteratorType.getDirectMember("next", null, false);

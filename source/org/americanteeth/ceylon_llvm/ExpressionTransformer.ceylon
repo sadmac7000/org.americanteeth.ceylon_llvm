@@ -142,12 +142,9 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     }
 
     shared actual Ptr<I64Type> transformInOperation(InOperation that) {
-        assert(is Tree.Term tcCategory = that.category.get(keys.tcNode));
         value elementValue = that.element.transform(this);
         value categoryValue = that.category.transform(this);
-        value containsDeclaration =
-            tcCategory.typeModel.declaration.getMember("contains", null,
-                    false);
+        value containsDeclaration = termGetMember(that.category, "contains");
         return scope.body.call(ptr(i64), declarationName(containsDeclaration),
                 categoryValue, elementValue);
     }
@@ -161,11 +158,9 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
             IntegerLiteral that) => llvmNull;
 
     shared actual Ptr<I64Type> transformEqualOperation(EqualOperation that) {
-        assert(is Tree.Term tc = that.leftOperand.get(keys.tcNode));
         value leftOperand = that.leftOperand.transform(this);
         value rightOperand = that.leftOperand.transform(this);
-        value equalsFunction = tc.typeModel.declaration.getMember("equals", null,
-                false);
+        value equalsFunction = termGetMember(that.leftOperand, "equals");
         return scope.body.call(ptr(i64), declarationName(equalsFunction),
                 leftOperand, rightOperand);
     }
