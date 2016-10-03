@@ -7,8 +7,7 @@ import ceylon.interop.java {
 }
 
 import ceylon.collection {
-    ArrayList,
-    HashMap
+    ArrayList
 }
 
 import com.redhat.ceylon.compiler.typechecker.tree {
@@ -23,41 +22,18 @@ import com.redhat.ceylon.model.typechecker.model {
     PackageModel=Package
 }
 
-class LLVMBuilder(String triple, PackageModel languagePackage)
-        satisfies WideningTransformer<AnyLLVMValue?> {
-    "Nodes to handle by just transforming all children"
+class LLVMBuilder(String triple, shared PackageModel languagePackage)
+        satisfies Visitor {
+    "Nodes to handle by just visiting all children"
     alias StandardNode =>
-        ClassBody|InterfaceBody|ExpressionStatement|
-        Block|CompilationUnit|InvocationStatement;
+        ClassBody|InterfaceBody|CompilationUnit|Block;
+
+    "Nodes to handle by just visiting all children as expressions."
+    alias ExpressionNode => ExpressionStatement|InvocationStatement;
 
     "Nodes to ignore completely"
     alias IgnoredNode =>
         Import|ModuleCompilationUnit|PackageCompilationUnit|Annotations;
-
-    "The next string literal ID available"
-    variable value nextStringLiteral = 0;
-
-    "A table of all string literals"
-    value stringLiterals = HashMap<Integer,String>();
-
-    "LLVM text for the string table"
-    String stringTable {
-        value result = StringBuilder();
-
-        for (id->raw in stringLiterals) {
-            value [str, sz] = processEscapes(raw);
-            result.append("@.str``id``.data = private unnamed_addr constant \
-                           [``sz`` x i8] c\"``str``\"
-                           @.str``id``.object = private unnamed_addr constant \
-                           [3 x i64] [i64 0, i64 ``sz``, \
-                           i64 ptrtoint([``sz`` x i8]* @.str``id``.data to i64)]
-                           @.str``id`` = private alias i64,i64* \
-                           bitcast([3 x i64]* @.str``id``.object to i64*)\n\n"
-            );
-        }
-
-        return result.string;
-    }
 
     "Prefix for all units"
     String preamble = "%.constructor_type = type { i32, void ()* }
@@ -78,20 +54,13 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     "The code we are outputting"
     value output = LLVMUnit();
 
-    shared actual String string {
-        for (item in unitScope.results) {
-            output.append(item);
-        }
-
-        return preamble + stringTable + output.string +
-                runSymbolAlias;
-    }
-
     "Stack of declarations we are processing"
     value scopeStack = ArrayList<Scope>();
 
     "The current scope"
-    value scope => scopeStack.last else unitScope;
+    Scope scope => scopeStack.last else unitScope;
+
+    value expressionTransformer = ExpressionTransformer(() => scope);
 
     "Push a new scope"
     T push<T>(T m) given T satisfies Scope {
@@ -118,19 +87,28 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     FunctionScope functionScope(FunctionModel model) => push(FunctionScope(model, pop));
     InterfaceScope interfaceScope(InterfaceModel model) => push(InterfaceScope(model, pop));
 
-    shared actual AnyLLVMValue? transformNode(Node that) {
-        if (is IgnoredNode that) {
-            return null;
+    shared actual String string {
+        for (item in unitScope.results) {
+            output.append(item);
         }
 
-        if (!is StandardNode that) {
-            throw UnsupportedNode(that);
-        }
-
-        return that.transformChildren(this).last;
+        return preamble + expressionTransformer.stringTable() + output.string +
+                runSymbolAlias;
     }
 
-    shared actual Null transformAnyValue(AnyValue that) {
+    shared actual void visitNode(Node that) {
+        if (is IgnoredNode that) {
+            return;
+        } else if (is StandardNode that) {
+            that.visitChildren(this);
+        } else if (is ExpressionNode that) {
+            that.transformChildren(expressionTransformer);
+        } else {
+            throw UnsupportedNode(that);
+        }
+    }
+
+    shared actual void visitAnyValue(AnyValue that) {
         "Should have an AttributeDeclaration from the type checker"
         assert (is Tree.AnyAttribute tc = that.get(keys.tcNode));
 
@@ -141,49 +119,35 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
         if (exists specifier, !is Specifier specifier) {
             try (getterScope(model)) {
-                specifier.transform(this);
+                specifier.visit(this);
             }
 
-            return null;
+            return;
         }
 
         assert (is Specifier? specifier);
 
-        Ptr<I64Type>? initialValue;
-        if (exists specifier) {
-            assert(is Ptr<I64Type> i = specifier.expression.transform(this));
-            initialValue = i;
-        } else {
-            initialValue = null;
-        }
+        Ptr<I64Type>? initialValue =
+            specifier?.expression?.transform(expressionTransformer);
 
         scope.allocate(model, initialValue);
-        return null;
     }
 
-    shared actual Ptr<I64Type> transformStringLiteral(StringLiteral that) {
-        value idNumber = nextStringLiteral++;
-        stringLiterals.put(idNumber, that.text);
-        return scope.body.global(i64, ".str``idNumber``");
-    }
-
-    shared actual Null transformObjectDefinition(ObjectDefinition that) {
+    shared actual void visitObjectDefinition(ObjectDefinition that) {
         assert(is Tree.ObjectDefinition tc = that.get(keys.tcNode));
 
         try (constructorScope(tc.anonymousClass)) {
-            that.extendedType?.transform(this);
-            that.body.transform(this);
+            that.extendedType?.visit(this);
+            that.body.visit(this);
         }
 
         value val = scope.body.call(ptr(i64),
                 declarationName(tc.anonymousClass));
         scope.allocate(tc.declarationModel, null);
         scope.body.storeGlobal(declarationName(tc.declarationModel), val);
-
-        return null;
     }
 
-    shared actual Null transformClassDefinition(ClassDefinition that) {
+    shared actual void visitClassDefinition(ClassDefinition that) {
         assert (is Tree.ClassDefinition tc = that.get(keys.tcNode));
         value model = tc.declarationModel;
 
@@ -193,67 +157,50 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
                 scope.allocate(v, scope.body.register(ptr(i64), parameter.name));
             }
 
-            that.extendedType?.transform(this);
-            that.body.transform(this);
+            that.extendedType?.visit(this);
+            that.body.visit(this);
         }
-
-        return null;
     }
 
-    shared actual Null transformExtendedType(ExtendedType that) {
+    shared actual void visitExtendedType(ExtendedType that) {
         value target = that.target;
         assert (is Tree.InvocationExpression tc = target.get(keys.tcNode));
         assert (is Tree.ExtendedTypeExpression te = tc.primary);
 
         value arguments = ArrayList<Ptr<I64Type>>();
 
-        if (exists argNode = target.arguments) {
-            for (argument in argNode.argumentList.children) {
-                "Arguments must have a value"
-                assert (is Ptr<I64Type> l = argument.transform(this));
-                arguments.add(l);
-            }
+        for (argument in target.arguments?.argumentList?.children else []) {
+            arguments.add(argument.transform(expressionTransformer));
         }
 
         scope.body.callVoid(initializerName(te.declaration),
             scope.body.register(ptr(i64), frameName), *arguments);
-
-        return null;
     }
 
-    shared actual Null transformLazySpecifier(LazySpecifier that) {
-        "Lazy Specifier expression should have a value"
-        assert (is Ptr<I64Type> l = that.expression.transform(this));
+    shared actual void visitLazySpecifier(LazySpecifier that)
+        => scope.body.ret(that.expression.transform(expressionTransformer));
 
-        scope.body.ret(l);
-
-        return null;
-    }
-
-    shared actual Null transformInterfaceDefinition(InterfaceDefinition that) {
+    shared actual void visitInterfaceDefinition(InterfaceDefinition that) {
         assert(is Tree.InterfaceDefinition tc = that.get(keys.tcNode));
         try (interfaceScope(tc.declarationModel)) {
-            that.body.transform(this);
+            that.body.visit(this);
         }
-
-        return null;
     }
 
-    shared actual Null transformReturn(Return that) {
+    shared actual void visitReturn(Return that) {
         Ptr<I64Type> val;
         if (!that.result exists) {
             val = llvmNull;
         } else {
             "Returned expression should have a value"
-            assert (is Ptr<I64Type> l = that.result?.transform(this));
+            assert (is Ptr<I64Type> l = that.result?.transform(expressionTransformer));
             val = l;
         }
 
         scope.body.ret(val);
-        return null;
     }
 
-    shared actual Null transformAnyFunction(AnyFunction that) {
+    shared actual void visitAnyFunction(AnyFunction that) {
         assert (is Tree.AnyMethod tc = that.get(keys.tcNode));
 
         if (tc.declarationModel.name == "run",
@@ -272,7 +219,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         }
 
         if (tc.declarationModel.\iformal) {
-            return null;
+            return;
         }
 
         try (functionScope(tc.declarationModel)) {
@@ -282,91 +229,11 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
                             parameter.name));
             }
 
-            that.definition?.transform(this);
+            that.definition?.visit(this);
         }
-
-        return null;
     }
 
-    shared actual Ptr<I64Type> transformInvocation(Invocation that) {
-        "We don't support expression callables yet"
-        assert (is BaseExpression|QualifiedExpression b = that.invoked);
-
-        "Base expressions should have Base Member or Base Type RH nodes"
-        assert (is Tree.MemberOrTypeExpression bt = b.get(keys.tcNode));
-        value arguments = ArrayList<Ptr<I64Type>>();
-
-        "We don't support named arguments yet"
-        assert (is PositionalArguments pa = that.arguments);
-
-        "We don't support sequence arguments yet"
-        assert (!pa.argumentList.sequenceArgument exists);
-
-        value sup = if (is QualifiedExpression b, b.receiverExpression is Super)
-            then true else false;
-
-        if (is QualifiedExpression b,
-            ! b.receiverExpression is Super|Package|This) {
-            assert (is Ptr<I64Type> l = b.receiverExpression.transform(this));
-            arguments.add(l);
-        } else if (exists f = scope.getContextFor(bt.declaration, sup)) {
-            arguments.add(f);
-        }
-
-        String functionName;
-
-        if (is QualifiedExpression b, b.receiverExpression is Super) {
-            functionName = dispatchName(bt.declaration);
-        } else {
-            functionName = declarationName(bt.declaration);
-        }
-
-        for (arg in pa.argumentList.listedArguments) {
-            "Arguments should have a value"
-            assert (is Ptr<I64Type> l = arg.transform(this));
-            arguments.add(l);
-        }
-
-        return scope.body.call(ptr(i64), functionName, *arguments);
-    }
-
-    shared actual Ptr<I64Type> transformBaseExpression(BaseExpression that) {
-        assert (is Tree.BaseMemberExpression tb = that.get(keys.tcNode));
-        assert (is ValueModel declaration = tb.declaration);
-        return scope.access(declaration);
-    }
-
-    shared actual Ptr<I64Type> transformQualifiedExpression(QualifiedExpression that) {
-        "TODO: Support fancy member operators"
-        assert (that.memberOperator is MemberOperator);
-
-        assert (is Tree.QualifiedMemberOrTypeExpression tc =
-                that.get(keys.tcNode));
-
-        assert (is Ptr<I64Type> target =
-                that.receiverExpression.transform(this));
-
-        return scope.body.call(ptr(i64), getterName(tc.declaration), target);
-    }
-
-    shared actual Ptr<I64Type> transformThis(This that) {
-        assert (is Tree.This tc = that.get(keys.tcNode));
-        "Contexts where `this` appears should always have a frame"
-        assert(exists s = scope.getFrameFor(tc.declarationModel));
-        return s;
-    }
-
-    shared actual Ptr<I64Type> transformOuter(Outer that) {
-        assert (is Tree.Outer tc = that.get(keys.tcNode));
-        "Contexts where `outer` appears should always have a frame"
-        assert(exists s = scope.getFrameFor(tc.declarationModel));
-        return s;
-    }
-
-    shared actual Null transformForFail(ForFail that) {
-        assert(is Ptr<I64Type> iterated =
-                that.forClause.iterator.iterated.transform(this));
-
+    shared actual void visitForFail(ForFail that) {
         /* TODO: Widen this assertion once we figure out how the hell the type
          * hierarchy is shaped.
          */
@@ -396,7 +263,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
         if (exists f = that.failClause) {
             scope.body.block = loopEnd;
-            f.block.transform(this);
+            f.block.visit(this);
             breakPosition = scope.body.splitBlock();
         } else {
             breakPosition = loopEnd;
@@ -405,32 +272,39 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         scope.body.block = loopBody;
 
         try (scope.LoopContext(loopStart, breakPosition)) {
-            that.forClause.block.transform(this);
+            that.forClause.block.visit(this);
         }
 
         scope.body.jump(loopStart);
 
         scope.body.block = breakPosition;
-        return null;
     }
 
-    shared actual Null transformBreak(Break that) {
-        scope.breakLoop();
-        return null;
+    shared actual void visitBreak(Break that)
+        => scope.breakLoop();
+
+    shared actual void visitContinue(Continue that)
+        => scope.continueLoop();
+
+    I1 transformCondition(Condition c) {
+        "TODO: Support exists/nonempty/etc."
+        assert(is BooleanCondition c);
+
+        value booleanValue = c.condition.transform(expressionTransformer);
+        value trueDeclaration =
+            languagePackage.getDirectMember("true", null, false);
+        value trueValue = scope.body.call(ptr(i64),
+                getterName(trueDeclaration));
+        return scope.body.compareEq(booleanValue, trueValue);
     }
 
-    shared actual Null transformContinue(Continue that) {
-        scope.continueLoop();
-        return null;
-    }
-
-    shared actual Null transformIfElse(IfElse that) {
+    shared actual void visitIfElse(IfElse that) {
         value checkPosition = scope.body.block;
         value trueBlock = scope.body.newBlock();
         value falseBlock = scope.body.newBlock();
 
         scope.body.block = trueBlock;
-        that.ifClause.block.transform(this);
+        that.ifClause.block.visit(this);
         value trueBlockEnd = if (scope.body.blockTerminated())
             then null
             else scope.body.block;
@@ -438,7 +312,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         scope.body.block = falseBlock;
 
         if (exists elseClause = that.elseClause) {
-            elseClause.transform(this);
+            elseClause.visit(this);
         }
 
         value falseBlockEnd = scope.body.splitBlock();
@@ -452,7 +326,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         value lastCodition = that.ifClause.conditions.conditions.last;
 
         for (condition in that.ifClause.conditions.conditions) {
-            assert(is I1 conditionValue = condition.transform(this));
+            value conditionValue = transformCondition(condition);
 
             Label? next = if (lastCodition == condition)
                 then trueBlock else null;
@@ -463,15 +337,5 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         }
 
         scope.body.block = falseBlockEnd;
-        return null;
-    }
-
-    shared actual I1 transformBooleanCondition(BooleanCondition that) {
-        assert(is Ptr<I64Type> booleanValue = that.condition.transform(this));
-        value trueDeclaration = languagePackage.getDirectMember("true", null,
-                false);
-        value trueValue = scope.body.call(ptr(i64),
-                getterName(trueDeclaration));
-        return scope.body.compareEq(booleanValue, trueValue);
     }
 }
