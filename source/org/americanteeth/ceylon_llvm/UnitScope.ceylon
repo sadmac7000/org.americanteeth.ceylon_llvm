@@ -3,6 +3,7 @@ import ceylon.collection {
 }
 
 import com.redhat.ceylon.model.typechecker.model {
+    FunctionOrValueModel=FunctionOrValue,
     ValueModel=Value
 }
 
@@ -28,8 +29,11 @@ class UnitScope() extends Scope((Anything x) => null) {
         return getter;
     }
 
-    shared actual void allocate(ValueModel declaration,
+    shared actual void allocate(FunctionOrValueModel declaration,
         Ptr<I64Type>? startValue) {
+        "Functions shouldn't be allocated as variables at the top level"
+        assert(is ValueModel declaration);
+
         value name = declarationName(declaration);
 
         globalVariables.add(LLVMGlobal(name, startValue else llvmNull));

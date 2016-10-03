@@ -179,8 +179,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
         try (constructorScope(tc.declarationModel)) {
             for (parameter in CeylonList(model.parameterList.parameters)) {
-                assert (is ValueModel v = parameter.model);
-                scope.allocate(v, scope.body.register(ptr(i64), parameter.name));
+                scope.allocate(parameter.model, scope.body.register(ptr(i64), parameter.name));
             }
 
             that.extendedType?.visit(this);
@@ -250,8 +249,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
         try (functionScope(tc.declarationModel)) {
             for (parameter in CeylonList(firstParameterList.parameters)) {
-                assert (is ValueModel v = parameter.model);
-                scope.allocate(v, scope.body.register(ptr(i64),
+                scope.allocate(parameter.model, scope.body.register(ptr(i64),
                             parameter.name));
             }
 

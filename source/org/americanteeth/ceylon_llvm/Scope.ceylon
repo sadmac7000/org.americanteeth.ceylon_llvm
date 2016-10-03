@@ -4,6 +4,7 @@ import ceylon.collection {
 }
 
 import com.redhat.ceylon.model.typechecker.model {
+    FunctionOrValueModel=FunctionOrValue,
     ValueModel=Value,
     DeclarationModel=Declaration
 }
@@ -13,8 +14,8 @@ abstract class Scope(Anything(Scope) destroyer)
     of CallableScope | UnitScope | InterfaceScope
         satisfies Obtainable {
     value getters = ArrayList<LLVMDeclaration>();
-    value currentValues = HashMap<ValueModel,Ptr<I64Type>>();
-    value allocations = HashMap<ValueModel,Integer>();
+    value currentValues = HashMap<FunctionOrValueModel,Ptr<I64Type>>();
+    value allocations = HashMap<FunctionOrValueModel,Integer>();
     variable value allocationBlock = 0;
     value loopContextStack = ArrayList<LoopContext>();
 
@@ -62,7 +63,7 @@ abstract class Scope(Anything(Scope) destroyer)
             => I64Lit(slot + 1);
 
     "Add instructions to fetch an allocated element"
-    LLVMFunction getterFor(ValueModel model) {
+    LLVMFunction getterFor(FunctionOrValueModel model) {
         assert (exists slot = allocations[model]);
 
         value getter = LLVMFunction(getterName(model), ptr(i64), "",
@@ -77,7 +78,7 @@ abstract class Scope(Anything(Scope) destroyer)
     }
 
     "Create space in this scope for a value"
-    shared default void allocate(ValueModel declaration,
+    shared default void allocate(FunctionOrValueModel declaration,
         Ptr<I64Type>? startValue) {
         if (!declaration.captured && !declaration.\ishared) {
             if (exists startValue) {
@@ -103,7 +104,7 @@ abstract class Scope(Anything(Scope) destroyer)
     }
 
     "Access a declaration"
-    shared Ptr<I64Type> access(ValueModel declaration) {
+    shared Ptr<I64Type> access(FunctionOrValueModel declaration) {
         if (exists cached = currentValues[declaration]) {
             return cached;
         }

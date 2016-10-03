@@ -13,7 +13,7 @@ import com.redhat.ceylon.compiler.typechecker.tree {
 
 import com.redhat.ceylon.model.typechecker.model {
     PackageModel=Package,
-    ValueModel=Value
+    FunctionOrValueModel=FunctionOrValue
 }
 
 class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
@@ -97,7 +97,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
 
     shared actual Ptr<I64Type> transformBaseExpression(BaseExpression that) {
         assert (is Tree.BaseMemberExpression tb = that.get(keys.tcNode));
-        assert (is ValueModel declaration = tb.declaration);
+        assert (is FunctionOrValueModel declaration = tb.declaration);
         return scope.access(declaration);
     }
 
