@@ -450,4 +450,14 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
         scope.body.block = falseBlockEnd;
     }
+
+    shared actual void visitBooleanCondition(BooleanCondition that) {
+        that.condition.visit(this);
+        assert(is Ptr<I64Type> booleanValue = lastReturn);
+        value trueDeclaration = languagePackage.getDirectMember("true", null,
+                false);
+        value trueValue = scope.body.call(ptr(i64),
+                getterName(trueDeclaration));
+        lastReturn = scope.body.compareEq(booleanValue, trueValue);
+    }
 }
