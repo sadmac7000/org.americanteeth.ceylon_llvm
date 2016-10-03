@@ -140,5 +140,16 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
 
         return scope.body.select(test, ptr(i64), falseObject, trueObject);
     }
+
+    shared actual Ptr<I64Type> transformInOperation(InOperation that) {
+        assert(is Tree.Term tcCategory = that.category.get(keys.tcNode));
+        value elementValue = that.element.transform(this);
+        value categoryValue = that.category.transform(this);
+        value containsDeclaration =
+            tcCategory.typeModel.declaration.getMember("contains", null,
+                    false);
+        return scope.body.call(ptr(i64), declarationName(containsDeclaration),
+                categoryValue, elementValue);
+    }
 }
 
