@@ -46,7 +46,9 @@ String declarationName(DeclarationModel|Scope p) {
         return declarationName(p.container) + ".``p.name``";
     }
 
-    assert (is Package p);
+    if (! is Package p) {
+        return declarationName(p.container);
+    }
 
     String? v = p.\imodule.version;
     value pkg = CeylonList(p.name)
