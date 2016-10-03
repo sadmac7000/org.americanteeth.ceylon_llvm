@@ -156,6 +156,10 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     shared actual Ptr<I64Type> transformFunctionExpression(
             FunctionExpression that) => llvmNull;
 
+    /* TODO: Design and implement integer literals */
+    shared actual Ptr<I64Type> transformIntegerLiteral(
+            IntegerLiteral that) => llvmNull;
+
     shared actual Ptr<I64Type> transformEqualOperation(EqualOperation that) {
         assert(is Tree.Term tc = that.leftOperand.get(keys.tcNode));
         value leftOperand = that.leftOperand.transform(this);
