@@ -13,10 +13,9 @@ you'd give to Ceylon's `native` annotation to add native methods).
 
 Originally this was to be the `llvm` back end, but naming our binary back end
 after the specific tool chain we happen to use seemed unwise. It is called the
-`native` back end in command names right now, but this could require users to
-write `native(native)` in their code, which is silly, and also proof that
-`native` already has a slightly different meaning for Ceylon. The best
-candidates at the moment are either `bare` or `baremetal`.
+`native` back end in command names right now, as in `compile-native`, but it is
+called the `baremetal` backend in code. We will probably standardize on the
+latter.
 
 ## Getting started
 
@@ -47,6 +46,5 @@ your `run` function) should come first.
 
 Not much right now. The only supported data types are classes you create and
 `String`s. `print` is working. Most expressions and operators do not yet work.
-Interfaces do not work. Variadic arguments do not work. Multiple parameter
-lists do not work. Modules cannot export anything other than functions, or
-anything with type parameters, to other modules. Like I said, not much works.
+Variadic arguments do not work. Multiple parameter
+lists do not work. Like I said, not much works.

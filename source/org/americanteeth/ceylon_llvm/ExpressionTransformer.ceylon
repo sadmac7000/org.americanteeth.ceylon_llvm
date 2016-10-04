@@ -60,8 +60,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         "We don't support expression callables yet"
         assert (is BaseExpression|QualifiedExpression b = that.invoked);
 
-        "Base expressions should have Base Member or Base Type RH nodes"
-        assert (is Tree.MemberOrTypeExpression bt = b.get(keys.tcNode));
+        value declaration = termGetDeclaration(that.invoked);
         value arguments = ArrayList<Ptr<I64Type>>();
 
         "We don't support named arguments yet"
@@ -76,16 +75,16 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         if (is QualifiedExpression b,
             ! b.receiverExpression is Super|Package|This) {
             arguments.add(b.receiverExpression.transform(this));
-        } else if (exists f = scope.getContextFor(bt.declaration, sup)) {
+        } else if (exists f = scope.getContextFor(declaration, sup)) {
             arguments.add(f);
         }
 
         String functionName;
 
         if (is QualifiedExpression b, b.receiverExpression is Super) {
-            functionName = dispatchName(bt.declaration);
+            functionName = dispatchName(declaration);
         } else {
-            functionName = declarationName(bt.declaration);
+            functionName = declarationName(declaration);
         }
 
         for (arg in pa.argumentList.listedArguments) {
@@ -96,8 +95,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     }
 
     shared actual Ptr<I64Type> transformBaseExpression(BaseExpression that) {
-        assert (is Tree.BaseMemberExpression tb = that.get(keys.tcNode));
-        assert (is FunctionOrValueModel declaration = tb.declaration);
+        assert (is FunctionOrValueModel declaration = termGetDeclaration(that));
         return scope.access(declaration);
     }
 
@@ -105,10 +103,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         "TODO: Support fancy member operators"
         assert (that.memberOperator is MemberOperator);
 
-        assert (is Tree.QualifiedMemberOrTypeExpression tc =
-                that.get(keys.tcNode));
-
-        return scope.body.call(ptr(i64), getterName(tc.declaration),
+        return scope.body.call(ptr(i64), getterName(termGetDeclaration(that)),
                 that.receiverExpression.transform(this));
     }
 
@@ -165,10 +160,36 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
                 leftOperand, rightOperand);
     }
 
-    /*TODO: Implement this once we figure out how to get the declaration for
-     * the target.
-     */
-    shared actual Ptr<I64Type> transformAddAssignmentOperation(
-            AddAssignmentOperation that) => llvmNull;
+    shared actual Ptr<I64Type> transformAssignmentOperation(AssignmentOperation that) {
+        value transformedRight = that.rightOperand.transform(this);
+        value toAssign = switch(that)
+            case (is AssignOperation) transformedRight
+            else null;
+
+        "TODO: Support fancy assignment"
+        assert(exists toAssign);
+
+        "We can only assign to base expressions, qualified expressions, or
+         Element/Subrange expressions"
+        assert(
+            is BaseExpression|QualifiedExpression|ElementOrSubrangeExpression
+                leftOperand = that.leftOperand);
+
+        "TODO: make element assignment work"
+        assert(is BaseExpression|QualifiedExpression leftOperand);
+
+        assert(is FunctionOrValueModel declaration =
+                termGetDeclaration(that.leftOperand));
+
+        if (is BaseExpression leftOperand) {
+            scope.store(declaration, toAssign);
+        } else {
+            scope.body.call(ptr(i64), setterName(declaration),
+                    leftOperand.receiverExpression.transform(this),
+                    toAssign);
+        }
+
+        return toAssign;
+    }
 }
 

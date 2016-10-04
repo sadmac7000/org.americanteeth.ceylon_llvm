@@ -16,17 +16,25 @@ Integer toplevelConstructorPriority = constructorPriorityOffset + 65535;
 "The outermost scope of the compilation unit"
 class UnitScope() extends Scope((Anything x) => null) {
     value globalVariables = ArrayList<AnyLLVMGlobal>();
-    value getters = ArrayList<LLVMDeclaration>();
+    value mutators = ArrayList<LLVMDeclaration>();
 
     shared actual LLVMFunction body
             = LLVMFunction("__ceylon_constructor", null, "private", []);
 
     LLVMFunction getterFor(ValueModel model) {
         value getter = LLVMFunction(getterName(model), ptr(i64), "", []);
-        value ret = getter.load(getter.global(ptr(i64),
-                declarationName(model)));
+        value ret = getter.loadGlobal(ptr(i64), declarationName(model));
         getter.ret(ret);
         return getter;
+    }
+
+    LLVMFunction setterFor(ValueModel model) {
+        value setter = LLVMFunction(setterName(model), ptr(i64), "",
+                [loc(ptr(i64), ".value")]);
+        value valueReg = setter.register(ptr(i64), ".value");
+        value packedValue = setter.toI64(valueReg);
+        setter.storeGlobal(declarationName(model), packedValue);
+        return setter;
     }
 
     shared actual void allocate(FunctionOrValueModel declaration,
@@ -37,7 +45,11 @@ class UnitScope() extends Scope((Anything x) => null) {
         value name = declarationName(declaration);
 
         globalVariables.add(LLVMGlobal(name, startValue else llvmNull));
-        getters.add(getterFor(declaration));
+        mutators.add(getterFor(declaration));
+
+        if (declaration.\ivariable) {
+            mutators.add(setterFor(declaration));
+        }
     }
 
     shared actual {LLVMDeclaration*} results {
@@ -46,6 +58,6 @@ class UnitScope() extends Scope((Anything x) => null) {
         assert (is LLVMFunction s = superResults.first);
         s.makeConstructor(toplevelConstructorPriority);
 
-        return globalVariables.chain(superResults).chain(getters);
+        return globalVariables.chain(superResults).chain(mutators);
     }
 }

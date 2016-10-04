@@ -13,7 +13,7 @@ import com.redhat.ceylon.model.typechecker.model {
 abstract class Scope(Anything(Scope) destroyer)
     of CallableScope | UnitScope | InterfaceScope
         satisfies Obtainable {
-    value getters = ArrayList<LLVMDeclaration>();
+    value mutators = ArrayList<LLVMDeclaration>();
     value currentValues = HashMap<FunctionOrValueModel,Ptr<I64Type>>();
     value allocations = HashMap<FunctionOrValueModel,Integer>();
     variable value allocationBlock = 0;
@@ -62,6 +62,24 @@ abstract class Scope(Anything(Scope) destroyer)
     shared default I64 getAllocationOffset(Integer slot, LLVMFunction func)
             => I64Lit(slot + 1);
 
+    "Add instructions to store an allocated element"
+    LLVMFunction setterFor(FunctionOrValueModel model) {
+        assert (exists slot = allocations[model]);
+
+        value setter = LLVMFunction(setterName(model), ptr(i64), "",
+                [loc(ptr(i64), ".context"), loc(ptr(i64), ".value")]);
+
+        value offset = getAllocationOffset(slot, setter);
+
+        value valueReg = setter.register(ptr(i64), ".value");
+        value contextReg = setter.register(ptr(i64), ".context");
+        value packedValue = setter.toI64(valueReg);
+
+        setter.store(contextReg, packedValue, offset);
+
+        return setter;
+    }
+
     "Add instructions to fetch an allocated element"
     LLVMFunction getterFor(FunctionOrValueModel model) {
         assert (exists slot = allocations[model]);
@@ -70,9 +88,9 @@ abstract class Scope(Anything(Scope) destroyer)
                 [loc(ptr(i64), ".context")]);
 
         value offset = getAllocationOffset(slot, getter);
+        value contextReg = getter.register(ptr(i64), ".context");
 
-        getter.ret(getter.toPtr(getter.load(getter.register(ptr(i64),
-                        ".context"), offset), i64));
+        getter.ret(getter.toPtr(getter.load(contextReg, offset), i64));
 
         return getter;
     }
@@ -100,7 +118,11 @@ abstract class Scope(Anything(Scope) destroyer)
                 slotOffset);
         }
 
-        getters.add(getterFor(declaration));
+        mutators.add(getterFor(declaration));
+
+        if (declaration.\ivariable) {
+            mutators.add(setterFor(declaration));
+        }
     }
 
     "Access a declaration"
@@ -111,6 +133,16 @@ abstract class Scope(Anything(Scope) destroyer)
 
         return body.call(ptr(i64), getterName(declaration),
             *{ getContextFor(declaration) }.coalesced);
+    }
+
+    shared void store(FunctionOrValueModel declaration, Ptr<I64Type> val) {
+        if (currentValues.defines(declaration)) {
+            currentValues[declaration] = val;
+            return;
+        }
+
+        body.call(ptr(i64), setterName(declaration),
+            *{ getContextFor(declaration), val }.coalesced);
     }
 
     "Add a vtable entry for the given declaration model"
@@ -124,6 +156,6 @@ abstract class Scope(Anything(Scope) destroyer)
 
     shared default {LLVMDeclaration*} results {
         initFrame();
-        return { body, *getters };
+        return { body, *mutators };
     }
 }
