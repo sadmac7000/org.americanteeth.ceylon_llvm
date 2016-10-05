@@ -18,7 +18,6 @@ import com.redhat.ceylon.model.typechecker.util {
 }
 
 import com.redhat.ceylon.common {
-    Backend,
     Backends
 }
 
@@ -51,8 +50,6 @@ import ceylon.file {
     parsePath,
     File
 }
-
-Backend backend = Backend.registerBackend("Bare Metal", "baremetal");
 
 class CSOModuleSourceMapper(Context c, ModuleManager m)
         extends ModuleSourceMapper(c, m) {
@@ -95,7 +92,7 @@ class CSOModuleManager() extends ModuleManager() {
             => JavaIterable([ javaString("cso"),
                     javaString("src") ]);
 
-    shared actual Backends supportedBackends => backend.asSet();
+    shared actual Backends supportedBackends => baremetalBackend.asSet();
 
     shared actual Module createModule(JList<JString> modNameIn,
             String modVersion) {

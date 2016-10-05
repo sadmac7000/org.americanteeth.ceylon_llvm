@@ -58,7 +58,7 @@ class CSOModule(ModuleManager moduleManager) extends Module() {
         nativeBackends =
             if (nativeBit == 0.byte)
             then Backends.\iANY
-            else backend.asSet();
+            else baremetalBackend.asSet();
 
         "Module versions must match."
         assert(version == gotVersion);

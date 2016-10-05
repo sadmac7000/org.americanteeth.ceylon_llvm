@@ -141,7 +141,7 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
             triple_ = result;
         }
 
-        resolver.cwd(cwd).expandAndParse(moduleOrFile, backend);
+        resolver.cwd(cwd).expandAndParse(moduleOrFile, baremetalBackend);
         value builder = TypeCheckerBuilder();
 
         for (root in CeylonIterable(roots)) {

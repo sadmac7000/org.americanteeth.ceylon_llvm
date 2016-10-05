@@ -94,6 +94,10 @@ object preprocessVisitor satisfies Visitor {
                       then tc.anonymousClass
                       else tc.declarationModel;
 
+        if (! baremetalSupports(scope)) {
+            return;
+        }
+
         if (is ClassOrInterfaceModel scope) {
             markDeclarationOrder(scope);
         }

@@ -116,7 +116,7 @@ void loadAnnotations(CSOBlob data, Declaration target) {
     target.\idefault = packed1.and(packedAnnotations1.\idefault) != 0.byte;
 
     if (packed1.and(packedAnnotations1.\inative) != 0.byte) {
-        target.nativeBackends = backend.asSet();
+        target.nativeBackends = baremetalBackend.asSet();
     } else {
         target.nativeBackends = Backends.\iANY;
     }
@@ -169,7 +169,7 @@ void loadModuleAnnotations(CSOBlob data, Module target) {
     data.get(); // Throw away always-empty byte.
 
     if (packed1.and(packedAnnotations1.\inative) != 0.byte) {
-        target.nativeBackends = backend.asSet();
+        target.nativeBackends = baremetalBackend.asSet();
     } else {
         target.nativeBackends = Backends.\iANY;
     }

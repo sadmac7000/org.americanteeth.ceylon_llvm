@@ -142,6 +142,10 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         "All AnyAttribute nodes should be value declarations"
         assert (is ValueModel model = tc.declarationModel);
 
+        if (! baremetalSupports(model)) {
+            return;
+        }
+
         value specifier = that.definition;
 
         if (exists specifier, !is Specifier specifier) {
@@ -171,6 +175,11 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
             ValueSetterDefinition that) {
         assert(is Tree.AttributeSetterDefinition tc = that.get(keys.tcNode));
         assert(is SetterModel model = tc.declarationModel);
+
+        if (! baremetalSupports(model)) {
+            return;
+        }
+
         value parameter = model.parameter;
 
         try(setterScope(model)) {
@@ -181,6 +190,10 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
     shared actual void visitObjectDefinition(ObjectDefinition that) {
         assert(is Tree.ObjectDefinition tc = that.get(keys.tcNode));
+
+        if (! baremetalSupports(tc.declarationModel)) {
+            return;
+        }
 
         try (constructorScope(tc.anonymousClass)) {
             that.extendedType?.visit(this);
@@ -196,6 +209,10 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     shared actual void visitClassDefinition(ClassDefinition that) {
         assert (is Tree.ClassDefinition tc = that.get(keys.tcNode));
         value model = tc.declarationModel;
+
+        if (! baremetalSupports(model)) {
+            return;
+        }
 
         try (constructorScope(tc.declarationModel)) {
             for (parameter in CeylonList(model.parameterList.parameters)) {
@@ -227,6 +244,11 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
     shared actual void visitInterfaceDefinition(InterfaceDefinition that) {
         assert(is Tree.InterfaceDefinition tc = that.get(keys.tcNode));
+
+        if (! baremetalSupports(tc.declarationModel)) {
+            return;
+        }
+
         try (interfaceScope(tc.declarationModel)) {
             that.body.visit(this);
         }
@@ -247,6 +269,10 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
     shared actual void visitAnyFunction(AnyFunction that) {
         assert (is Tree.AnyMethod tc = that.get(keys.tcNode));
+
+        if (! baremetalSupports(tc.declarationModel)) {
+            return;
+        }
 
         if (tc.declarationModel.name == "run",
             tc.declarationModel.container is PackageModel) {
