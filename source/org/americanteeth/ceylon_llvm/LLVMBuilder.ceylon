@@ -19,6 +19,7 @@ import com.redhat.ceylon.model.typechecker.model {
     ValueModel=Value,
     ClassModel=Class,
     InterfaceModel=Interface,
+    SetterModel=Setter,
     PackageModel=Package
 }
 
@@ -163,6 +164,19 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
             if (model.\ivariable) {
                 output.append(vtDispatchSetter(model));
             }
+        }
+    }
+
+    shared actual void visitValueSetterDefinition(
+            ValueSetterDefinition that) {
+        assert(is Tree.AttributeSetterDefinition tc = that.get(keys.tcNode));
+        assert(is SetterModel setterModel = tc.declarationModel);
+        value model = setterModel.getter;
+        value parameter = setterModel.parameter;
+
+        try(setterScope(model)) {
+            scope.allocate(parameter.model, scope.body.register(ptr(i64), parameter.name));
+            that.definition.visit(this);
         }
     }
 
