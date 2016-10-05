@@ -27,6 +27,9 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
 
     value scope => scopeGetter();
 
+    Ptr<I64Type> callI64(String name, AnyLLVMValue* args)
+        => scope.body.call(ptr(i64), name, *args);
+
     "LLVM text for the string table"
     shared String stringTable() {
         value result = StringBuilder();
@@ -91,7 +94,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
             arguments.add(arg.transform(this));
         }
 
-        return scope.body.call(ptr(i64), functionName, *arguments);
+        return callI64(functionName, *arguments);
     }
 
     shared actual Ptr<I64Type> transformBaseExpression(BaseExpression that) {
@@ -103,7 +106,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         "TODO: Support fancy member operators"
         assert (that.memberOperator is MemberOperator);
 
-        return scope.body.call(ptr(i64), getterName(termGetDeclaration(that)),
+        return callI64(getterName(termGetDeclaration(that)),
                 that.receiverExpression.transform(this));
     }
 
@@ -126,10 +129,8 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
                 false);
         value falseIdentifier = languagePackage.getDirectMember("false", null,
                 false);
-        value trueObject = scope.body.call(ptr(i64),
-                getterName(trueIdentifier));
-        value falseObject = scope.body.call(ptr(i64),
-                getterName(falseIdentifier));
+        value trueObject = callI64(getterName(trueIdentifier));
+        value falseObject = callI64(getterName(falseIdentifier));
         value expression = that.operand.transform(this);
         value test = scope.body.compareEq(expression, trueObject);
 
@@ -140,7 +141,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         value elementValue = that.element.transform(this);
         value categoryValue = that.category.transform(this);
         value containsDeclaration = termGetMember(that.category, "contains");
-        return scope.body.call(ptr(i64), declarationName(containsDeclaration),
+        return callI64(declarationName(containsDeclaration),
                 categoryValue, elementValue);
     }
 
@@ -156,17 +157,34 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         value leftOperand = that.leftOperand.transform(this);
         value rightOperand = that.leftOperand.transform(this);
         value equalsFunction = termGetMember(that.leftOperand, "equals");
-        return scope.body.call(ptr(i64), declarationName(equalsFunction),
+        return callI64(declarationName(equalsFunction),
                 leftOperand, rightOperand);
     }
 
     shared actual Ptr<I64Type> transformAssignmentOperation(AssignmentOperation that) {
         value transformedRight = that.rightOperand.transform(this);
+
+        variable Ptr<I64Type>? transformedLeft_ = null;
+        value transformedLeft => transformedLeft_ = transformedLeft_ else
+            that.leftOperand.transform(this);
+
+        Ptr<I64Type> op(String name)
+            => callI64(termGetMemberName(that.leftOperand, name),
+                    transformedLeft, transformedRight);
+
         value toAssign = switch(that)
             case (is AssignOperation) transformedRight
+            case (is AddAssignmentOperation) op("plus")
+            case (is SubtractAssignmentOperation) op("minus")
+            case (is MultiplyAssignmentOperation) op("times")
+            case (is DivideAssignmentOperation) op("divided")
+            case (is RemainderAssignmentOperation) op("remainder")
+            case (is UnionAssignmentOperation) op("union")
+            case (is IntersectAssignmentOperation) op("intersection")
+            case (is ComplementAssignmentOperation) op("complement")
             else null;
 
-        "TODO: Support fancy assignment"
+        "TODO: Support logical assignment operators"
         assert(exists toAssign);
 
         "We can only assign to base expressions, qualified expressions, or

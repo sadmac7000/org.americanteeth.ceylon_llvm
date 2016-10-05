@@ -16,6 +16,10 @@ DeclarationModel termGetMember(Node that, String member) {
     return tc.typeModel.declaration.getMember(member, null, false);
 }
 
+"Get the fully-qualified name of a member of the type of a given term node."
+String termGetMemberName(Node that, String member)
+    => declarationName(termGetMember(that, member));
+
 "Get a declaration for the value in a given term node."
 DeclarationModel termGetDeclaration(Node that) {
     assert(is Tree.MemberOrTypeExpression tc = that.get(keys.tcNode));
