@@ -2,6 +2,7 @@ import com.redhat.ceylon.model.typechecker.model {
     ValueModel=Value,
     DeclarationModel=Declaration,
     InterfaceModel=Interface,
+    SetterModel=Setter,
     ClassOrInterfaceModel=ClassOrInterface
 }
 
@@ -94,7 +95,7 @@ class GetterScope(ValueModel model, Anything(Scope) destroyer)
         extends CallableScope(model, getterDispatchName, destroyer) {}
 
 "Scope of a setter method"
-class SetterScope(ValueModel model, Anything(Scope) destroyer)
+class SetterScope(SetterModel model, Anything(Scope) destroyer)
         extends CallableScope(model, setterDispatchName, destroyer) {
     shared actual LLVMFunction body
             = LLVMFunction(setterDispatchName(model), ptr(i64), "",

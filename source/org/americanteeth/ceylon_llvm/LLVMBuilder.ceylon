@@ -85,7 +85,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     }
 
     GetterScope getterScope(ValueModel model) => push(GetterScope(model, pop));
-    SetterScope setterScope(ValueModel model) => push(SetterScope(model, pop));
+    SetterScope setterScope(SetterModel model) => push(SetterScope(model, pop));
     ConstructorScope constructorScope(ClassModel model) => push(ConstructorScope(model, pop));
     FunctionScope functionScope(FunctionModel model) => push(FunctionScope(model, pop));
     InterfaceScope interfaceScope(InterfaceModel model) => push(InterfaceScope(model, pop));
@@ -170,9 +170,8 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     shared actual void visitValueSetterDefinition(
             ValueSetterDefinition that) {
         assert(is Tree.AttributeSetterDefinition tc = that.get(keys.tcNode));
-        assert(is SetterModel setterModel = tc.declarationModel);
-        value model = setterModel.getter;
-        value parameter = setterModel.parameter;
+        assert(is SetterModel model = tc.declarationModel);
+        value parameter = model.parameter;
 
         try(setterScope(model)) {
             scope.allocate(parameter.model, scope.body.register(ptr(i64), parameter.name));

@@ -13,6 +13,7 @@ import com.redhat.ceylon.model.typechecker.model {
     Scope,
     Package,
     TypeDeclaration,
+    Setter,
     FunctionOrValue
 }
 
@@ -43,7 +44,8 @@ String declarationName(DeclarationModel|Scope p) {
     }
 
     if (is FunctionOrValue p) {
-        return declarationName(p.container) + ".``p.name``";
+        return declarationName(p.container) + ".``p.name``" +
+            (if (is Setter p) then "$set" else "");
     }
 
     if (! is Package p) {
@@ -81,7 +83,8 @@ String getterName(DeclarationModel dec)
     => "``declarationName(dec)``$get";
 
 String setterName(DeclarationModel dec)
-    => "``declarationName(dec)``$set";
+    => if (is Setter dec) then declarationName(dec)
+       else "``declarationName(dec)``$set";
 
 String setupName(ClassOrInterfaceModel dec)
     => "``declarationName(dec)``$setup";
