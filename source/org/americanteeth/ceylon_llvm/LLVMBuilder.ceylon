@@ -386,4 +386,10 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
         scope.body.block = falseBlockEnd;
     }
+
+    shared actual void visitThrow(Throw that) {
+        /* TODO: Support exception handling */
+        scope.body.callVoid("abort");
+        scope.body.unreachable();
+    }
 }

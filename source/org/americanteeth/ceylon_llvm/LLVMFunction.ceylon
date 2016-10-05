@@ -379,6 +379,12 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         currentBlock.terminate({});
     }
 
+    "Add an 'unreachable' instruction."
+    shared void unreachable() {
+        currentBlock.instruction("unreachable");
+        currentBlock.terminate({});
+    }
+
     "Add an integer operation instruction to this block"
     I64 intOp(String op, I64|Integer a, I64|Integer b) {
         value ret = register(i64);
