@@ -4,6 +4,7 @@ import ceylon.collection {
 
 import com.redhat.ceylon.model.typechecker.model {
     FunctionModel=Function,
+    ValueModel=Value,
     InterfaceModel=Interface
 }
 
@@ -29,18 +30,33 @@ class InterfaceScope(InterfaceModel model, Anything(Scope) destroyer)
 
             value memberOffset = offset++;
 
-            /*TODO:*/
-            "We only support functions in vtables at this time."
-            assert(is FunctionModel member);
+            if (is FunctionModel member) {
+                value argTypes =
+                    parameterListToLLVMValues(member.firstParameterList)
+                        .map((x) => x.type)
+                        .follow(ptr(i64))
+                        .sequence();
+                value funcType = FuncType(ptr(i64), argTypes);
+                value func = setup.global(funcType, dispatchName(member));
+                setup.store(vtable, setup.toI64(func), I64Lit(memberOffset));
+            } else {
+                "TODO: Support classes etc."
+                assert(is ValueModel member);
+                value getterType = FuncType(ptr(i64), [ptr(i64)]);
+                value getter = setup.global(getterType,
+                        getterDispatchName(member));
+                setup.store(vtable, setup.toI64(getter), I64Lit(memberOffset));
 
-            value argTypes =
-                parameterListToLLVMValues(member.firstParameterList)
-                    .map((x) => x.type)
-                    .follow(ptr(i64))
-                    .sequence();
-            value funcType = FuncType(ptr(i64), argTypes);
-            value func = setup.global(funcType, dispatchName(member));
-            setup.store(vtable, setup.toI64(func), I64Lit(memberOffset));
+                if (member.\ivariable) {
+                    value setterOffset = offset++;
+                    value setterType = FuncType(ptr(i64),
+                            [ptr(i64), ptr(i64)]);
+                    value setter = setup.global(setterType,
+                            setterDispatchName(member));
+                    setup.store(vtable, setup.toI64(setter),
+                            I64Lit(setterOffset));
+                }
+            }
 
             results.add(LLVMGlobal(vtPositionName(member),
                         I64Lit(memberOffset)));

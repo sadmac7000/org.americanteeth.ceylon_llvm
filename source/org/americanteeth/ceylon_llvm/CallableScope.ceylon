@@ -91,8 +91,8 @@ abstract class CallableScope(DeclarationModel model,
 
 "Scope of a getter method"
 class GetterScope(ValueModel model, Anything(Scope) destroyer)
-        extends CallableScope(model, getterName, destroyer) {}
+        extends CallableScope(model, getterDispatchName, destroyer) {}
 
 "Scope of a setter method"
 class SetterScope(ValueModel model, Anything(Scope) destroyer)
-        extends CallableScope(model, setterName, destroyer) {}
+        extends CallableScope(model, setterDispatchName, destroyer) {}

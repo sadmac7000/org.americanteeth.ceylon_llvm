@@ -64,7 +64,7 @@ abstract class Scope(Anything(Scope) destroyer)
     LLVMFunction setterFor(FunctionOrValueModel model) {
         assert (exists slot = allocations[model]);
 
-        value setter = LLVMFunction(setterName(model), ptr(i64), "",
+        value setter = LLVMFunction(setterDispatchName(model), ptr(i64), "",
                 [loc(ptr(i64), ".context"), loc(ptr(i64), ".value")]);
 
         value offset = getAllocationOffset(slot, setter);
@@ -82,7 +82,7 @@ abstract class Scope(Anything(Scope) destroyer)
     LLVMFunction getterFor(FunctionOrValueModel model) {
         assert (exists slot = allocations[model]);
 
-        value getter = LLVMFunction(getterName(model), ptr(i64), "",
+        value getter = LLVMFunction(getterDispatchName(model), ptr(i64), "",
                 [loc(ptr(i64), ".context")]);
 
         value offset = getAllocationOffset(slot, getter);

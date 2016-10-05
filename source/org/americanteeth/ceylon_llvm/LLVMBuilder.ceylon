@@ -147,16 +147,23 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
             try (getterScope(model)) {
                 specifier.visit(this);
             }
+        } else {
+            "FILEME: The type checker is dumb."
+            assert(is Specifier? specifier);
 
-            return;
+            Ptr<I64Type>? initialValue =
+                specifier?.expression?.transform(expressionTransformer);
+
+            scope.allocate(model, initialValue);
         }
 
-        assert (is Specifier? specifier);
+        if (model.\iformal || model.\idefault) {
+            output.append(vtDispatchGetter(model));
 
-        Ptr<I64Type>? initialValue =
-            specifier?.expression?.transform(expressionTransformer);
-
-        scope.allocate(model, initialValue);
+            if (model.\ivariable) {
+                output.append(vtDispatchSetter(model));
+            }
+        }
     }
 
     shared actual void visitObjectDefinition(ObjectDefinition that) {

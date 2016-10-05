@@ -7,6 +7,8 @@ import ceylon.collection {
 import com.redhat.ceylon.model.typechecker.model {
     ClassModel=Class,
     FunctionModel=Function,
+    FunctionOrValueModel=FunctionOrValue,
+    ValueModel=Value,
     InterfaceModel=Interface,
     DeclarationModel=Declaration
 }
@@ -153,12 +155,14 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
     }
 
     "Get the vtable position for a given member."
-    I64 getVtPosition(FunctionModel member) {
+    I64 getOrCreateVtPosition(FunctionOrValueModel member) {
         if (! member.\iactual) {
             value position = nextEntry;
-            ret.storeGlobal(vtPositionName(member),
-                    position);
-            nextEntry = ret.add(nextEntry, I64Lit(1));
+            value slots = if (is ValueModel member, member.\ivariable)
+                then 2
+                else 1;
+            ret.storeGlobal(vtPositionName(member), position);
+            nextEntry = ret.add(nextEntry, I64Lit(slots));
             return position;
         }
 
@@ -187,12 +191,29 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
             return;
         }
 
-        "We only support functions in vtables for now."
-        assert(is FunctionModel member);
+        "TODO: Support inner classes etc."
+        assert(is FunctionOrValueModel member);
 
-        value position = getVtPosition(member);
-        value pointer = ret.global(llvmTypeOf(member), dispatchName(member));
+        value position = getOrCreateVtPosition(member);
+
+        if (is FunctionModel member) {
+            value pointer = ret.global(llvmTypeOf(member), dispatchName(member));
+            ret.store(vtable, ret.toI64(pointer), position);
+            return;
+        }
+
+        value pointer = ret.global(FuncType(ptr(i64), [ptr(i64)]),
+                getterDispatchName(member));
         ret.store(vtable, ret.toI64(pointer), position);
+
+        if (! member.\ivariable) {
+            return;
+        }
+
+        value setterPosition = ret.add(position, I64Lit(1));
+        value setPointer = ret.global(FuncType(ptr(i64), [ptr(i64), ptr(i64)]),
+                setterDispatchName(member));
+        ret.store(vtable, ret.toI64(setPointer), setterPosition);
     }
 
     for (member in model.members) {
@@ -202,15 +223,14 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
     return [ret, interfaceResolver, *ifacePositionStorage];
 }
 
-"Get an LLVM Function for a Ceylon function that simply dispatches from the
- vtable."
-LLVMFunction vtDispatchFunction(FunctionModel model) {
-    value func = llvmFunctionForCeylonFunction(model);
+"Dispatch from a vtable."
+void vtDispatch(FunctionOrValueModel model, LLVMFunction func, Integer selector) {
     value context = func.register(ptr(i64), ".context");
     value vtable = func.toPtr(func.load(context, I64Lit(1)), i64);
     value vtPosition = func.loadGlobal(i64, vtPositionName(model.refinedDeclaration));
     value container = model.refinedDeclaration.container;
     I64 correctedPosition;
+    I64 offsetPosition;
 
     if (is InterfaceModel container) {
         value resolver = func.toPtr(func.load(vtable,
@@ -223,9 +243,34 @@ LLVMFunction vtDispatchFunction(FunctionModel model) {
         correctedPosition = vtPosition;
     }
 
-    value target = func.toPtr(func.load(vtable, correctedPosition),
+    if (selector != 0) {
+        offsetPosition = func.add(correctedPosition, I64Lit(selector));
+    } else {
+        offsetPosition = correctedPosition;
+    }
+
+    value target = func.toPtr(func.load(vtable, offsetPosition),
             func.llvmType);
     func.tailCallPtr(target, *func.arguments);
+}
 
+LLVMFunction vtDispatchFunction(FunctionModel model) {
+    value func = llvmFunctionForCeylonFunction(model);
+    vtDispatch(model, func, 0);
+    return func;
+}
+
+LLVMFunction vtDispatchGetter(ValueModel model) {
+    value func = LLVMFunction(getterName(model), ptr(i64), "",
+                if (!model.toplevel) then [loc(ptr(i64), ".context")] else []);
+    vtDispatch(model, func, 0);
+    return func;
+}
+
+LLVMFunction vtDispatchSetter(ValueModel model) {
+    value func = LLVMFunction(setterName(model), ptr(i64), "",
+                if (!model.toplevel) then [loc(ptr(i64), ".context"),
+                    loc(ptr(i64), ".value")] else [loc(ptr(i64), ".value")]);
+    vtDispatch(model, func, 1);
     return func;
 }

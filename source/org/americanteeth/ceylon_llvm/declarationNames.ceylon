@@ -94,6 +94,12 @@ String initializerName(DeclarationModel dec)
 String dispatchName(DeclarationModel model)
     => declarationName(model) + (if (model.\idefault) then "$noDispatch" else "");
 
+String getterDispatchName(DeclarationModel model)
+    => getterName(model) + (if (model.\idefault) then "$noDispatch" else "");
+
+String setterDispatchName(DeclarationModel model)
+    => setterName(model) + (if (model.\idefault) then "$noDispatch" else "");
+
 String resolverName(ClassModel|TypeDeclaration dec)
     => "``declarationName(dec)``$resolveInterface";
 
