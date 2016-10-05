@@ -236,5 +236,22 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         assert(exists ret = scope.body.getMarked(ptr(i64), that));
         return ret;
     }
+
+    shared actual Ptr<I64Type> transformIdenticalOperation(IdenticalOperation that) {
+        value trueDeclaration =
+            languagePackage.getDirectMember("true", null, false);
+        value trueValue = scope.body.call(ptr(i64),
+                getterName(trueDeclaration));
+        value falseDeclaration =
+            languagePackage.getDirectMember("false", null, false);
+        value falseValue = scope.body.call(ptr(i64),
+                getterName(falseDeclaration));
+
+        value left = that.leftOperand.transform(this);
+        value right = that.rightOperand.transform(this);
+
+        value compare = scope.body.compareEq(left, right);
+        return scope.body.select(compare, ptr(i64), trueValue, falseValue);
+    }
 }
 
