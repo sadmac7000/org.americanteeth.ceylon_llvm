@@ -5,7 +5,6 @@ import ceylon.collection {
 
 import com.redhat.ceylon.model.typechecker.model {
     FunctionOrValueModel=FunctionOrValue,
-    ValueModel=Value,
     DeclarationModel=Declaration
 }
 
@@ -14,7 +13,6 @@ abstract class Scope(Anything(Scope) destroyer)
     of CallableScope | UnitScope | InterfaceScope
         satisfies Obtainable {
     value mutators = ArrayList<LLVMDeclaration>();
-    value currentValues = HashMap<FunctionOrValueModel,Ptr<I64Type>>();
     value allocations = HashMap<FunctionOrValueModel,Integer>();
     variable value allocationBlock = 0;
     value loopContextStack = ArrayList<LoopContext>();
@@ -47,7 +45,7 @@ abstract class Scope(Anything(Scope) destroyer)
     shared Integer allocatedBlocks => allocationBlock;
 
     "Is there an allocation for this value in the frame for this scope"
-    shared Boolean allocates(ValueModel v) => allocations.defines(v);
+    shared Boolean allocates(FunctionOrValueModel v) => allocations.defines(v);
 
     "Get the context variable for a nested declaration"
     shared default Ptr<I64Type>? getContextFor(DeclarationModel declaration,
@@ -100,7 +98,7 @@ abstract class Scope(Anything(Scope) destroyer)
         Ptr<I64Type>? startValue) {
         if (!declaration.captured && !declaration.\ishared) {
             if (exists startValue) {
-                currentValues.put(declaration, startValue);
+                body.mark(declaration, startValue);
             }
 
             return;
@@ -126,9 +124,9 @@ abstract class Scope(Anything(Scope) destroyer)
     }
 
     "Access a declaration"
-    shared Ptr<I64Type> access(FunctionOrValueModel declaration) {
-        if (exists cached = currentValues[declaration]) {
-            return cached;
+    shared Ptr<I64Type> load(FunctionOrValueModel declaration) {
+        if (exists marked = body.getMarked(ptr(i64), declaration)) {
+            return marked;
         }
 
         return body.call(ptr(i64), getterName(declaration),
@@ -136,8 +134,7 @@ abstract class Scope(Anything(Scope) destroyer)
     }
 
     shared void store(FunctionOrValueModel declaration, Ptr<I64Type> val) {
-        if (currentValues.defines(declaration)) {
-            currentValues[declaration] = val;
+        if (body.updateMark(declaration, val)) {
             return;
         }
 

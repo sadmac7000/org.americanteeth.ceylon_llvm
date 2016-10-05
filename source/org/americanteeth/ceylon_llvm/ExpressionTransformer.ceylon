@@ -96,7 +96,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
 
     shared actual Ptr<I64Type> transformBaseExpression(BaseExpression that) {
         assert (is FunctionOrValueModel declaration = termGetDeclaration(that));
-        return scope.access(declaration);
+        return scope.load(declaration);
     }
 
     shared actual Ptr<I64Type> transformQualifiedExpression(QualifiedExpression that) {

@@ -3,8 +3,12 @@ abstract class LLVMType(shared String name) {
     string = name;
     hash = string.hash;
 
-    shared actual Boolean equals(Object other)
-            => other is LLVMType && other.string==string;
+    shared actual Boolean equals(Object other) {
+        print(this);
+        print(other);
+        print("");
+        return other is LLVMType && other.string==string;
+    }
 }
 
 "An LLVM Pointer type"

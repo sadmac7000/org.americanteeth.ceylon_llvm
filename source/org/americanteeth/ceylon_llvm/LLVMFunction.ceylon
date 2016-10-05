@@ -1,6 +1,9 @@
 import ceylon.collection {
     ArrayList,
-    HashMap
+    MutableSet,
+    HashSet,
+    HashMap,
+    unmodifiableSet
 }
 
 "An LLVM function declaration."
@@ -50,11 +53,33 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Counter for auto-naming labels."
     variable value nextTemporaryLabel = 0;
 
+    "List of marks in this function."
+    value marks = HashSet<Object>();
+
     "An LLVM label for this function."
     class FuncLabel() extends Label(label) {
         shared String tag = ".l`` nextTemporaryLabel++ ``";
         identifier = "%``tag``";
     }
+
+    "Register value objects for this function."
+    class Register<T>(T type, String? regNameIn)
+            extends LLVMValue<T>(type)
+            given T satisfies LLVMType {
+        identifier =
+            if (exists regNameIn)
+            then "%``regNameIn``"
+            else "%.`` nextTemporary++ ``";
+    }
+
+    "Register names to be used ahead of the temp names"
+    value regNames = ArrayList<String>();
+
+    "Get a register for a given type"
+    shared LLVMValue<T> register<T>(T type, String? regNameIn = regNames
+            .deleteLast())
+            given T satisfies LLVMType
+            => Register(type, regNameIn);
 
     "An LLVM logical block."
     class Block() {
@@ -68,21 +93,35 @@ class LLVMFunction(String n, shared LLVMType? returnType,
          Updated from outside the class."
         variable value terminated_ = false;
 
+        "Marked values."
+        value marks = HashMap<Object,AnyLLVMValue>();
+
+        "Phi'd values."
+        value phis = HashMap<Object,AnyLLVMValue>();
+
         "Read accessor for terminated_."
         shared Boolean terminated => terminated_;
 
-        "Mark that we've had a terminating instruction."
-        shared void terminate() {
-            "Block should not be terminated twice."
-            assert (!terminated);
-            terminated_ = true;
-        }
+        value successors_ = HashSet<Block>();
+        shared Set<Block> successors => unmodifiableSet(successors_);
+
+        shared MutableSet<Block> predecessors = HashSet<Block>();
+
+        String explode() { assert(false); }
+        [String*] phiNodes() => phis.map((x) {
+            value key->val = x;
+            return "``val.identifier`` = phi ``val.typeName`` " +
+                ", ".join(predecessors.map((y) => [y.label, y.getForPhi(key, true)])
+                    .select((y) => y[1] exists)
+                    .map((y) => "[``y[1]?.identifier else explode()``, ``y[0].identifier``]"));
+        }).sequence();
 
         "Accessor for instructions with appended default return."
         shared [String*] instructions =>
             if (terminated)
-            then instructions_.sequence()
-            else instructions_.sequence().withTrailing(stubReturn);
+            then instructions_.sequence().prepend(phiNodes())
+            else instructions_.sequence().prepend(phiNodes())
+                .withTrailing(stubReturn);
 
         "Add an instruction to this logical block."
         shared void instruction(String instruction) {
@@ -93,6 +132,65 @@ class LLVMFunction(String n, shared LLVMType? returnType,
 
         string => "``label.tag``:\n    "
                 + "\n    ".join(instructions);
+
+        shared void mark(Object key, AnyLLVMValue val) {
+            marks[key] = val;
+        }
+
+        shared LLVMValue<T> getMarked<T>(T t, Object key)
+                given T satisfies LLVMType {
+            if (exists m = marks[key]) {
+                "Mark should be retrieved with the same type it was set as."
+                assert(is LLVMValue<T> m);
+                return m;
+            }
+
+            value ret = register(t);
+            phis[key] = ret;
+            marks[key] = ret;
+            return ret;
+        }
+
+        variable Boolean inGetForPhi = false;
+        shared AnyLLVMValue? getForPhi(Object key,
+                Boolean root) {
+            if (inGetForPhi) {
+                return null;
+            }
+
+
+            if (exists m = marks[key]) {
+                return m;
+            }
+
+            variable AnyLLVMValue? lastFound = null;
+            inGetForPhi = !root;
+            for (p in predecessors) {
+                if (exists v = p.getForPhi(key, false)) {
+                    if (exists l = lastFound) {
+                        lastFound = getMarked(v.type, key);
+                        break;
+                    } else {
+                        lastFound = v;
+                    }
+                }
+            }
+            inGetForPhi = false;
+
+            return lastFound;
+        }
+
+        "Mark that we've had a terminating instruction."
+        shared void terminate({Block*} successors) {
+            "Block should not be terminated twice."
+            assert (!terminated);
+            terminated_ = true;
+            successors_.addAll(successors);
+
+            for (successor in successors) {
+                successor.predecessors.add(this);
+            }
+        }
     }
 
     "The logical block we are currently adding instructions to."
@@ -105,9 +203,13 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Label for the block we are currently adding instructions to."
     shared Label block => currentBlock.label;
 
+    "Find a block by its label"
+    Block? findBlock(Label label)
+        => blocks.select((x) => x.label == label).first;
+
     shared Boolean blockTerminated(Label which = currentBlock.label) {
         "Label must match a block in this function"
-        assert(exists whichBlock = blocks.select((x) => x.label == block).first);
+        assert(exists whichBlock = findBlock(which));
         return whichBlock.terminated;
     }
 
@@ -125,9 +227,6 @@ class LLVMFunction(String n, shared LLVMType? returnType,
 
     "The entry point for the function."
     shared variable Label entryPoint = block;
-
-    "Register names to be used ahead of the temp names"
-    value regNames = ArrayList<String>();
 
     "Create a new block."
     shared Label newBlock() {
@@ -166,14 +265,32 @@ class LLVMFunction(String n, shared LLVMType? returnType,
                  ``body``
                }";
 
-    "Register value objects for this function."
-    class Register<T>(T type, String? regNameIn)
-            extends LLVMValue<T>(type)
+    "Mark a value in this block to track variable definitions."
+    shared void mark(Object key, AnyLLVMValue val) {
+        marks.add(key);
+        currentBlock.mark(key, val);
+    }
+
+    "Update a mark only if it exists already. Return whether it did."
+    shared Boolean updateMark(Object key, AnyLLVMValue val) {
+        if (! key in marks) {
+            return false;
+        }
+
+        mark(key, val);
+        return true;
+    }
+
+    "Get a value that was marked in the current block. Use phi nodes to resolve
+     conflicting marks. Phi nodes are inserted later, so don't worry about
+     having topology right before calling."
+    shared LLVMValue<T>? getMarked<T>(T type, Object key)
             given T satisfies LLVMType {
-        identifier =
-            if (exists regNameIn)
-            then "%``regNameIn``"
-            else "%.`` nextTemporary++ ``";
+        if (! key in marks) {
+            return null;
+        }
+
+        return currentBlock.getMarked<T>(type, key);
     }
 
     "Set the next register name to be assigned"
@@ -181,12 +298,6 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         regNames.add(regName);
         return this;
     }
-
-    "Get a register for a given type"
-    shared LLVMValue<T> register<T>(T type, String? regNameIn = regNames
-            .deleteLast())
-            given T satisfies LLVMType
-            => Register(type, regNameIn);
 
     "Access a global from this function"
     shared Ptr<T> global<T>(T t, String name) given T satisfies LLVMType {
@@ -265,7 +376,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             currentBlock.instruction("ret void");
         }
 
-        currentBlock.terminate();
+        currentBlock.terminate({});
     }
 
     "Add an integer operation instruction to this block"
@@ -379,7 +490,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Jump to the given label."
     shared void jump(Label l) {
         currentBlock.instruction("br ``l``");
-        currentBlock.terminate();
+        currentBlock.terminate({findBlock(l)}.coalesced);
     }
 
     "Branch on the given conditional"
@@ -388,7 +499,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         Label t = t_in else newBlock();
         Label f = f_in else newBlock();
         currentBlock.instruction("br ``condition``, ``t``, ``f``");
-        currentBlock.terminate();
+        currentBlock.terminate({t,f}.map(findBlock).coalesced);
         return [t, f];
     }
 
