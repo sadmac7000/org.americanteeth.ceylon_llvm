@@ -209,5 +209,32 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
 
         return toAssign;
     }
+
+    shared actual Ptr<I64Type> transformIfElseExpression(IfElseExpression that) {
+        value checkPosition = scope.body.block;
+        value trueBlock = scope.body.newBlock();
+        value falseBlock = scope.body.newBlock();
+
+        scope.body.block = trueBlock;
+        value trueValue = that.thenExpression.transform(this);
+        value trueBlockLast = scope.body.block;
+        scope.body.mark(that, trueValue);
+
+        scope.body.block = falseBlock;
+        value falseValue = that.elseExpression.transform(this);
+        value falseBlockEnd = scope.body.splitBlock();
+        scope.body.mark(that, falseValue);
+
+        scope.body.block = trueBlockLast;
+        scope.body.jump(falseBlockEnd);
+
+        scope.body.block = checkPosition;
+        package.transformConditions(that.conditions, scope, languagePackage, this,
+                trueBlock, falseBlock);
+
+        scope.body.block = falseBlockEnd;
+        assert(exists ret = scope.body.getMarked(ptr(i64), that));
+        return ret;
+    }
 }
 

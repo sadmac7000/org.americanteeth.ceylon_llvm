@@ -355,20 +355,6 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     shared actual void visitContinue(Continue that)
         => scope.continueLoop();
 
-    I1 transformCondition(Condition c) {
-        if (is BooleanCondition c) {
-            value booleanValue = c.condition.transform(expressionTransformer);
-            value trueDeclaration =
-                languagePackage.getDirectMember("true", null, false);
-            value trueValue = scope.body.call(ptr(i64),
-                    getterName(trueDeclaration));
-            return scope.body.compareEq(booleanValue, trueValue);
-        } else {
-            /*TODO: Support exists/nonempty/etc*/
-            return I1Lit(0);
-        }
-    }
-
     shared actual void visitIfElse(IfElse that) {
         value checkPosition = scope.body.block;
         value trueBlock = scope.body.newBlock();
@@ -394,18 +380,9 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         }
 
         scope.body.block = checkPosition;
-        value lastCodition = that.ifClause.conditions.conditions.last;
 
-        for (condition in that.ifClause.conditions.conditions) {
-            value conditionValue = transformCondition(condition);
-
-            Label? next = if (lastCodition == condition)
-                then trueBlock else null;
-
-            value [nextBlock, _] = scope.body.branch(conditionValue, next,
-                    falseBlock);
-            scope.body.block = nextBlock;
-        }
+        package.transformConditions(that.ifClause.conditions, scope,
+                languagePackage, expressionTransformer, trueBlock, falseBlock);
 
         scope.body.block = falseBlockEnd;
     }
