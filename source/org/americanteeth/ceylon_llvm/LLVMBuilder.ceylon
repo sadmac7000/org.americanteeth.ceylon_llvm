@@ -279,9 +279,13 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
             runSymbol = tc.declarationModel;
         }
 
-        /* TODO: */
-        "We don't support multiple parameter lists yet."
-        assert (that.parameterLists.size == 1);
+        /* TODO: Support multiple parameter lists */
+        if (that.parameterLists.size > 1) {
+            try(functionScope(tc.declarationModel)) {
+                scope.body.ret(llvmNull);
+            }
+            return;
+        }
 
         value firstParameterList = tc.declarationModel.firstParameterList;
 
