@@ -341,4 +341,23 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         assert(exists ret = scope.body.getMarked(ptr(i64), that));
         return ret;
     }
+
+    shared actual Ptr<I64Type> transformElseOperation(ElseOperation that) {
+        value val = that.leftOperand.transform(this);
+
+        scope.body.mark(that, val);
+
+        value comparison = scope.body.compareEq(val, llvmNull);
+
+        value [trueBlock, falseBlock] = scope.body.branch(comparison);
+
+        scope.body.block = trueBlock;
+        scope.body.mark(that, that.rightOperand.transform(this));
+        scope.body.jump(falseBlock);
+
+        scope.body.block = falseBlock;
+
+        assert(exists ret = scope.body.getMarked(ptr(i64), that));
+        return ret;
+    }
 }
