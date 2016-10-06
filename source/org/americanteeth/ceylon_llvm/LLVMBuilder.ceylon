@@ -408,4 +408,19 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
         scope.body.block = trueBlock;
     }
+
+    shared actual void visitWhile(While that) {
+        value trueBlock = scope.body.newBlock();
+        value falseBlock = scope.body.newBlock();
+        value loopStart = scope.body.splitBlock();
+
+        package.transformConditions(that.conditions, scope,
+                languagePackage, expressionTransformer, trueBlock, falseBlock);
+
+        scope.body.block = trueBlock;
+        that.block.visit(this);
+        scope.body.jump(loopStart);
+
+        scope.body.block = falseBlock;
+    }
 }
