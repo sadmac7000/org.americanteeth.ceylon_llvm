@@ -66,11 +66,11 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         value declaration = termGetDeclaration(that.invoked);
         value arguments = ArrayList<Ptr<I64Type>>();
 
+        /* TODO */
         "We don't support named arguments yet"
         assert (is PositionalArguments pa = that.arguments);
 
-        "We don't support sequence arguments yet"
-        assert (!pa.argumentList.sequenceArgument exists);
+        /* TODO: Sequence arguments */
 
         value sup = if (is QualifiedExpression b, b.receiverExpression is Super)
             then true else false;
