@@ -137,14 +137,6 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         return scope.body.select(test, ptr(i64), falseObject, trueObject);
     }
 
-    shared actual Ptr<I64Type> transformInOperation(InOperation that) {
-        value elementValue = that.element.transform(this);
-        value categoryValue = that.category.transform(this);
-        value containsDeclaration = termGetMember(that.category, "contains");
-        return callI64(declarationName(containsDeclaration),
-                categoryValue, elementValue);
-    }
-
     /* TODO: Implement this once we have callable support */
     shared actual Ptr<I64Type> transformFunctionExpression(
             FunctionExpression that) => llvmNull;
@@ -252,6 +244,41 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
 
         value compare = scope.body.compareEq(left, right);
         return scope.body.select(compare, ptr(i64), trueValue, falseValue);
+    }
+
+    shared actual Ptr<I64Type> transformBinaryOperation(
+            BinaryOperation that) {
+        value left = that.leftOperand.transform(this);
+        value right = that.leftOperand.transform(this);
+
+        Ptr<I64Type> op(String name)
+            => callI64(termGetMemberName(that.leftOperand, name), left, right);
+
+        Ptr<I64Type> opR(String name)
+            => callI64(termGetMemberName(that.rightOperand, name), right, left);
+
+        "These operations are handled elsewhere."
+        assert(! is
+                AssignmentOperation|LogicalOperation|ThenOperation|ElseOperation|
+                NotEqualOperation|IdenticalOperation|ComparisonOperation|EntryOperation
+                that);
+
+        return switch(that)
+            case (is SumOperation) op("plus")
+            case (is DifferenceOperation) op("minus")
+            case (is ProductOperation) op("times")
+            case (is QuotientOperation) op("divided")
+            case (is RemainderOperation) op("remainder")
+            case (is ExponentiationOperation) op("power")
+            case (is UnionOperation) op("union")
+            case (is IntersectionOperation) op("intersection")
+            case (is ComplementOperation) op("complement")
+            case (is ScaleOperation) opR("scale")
+            case (is SpanOperation) op("span")
+            case (is MeasureOperation) op("measure")
+            case (is InOperation) opR("contains")
+            case (is CompareOperation) op("compare")
+            case (is EqualOperation) op("equals");
     }
 }
 
