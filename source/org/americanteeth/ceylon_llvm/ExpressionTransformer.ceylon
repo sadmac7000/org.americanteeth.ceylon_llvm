@@ -280,5 +280,8 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
             case (is CompareOperation) op("compare")
             case (is EqualOperation) op("equals");
     }
-}
 
+    shared actual Ptr<I64Type> transformGroupedExpression(
+            GroupedExpression that)
+        => that.innerExpression.transform(this);
+}
