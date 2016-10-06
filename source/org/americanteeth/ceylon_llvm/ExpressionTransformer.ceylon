@@ -364,4 +364,28 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     shared actual Ptr<I64Type> transformNegationOperation(NegationOperation that)
         => callI64(termGetGetterName(that.operand, "negated"),
                 that.operand.transform(this));
+
+    shared actual Ptr<I64Type> transformComparisonOperation(
+            ComparisonOperation that) {
+        value left = that.leftOperand.transform(this);
+        value right = that.rightOperand.transform(this);
+        value largerComparison = getLanguageValue("larger");
+        value smallerComparison = getLanguageValue("smaller");
+        value trueValue = getLanguageValue("true");
+        value falseValue = getLanguageValue("false");
+        value compared = callI64(termGetMemberName(that.leftOperand, "compare"),
+                left, right);
+
+        value bool = switch(that)
+            case(is LargerOperation)
+                scope.body.compareEq(largerComparison, compared)
+            case(is SmallerOperation)
+                scope.body.compareEq(smallerComparison, compared)
+            case(is LargeAsOperation)
+                scope.body.compareNE(smallerComparison, compared)
+            case(is SmallAsOperation)
+                scope.body.compareNE(largerComparison, compared);
+
+        return scope.body.select(bool, ptr(i64), trueValue, falseValue);
+    }
 }
