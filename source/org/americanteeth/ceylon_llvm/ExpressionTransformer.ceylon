@@ -388,4 +388,35 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
 
         return scope.body.select(bool, ptr(i64), trueValue, falseValue);
     }
+
+    shared actual Ptr<I64Type> transformLogicalOperation(
+            LogicalOperation that) {
+        value trueValue = getLanguageValue("true");
+        value falseValue = getLanguageValue("false");
+
+        if (is AndOperation that) {
+            scope.body.mark(that, falseValue);
+        } else {
+            scope.body.mark(that, trueValue);
+        }
+
+        value first = that.leftOperand.transform(this);
+        value firstSuccess = scope.body.compareEq(first, trueValue);
+        value [trueBlock, falseBlock] = scope.body.branch(firstSuccess);
+
+        value returnLabel = if (is AndOperation that)
+            then falseBlock
+            else trueBlock;
+
+        scope.body.block = if (is AndOperation that)
+            then trueBlock
+            else falseBlock;
+
+        scope.body.mark(that, that.rightOperand.transform(this));
+        scope.body.jump(returnLabel);
+        scope.body.block = returnLabel;
+
+        assert(exists ret = scope.body.getMarked(ptr(i64), that));
+        return ret;
+    }
 }
