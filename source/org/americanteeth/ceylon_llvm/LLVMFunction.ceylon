@@ -484,6 +484,15 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         return result;
     }
 
+    "Compare two values and see if they are not equal."
+    shared I1 compareNE<T>(T a, T b)
+            given T satisfies AnyLLVMValue {
+        value result = register(i1);
+        currentBlock.instruction("``result.identifier`` = \
+                                  icmp ne ``a``, ``b.identifier``");
+        return result;
+    }
+
     shared LLVMValue<T> select<T>(I1 selector, T type,
             LLVMValue<T> a, LLVMValue<T> b)
             given T satisfies LLVMType {

@@ -305,4 +305,40 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         assert(exists ret = scope.body.getMarked(ptr(i64), that));
         return ret;
     }
+
+    shared actual Ptr<I64Type> transformWithinOperation(WithinOperation that) {
+        value center = that.operand.transform(this);
+        value left = that.lowerBound.endpoint.transform(this);
+        value largerComparison = getLanguageValue("larger");
+        value smallerComparison = getLanguageValue("smaller");
+        value trueValue = getLanguageValue("true");
+        value falseValue = getLanguageValue("false");
+
+        I1 doCompare(Ptr<I64Type> a, Ptr<I64Type> b, Bound bound, Boolean first) {
+            value term = if (first) then bound.endpoint else that.operand;
+            value got = callI64(termGetMemberName(term, "compare"), a, b);
+
+            if (bound is OpenBound) {
+                return scope.body.compareEq(got, smallerComparison);
+            } else {
+                return scope.body.compareNE(got, largerComparison);
+            }
+        }
+
+        value comp_a = doCompare(left, center, that.lowerBound, true);
+        scope.body.mark(that, falseValue);
+        value [pass, fail] = scope.body.branch(comp_a);
+
+        scope.body.block = pass;
+
+        value right = that.upperBound.endpoint.transform(this);
+        value comp_b = doCompare(center, right, that.upperBound, false);
+        value result = scope.body.select(comp_b, ptr(i64), trueValue, falseValue);
+        scope.body.mark(that, result);
+        scope.body.jump(fail);
+        scope.body.block = fail;
+
+        assert(exists ret = scope.body.getMarked(ptr(i64), that));
+        return ret;
+    }
 }
