@@ -360,4 +360,8 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         assert(exists ret = scope.body.getMarked(ptr(i64), that));
         return ret;
     }
+
+    shared actual Ptr<I64Type> transformNegationOperation(NegationOperation that)
+        => callI64(termGetGetterName(that.operand, "negated"),
+                that.operand.transform(this));
 }

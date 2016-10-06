@@ -20,6 +20,9 @@ DeclarationModel termGetMember(Node that, String member) {
 String termGetMemberName(Node that, String member)
     => declarationName(termGetMember(that, member));
 
+String termGetGetterName(Node that, String member)
+    => getterName(termGetMember(that, member));
+
 "Get a declaration for the value in a given term node."
 DeclarationModel termGetDeclaration(Node that) {
     assert(is Tree.MemberOrTypeExpression tc = that.get(keys.tcNode));
