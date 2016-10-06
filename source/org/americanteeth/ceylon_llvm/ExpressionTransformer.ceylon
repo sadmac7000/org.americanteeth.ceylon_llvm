@@ -163,6 +163,28 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
                 leftOperand, rightOperand);
     }
 
+    "Assign a new value to an element represented by a Term."
+    void assignTerm(Node term, Ptr<I64Type> toAssign) {
+        "We can only assign to base expressions, qualified expressions, or
+         Element/Subrange expressions"
+        assert(
+            is BaseExpression|QualifiedExpression|ElementOrSubrangeExpression
+                term);
+
+        "TODO: make element assignment work"
+        assert(is BaseExpression|QualifiedExpression term);
+
+        assert(is FunctionOrValueModel declaration = termGetDeclaration(term));
+
+        if (is BaseExpression term) {
+            scope.store(declaration, toAssign);
+        } else {
+            scope.body.call(ptr(i64), setterName(declaration),
+                    term.receiverExpression.transform(this),
+                    toAssign);
+        }
+    }
+
     shared actual Ptr<I64Type> transformAssignmentOperation(AssignmentOperation that) {
         value transformedRight = that.rightOperand.transform(this);
 
@@ -189,25 +211,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         "TODO: Support logical assignment operators"
         assert(exists toAssign);
 
-        "We can only assign to base expressions, qualified expressions, or
-         Element/Subrange expressions"
-        assert(
-            is BaseExpression|QualifiedExpression|ElementOrSubrangeExpression
-                leftOperand = that.leftOperand);
-
-        "TODO: make element assignment work"
-        assert(is BaseExpression|QualifiedExpression leftOperand);
-
-        assert(is FunctionOrValueModel declaration =
-                termGetDeclaration(that.leftOperand));
-
-        if (is BaseExpression leftOperand) {
-            scope.store(declaration, toAssign);
-        } else {
-            scope.body.call(ptr(i64), setterName(declaration),
-                    leftOperand.receiverExpression.transform(this),
-                    toAssign);
-        }
+        assignTerm(that.leftOperand, toAssign);
 
         return toAssign;
     }
@@ -417,6 +421,40 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         scope.body.block = returnLabel;
 
         assert(exists ret = scope.body.getMarked(ptr(i64), that));
+        return ret;
+    }
+
+    shared actual Ptr<I64Type> transformPostfixIncrementOperation(
+            PostfixIncrementOperation that) {
+        value ret = that.operand.transform(this);
+        value tmp = callI64(termGetGetterName(that.operand, "successor"),
+                ret);
+        assignTerm(that.operand, tmp);
+        return ret;
+    }
+
+    shared actual Ptr<I64Type> transformPostfixDecrementOperation(
+            PostfixDecrementOperation that) {
+        value ret = that.operand.transform(this);
+        value tmp = callI64(termGetGetterName(that.operand, "predecessor"),
+                ret);
+        assignTerm(that.operand, tmp);
+        return ret;
+    }
+
+    shared actual Ptr<I64Type> transformPrefixIncrementOperation(
+            PrefixIncrementOperation that) {
+        value start = that.operand.transform(this);
+        value ret = callI64(termGetGetterName(that.operand, "successor"), start);
+        assignTerm(that.operand, ret);
+        return ret;
+    }
+
+    shared actual Ptr<I64Type> transformPrefixDecrementOperation(
+            PrefixDecrementOperation that) {
+        value start = that.operand.transform(this);
+        value ret = callI64(termGetGetterName(that.operand, "predecessor"), start);
+        assignTerm(that.operand, ret);
         return ret;
     }
 }
