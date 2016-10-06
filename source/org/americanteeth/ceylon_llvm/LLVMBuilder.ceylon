@@ -418,7 +418,9 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
                 languagePackage, expressionTransformer, trueBlock, falseBlock);
 
         scope.body.block = trueBlock;
-        that.block.visit(this);
+        try (scope.LoopContext(loopStart, falseBlock)) {
+            that.block.visit(this);
+        }
         scope.body.jump(loopStart);
 
         scope.body.block = falseBlock;
