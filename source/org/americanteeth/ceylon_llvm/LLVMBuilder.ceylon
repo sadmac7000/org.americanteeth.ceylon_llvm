@@ -369,7 +369,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         scope.body.block = falseBlock;
 
         if (exists elseClause = that.elseClause) {
-            elseClause.visit(this);
+            elseClause.child.visit(this);
         }
 
         value falseBlockEnd = scope.body.splitBlock();
