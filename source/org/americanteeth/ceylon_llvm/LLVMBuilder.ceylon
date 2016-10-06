@@ -392,4 +392,20 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         scope.body.callVoid("abort");
         scope.body.unreachable();
     }
+
+    shared actual void visitAssertion(Assertion that) {
+        value trueBlock = scope.body.newBlock();
+        value falseBlock = scope.body.newBlock();
+
+        package.transformConditions(that.conditions, scope,
+                languagePackage, expressionTransformer, trueBlock, falseBlock);
+
+        scope.body.block = falseBlock;
+
+        /* TODO: Throw an exception when we have those */
+        scope.body.callVoid("abort");
+        scope.body.unreachable();
+
+        scope.body.block = trueBlock;
+    }
 }
