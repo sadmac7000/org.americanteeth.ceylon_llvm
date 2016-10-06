@@ -27,8 +27,22 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
 
     value scope => scopeGetter();
 
+    "Call a function returning a pointer to I64."
     Ptr<I64Type> callI64(String name, AnyLLVMValue* args)
         => scope.body.call(ptr(i64), name, *args);
+
+    "Get a value from the root of the language module."
+    Ptr<I64Type> getLanguageValue(String name) {
+        value declaration = languagePackage.getDirectMember(name, null, false);
+        return scope.body.call(ptr(i64), getterName(declaration));
+    }
+
+    "Check whether a value is ceylonically true. I.e. convert a Ceylon Boolean
+     to an LLVM I1."
+     I1 checkTrue(Ptr<I64Type> val) {
+         value trueValue = getLanguageValue("true");
+         return scope.body.compareEq(val, trueValue);
+     }
 
     "LLVM text for the string table"
     shared String stringTable() {
@@ -125,12 +139,8 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     }
 
     shared actual Ptr<I64Type> transformNotOperation(NotOperation that) {
-        value trueIdentifier = languagePackage.getDirectMember("true", null,
-                false);
-        value falseIdentifier = languagePackage.getDirectMember("false", null,
-                false);
-        value trueObject = callI64(getterName(trueIdentifier));
-        value falseObject = callI64(getterName(falseIdentifier));
+        value trueObject = getLanguageValue("true");
+        value falseObject = getLanguageValue("false");
         value expression = that.operand.transform(this);
         value test = scope.body.compareEq(expression, trueObject);
 
@@ -230,14 +240,8 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     }
 
     shared actual Ptr<I64Type> transformIdenticalOperation(IdenticalOperation that) {
-        value trueDeclaration =
-            languagePackage.getDirectMember("true", null, false);
-        value trueValue = scope.body.call(ptr(i64),
-                getterName(trueDeclaration));
-        value falseDeclaration =
-            languagePackage.getDirectMember("false", null, false);
-        value falseValue = scope.body.call(ptr(i64),
-                getterName(falseDeclaration));
+        value trueValue = getLanguageValue("true");
+        value falseValue = getLanguageValue("false");
 
         value left = that.leftOperand.transform(this);
         value right = that.rightOperand.transform(this);
@@ -284,4 +288,21 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     shared actual Ptr<I64Type> transformGroupedExpression(
             GroupedExpression that)
         => that.innerExpression.transform(this);
+
+    shared actual Ptr<I64Type> transformThenOperation(ThenOperation that) {
+        value cond = that.leftOperand.transform(this);
+
+        scope.body.mark(that, llvmNull);
+
+        value [trueBlock, falseBlock] = scope.body.branch(checkTrue(cond));
+
+        scope.body.block = trueBlock;
+        scope.body.mark(that, that.rightOperand.transform(this));
+        scope.body.jump(falseBlock);
+
+        scope.body.block = falseBlock;
+
+        assert(exists ret = scope.body.getMarked(ptr(i64), that));
+        return ret;
+    }
 }
