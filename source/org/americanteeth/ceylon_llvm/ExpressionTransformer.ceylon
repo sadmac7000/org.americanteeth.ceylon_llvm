@@ -155,14 +155,6 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     shared actual Ptr<I64Type> transformIntegerLiteral(
             IntegerLiteral that) => llvmNull;
 
-    shared actual Ptr<I64Type> transformEqualOperation(EqualOperation that) {
-        value leftOperand = that.leftOperand.transform(this);
-        value rightOperand = that.leftOperand.transform(this);
-        value equalsFunction = termGetMember(that.leftOperand, "equals");
-        return callI64(declarationName(equalsFunction),
-                leftOperand, rightOperand);
-    }
-
     "Assign a new value to an element represented by a Term."
     void assignTerm(Node term, Ptr<I64Type> toAssign) {
         "We can only assign to base expressions, qualified expressions, or
@@ -265,11 +257,17 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         Ptr<I64Type> opR(String name)
             => callI64(termGetMemberName(that.rightOperand, name), right, left);
 
+        Ptr<I64Type> opS(String name) {
+            value target = languagePackage.getDirectMember(name, null, false);
+            return callI64(declarationName(target), left, right);
+        }
+
+
         "These operations are handled elsewhere."
         assert(! is
-                AssignmentOperation|LogicalOperation|ThenOperation|ElseOperation|
-                NotEqualOperation|IdenticalOperation|ComparisonOperation|EntryOperation
-                that);
+                AssignmentOperation|LogicalOperation|ThenOperation|
+                ElseOperation|NotEqualOperation|IdenticalOperation|
+                ComparisonOperation that);
 
         return switch(that)
             case (is SumOperation) op("plus")
@@ -282,11 +280,12 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
             case (is IntersectionOperation) op("intersection")
             case (is ComplementOperation) op("complement")
             case (is ScaleOperation) opR("scale")
-            case (is SpanOperation) op("span")
-            case (is MeasureOperation) op("measure")
             case (is InOperation) opR("contains")
             case (is CompareOperation) op("compare")
-            case (is EqualOperation) op("equals");
+            case (is EqualOperation) op("equals")
+            case (is EntryOperation) opS("Entry")
+            case (is SpanOperation) opS("span")
+            case (is MeasureOperation) opS("measure");
     }
 
     shared actual Ptr<I64Type> transformGroupedExpression(
