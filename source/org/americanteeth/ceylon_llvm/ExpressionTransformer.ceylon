@@ -471,4 +471,8 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
 
         return end;
     }
+
+    /* TODO: Character literals */
+    shared actual Ptr<I64Type> transformCharacterLiteral(CharacterLiteral that)
+        => llvmNull;
 }
