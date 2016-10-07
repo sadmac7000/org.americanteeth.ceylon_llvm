@@ -379,6 +379,15 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         currentBlock.terminate({});
     }
 
+    "Add a bitwise or instruction."
+    shared LLVMValue<T> or<T>(T type, LLVMValue<T> a, LLVMValue<T> b)
+            given T satisfies LLVMType {
+        value ret = register(type);
+        currentBlock.instruction(
+                "``ret.identifier`` = or ``a``, ``b.identifier``");
+        return ret;
+    }
+
     "Add an 'unreachable' instruction."
     shared void unreachable() {
         currentBlock.instruction("unreachable");
