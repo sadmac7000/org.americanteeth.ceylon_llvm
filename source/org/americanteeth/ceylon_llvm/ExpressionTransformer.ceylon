@@ -288,6 +288,18 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
             case (is MeasureOperation) opS("measure");
     }
 
+    shared actual Ptr<I64Type> transformNotEqualOperation(NotEqualOperation that) {
+        value leftOperand = that.leftOperand.transform(this);
+        value rightOperand = that.leftOperand.transform(this);
+        value equalsFunction = termGetMember(that.leftOperand, "equals");
+        value eq = callI64(declarationName(equalsFunction),
+                leftOperand, rightOperand);
+        value trueValue = getLanguageValue("true");
+        value falseValue = getLanguageValue("false");
+        value bool = scope.body.compareEq(eq, trueValue);
+        return scope.body.select(bool, ptr(i64), falseValue, trueValue);
+    }
+
     shared actual Ptr<I64Type> transformGroupedExpression(
             GroupedExpression that)
         => that.innerExpression.transform(this);
