@@ -501,4 +501,24 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         return callI64(termGetMemberName(that.primary, name), primary,
                 *that.subscript.children.collect((x) => x.transform(this)));
     }
+
+    shared actual Ptr<I64Type> transformStringTemplate(
+            StringTemplate that) {
+        value literals = that.literals*.transform(this);
+        value expressions = that.expressions.map((x)
+            => callI64(termGetGetterName(x, "string"), x.transform(this)));
+        value stringCat = languagePackage.getDirectMember("String", null,
+                false).getMember("plus", null, false);
+        value stringCatName = declarationName(stringCat);
+
+        value flat = foldPairs({}, ({Ptr<I64Type>*} x, Ptr<I64Type> y, Ptr<I64Type> z)
+                => x.chain{y,z}, literals, expressions);
+        value complete = if (literals.size > expressions.size)
+            then flat.chain{literals.last}
+            else flat;
+
+        assert(exists ret = complete.reduce((Ptr<I64Type> x, Ptr<I64Type> y)
+                => callI64(stringCatName, x, y)));
+        return ret;
+    }
 }
