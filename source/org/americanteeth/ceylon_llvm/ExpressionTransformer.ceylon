@@ -27,14 +27,10 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
 
     value scope => scopeGetter();
 
-    "Call a function returning a pointer to I64."
-    Ptr<I64Type> callI64(String name, AnyLLVMValue* args)
-        => scope.body.call(ptr(i64), name, *args);
-
     "Get a value from the root of the language module."
     Ptr<I64Type> getLanguageValue(String name) {
         value declaration = languagePackage.getDirectMember(name, null, false);
-        return scope.body.call(ptr(i64), getterName(declaration));
+        return scope.callI64(getterName(declaration));
     }
 
     "Check whether a value is ceylonically true. I.e. convert a Ceylon Boolean
@@ -108,7 +104,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
             arguments.add(arg.transform(this));
         }
 
-        return callI64(functionName, *arguments);
+        return scope.callI64(functionName, *arguments);
     }
 
     shared actual Ptr<I64Type> transformBaseExpression(BaseExpression that)
@@ -118,7 +114,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         "TODO: Support fancy member operators"
         assert (that.memberOperator is MemberOperator);
 
-        return callI64(getterName(termGetDeclaration(that)),
+        return scope.callI64(getterName(termGetDeclaration(that)),
                 that.receiverExpression.transform(this));
     }
 
@@ -169,7 +165,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         if (is BaseExpression term) {
             scope.store(declaration, toAssign);
         } else {
-            scope.body.call(ptr(i64), setterName(declaration),
+            scope.callI64(setterName(declaration),
                     term.receiverExpression.transform(this),
                     toAssign);
         }
@@ -183,7 +179,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
             that.leftOperand.transform(this);
 
         Ptr<I64Type> op(String name)
-            => callI64(termGetMemberName(that.leftOperand, name),
+            => scope.callI64(termGetMemberName(that.leftOperand, name),
                     transformedLeft, transformedRight);
 
         value toAssign = switch(that)
@@ -250,14 +246,14 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         value right = that.leftOperand.transform(this);
 
         Ptr<I64Type> op(String name)
-            => callI64(termGetMemberName(that.leftOperand, name), left, right);
+            => scope.callI64(termGetMemberName(that.leftOperand, name), left, right);
 
         Ptr<I64Type> opR(String name)
-            => callI64(termGetMemberName(that.rightOperand, name), right, left);
+            => scope.callI64(termGetMemberName(that.rightOperand, name), right, left);
 
         Ptr<I64Type> opS(String name) {
             value target = languagePackage.getDirectMember(name, null, false);
-            return callI64(declarationName(target), left, right);
+            return scope.callI64(declarationName(target), left, right);
         }
 
 
@@ -290,7 +286,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         value leftOperand = that.leftOperand.transform(this);
         value rightOperand = that.leftOperand.transform(this);
         value equalsFunction = termGetMember(that.leftOperand, "equals");
-        value eq = callI64(declarationName(equalsFunction),
+        value eq = scope.callI64(declarationName(equalsFunction),
                 leftOperand, rightOperand);
         value trueValue = getLanguageValue("true");
         value falseValue = getLanguageValue("false");
@@ -329,7 +325,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
 
         I1 doCompare(Ptr<I64Type> a, Ptr<I64Type> b, Bound bound, Boolean first) {
             value term = if (first) then bound.endpoint else that.operand;
-            value got = callI64(termGetMemberName(term, "compare"), a, b);
+            value got = scope.callI64(termGetMemberName(term, "compare"), a, b);
 
             if (bound is OpenBound) {
                 return scope.body.compareEq(got, smallerComparison);
@@ -375,7 +371,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     }
 
     shared actual Ptr<I64Type> transformNegationOperation(NegationOperation that)
-        => callI64(termGetGetterName(that.operand, "negated"),
+        => scope.callI64(termGetGetterName(that.operand, "negated"),
                 that.operand.transform(this));
 
     shared actual Ptr<I64Type> transformComparisonOperation(
@@ -386,7 +382,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         value smallerComparison = getLanguageValue("smaller");
         value trueValue = getLanguageValue("true");
         value falseValue = getLanguageValue("false");
-        value compared = callI64(termGetMemberName(that.leftOperand, "compare"),
+        value compared = scope.callI64(termGetMemberName(that.leftOperand, "compare"),
                 left, right);
 
         value bool = switch(that)
@@ -436,7 +432,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     shared actual Ptr<I64Type> transformPostfixIncrementOperation(
             PostfixIncrementOperation that) {
         value ret = that.operand.transform(this);
-        value tmp = callI64(termGetGetterName(that.operand, "successor"),
+        value tmp = scope.callI64(termGetGetterName(that.operand, "successor"),
                 ret);
         assignTerm(that.operand, tmp);
         return ret;
@@ -445,7 +441,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     shared actual Ptr<I64Type> transformPostfixDecrementOperation(
             PostfixDecrementOperation that) {
         value ret = that.operand.transform(this);
-        value tmp = callI64(termGetGetterName(that.operand, "predecessor"),
+        value tmp = scope.callI64(termGetGetterName(that.operand, "predecessor"),
                 ret);
         assignTerm(that.operand, tmp);
         return ret;
@@ -454,7 +450,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     shared actual Ptr<I64Type> transformPrefixIncrementOperation(
             PrefixIncrementOperation that) {
         value start = that.operand.transform(this);
-        value ret = callI64(termGetGetterName(that.operand, "successor"), start);
+        value ret = scope.callI64(termGetGetterName(that.operand, "successor"), start);
         assignTerm(that.operand, ret);
         return ret;
     }
@@ -462,7 +458,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     shared actual Ptr<I64Type> transformPrefixDecrementOperation(
             PrefixDecrementOperation that) {
         value start = that.operand.transform(this);
-        value ret = callI64(termGetGetterName(that.operand, "predecessor"), start);
+        value ret = scope.callI64(termGetGetterName(that.operand, "predecessor"), start);
         assignTerm(that.operand, ret);
         return ret;
     }
@@ -475,7 +471,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         variable Ptr<I64Type> end = emptyObject;
 
         for (item in that.argumentList.listedArguments.reversed) {
-            end = callI64(declarationName(tupleClass), item.transform(this), end);
+            end = scope.callI64(declarationName(tupleClass), item.transform(this), end);
         }
 
         return end;
@@ -496,7 +492,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
             case(is SpanFromSubscript) "spanFrom"
             case(is SpanToSubscript) "spanTo";
 
-        return callI64(termGetMemberName(that.primary, name), primary,
+        return scope.callI64(termGetMemberName(that.primary, name), primary,
                 *that.subscript.children.collect((x) => x.transform(this)));
     }
 
@@ -504,7 +500,8 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
             StringTemplate that) {
         value literals = that.literals*.transform(this);
         value expressions = that.expressions.map((x)
-            => callI64(termGetGetterName(x, "string"), x.transform(this)));
+            => scope.callI64(termGetGetterName(x, "string"),
+                x.transform(this)));
         value stringCat = languagePackage.getDirectMember("String", null,
                 false).getMember("plus", null, false);
         value stringCatName = declarationName(stringCat);
@@ -516,7 +513,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
             else flat;
 
         assert(exists ret = complete.reduce((Ptr<I64Type> x, Ptr<I64Type> y)
-                => callI64(stringCatName, x, y)));
+                => scope.callI64(stringCatName, x, y)));
         return ret;
     }
 }

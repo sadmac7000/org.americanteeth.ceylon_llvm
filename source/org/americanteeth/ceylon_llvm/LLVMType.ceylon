@@ -4,9 +4,6 @@ abstract class LLVMType(shared String name) {
     hash = string.hash;
 
     shared actual Boolean equals(Object other) {
-        print(this);
-        print(other);
-        print("");
         return other is LLVMType && other.string==string;
     }
 }

@@ -15,7 +15,10 @@ import com.redhat.ceylon.compiler.typechecker.tree {
 }
 
 import com.redhat.ceylon.model.typechecker.model {
+    DeclarationModel=Declaration,
+    TypeDeclaration,
     FunctionModel=Function,
+    FunctionOrValueModel=FunctionOrValue,
     ValueModel=Value,
     ClassModel=Class,
     InterfaceModel=Interface,
@@ -200,8 +203,7 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
             that.body.visit(this);
         }
 
-        value val = scope.body.call(ptr(i64),
-                declarationName(tc.anonymousClass));
+        value val = scope.callI64(declarationName(tc.anonymousClass));
         scope.allocate(tc.declarationModel, null);
         scope.body.storeGlobal(declarationName(tc.declarationModel), val);
     }
@@ -308,22 +310,23 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     }
 
     shared actual void visitForFail(ForFail that) {
-        value iteratorGetter = termGetMember(that.forClause.iterator.iterated,
-                "iterator");
-        assert(is FunctionModel iteratorGetter);
+        value iteratedNode = that.forClause.iterator.iterated;
+        assert(is FunctionModel iteratorGetter
+                = termGetMember(iteratedNode, "iterator"));
+        value iterated = iteratedNode.transform(expressionTransformer);
         value iteratorType = iteratorGetter.type.declaration;
         value iteratorNext = iteratorType.getDirectMember("next", null, false);
         value finishedDec = languagePackage.getDirectMember("finished", null,
                 false);
-        value finishedVal = scope.body.call(ptr(i64), getterName(finishedDec));
+        value finishedVal = scope.callI64(getterName(finishedDec));
 
-        value iterator = scope.body.call(ptr(i64),
-                declarationName(iteratorGetter));
+        value iterator = scope.callI64(declarationName(iteratorGetter),
+                iterated);
 
         value loopStart = scope.body.splitBlock();
 
-        value nextValue = scope.body.call(ptr(i64),
-                declarationName(iteratorNext), iterator);
+        value nextValue = scope.callI64(declarationName(iteratorNext),
+                iterator);
 
         value comparison = scope.body.compareEq(nextValue, finishedVal);
         value [loopEnd, loopBody] = scope.body.branch(comparison);
@@ -339,8 +342,16 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         }
 
         scope.body.block = loopBody;
+        assert(is TypeDeclaration iterableTypeDeclaration =
+            languagePackage.getDirectMember("Iterable", null, false));
+        value iteratedAsInterface =
+            termGetType(iteratedNode).getSupertype(iterableTypeDeclaration);
+        assert(exists param = iterableTypeDeclaration.typeParameters.get(0));
+        assert(exists elementType = iteratedAsInterface.typeArguments[param]);
 
         try (scope.LoopContext(loopStart, breakPosition)) {
+            assignPattern(that.forClause.iterator.pattern, nextValue,
+                    elementType.declaration);
             that.forClause.block.visit(this);
         }
 
@@ -478,4 +489,43 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
         scope.body.block = endPoint;
     }
+
+    void assignPattern(Pattern pattern, Ptr<I64Type> val,
+            DeclarationModel d) {
+        if (is VariablePattern pattern) {
+            assert(is FunctionOrValueModel mod =
+                    termGetDeclaration(pattern.\ivariable));
+            scope.store(mod, val);
+        } else if (is EntryPattern pattern) {
+            value keyDeclaration = d.getMember("key", null, false);
+            value itemDeclaration = d.getMember("item", null, false);
+            value key = scope.callI64(getterName(keyDeclaration), val);
+            value item = scope.callI64(getterName(itemDeclaration), val);
+            assignPattern(pattern.key, key, d.getMember("key", null, false));
+            assignPattern(pattern.item, item, d.getMember("item", null, false));
+        } else {
+            variable value index = 0;
+            for(element in pattern.elementPatterns)  {
+                value pos = index++;
+                assert(is FunctionModel getModel = d.getMember("get", null, false));
+                value next = scope.callI64(declarationName(getModel), I64Lit(pos));
+                assignPattern(element, next, getModel.type.declaration);
+            }
+
+            value variadic = pattern.variadicElementPattern;
+            if (! exists variadic) {
+                return;
+            }
+
+            value remainder = scope.callI64(declarationName(d.getMember("spanFrom", null, false)),
+                    I64Lit(index));
+            assert(is FunctionOrValueModel mod = termGetDeclaration(variadic));
+            scope.store(mod, remainder);
+        }
+    }
+
+    shared actual void visitDestructure(Destructure d)
+        => assignPattern(d.pattern,
+                d.specifier.expression.transform(expressionTransformer),
+                termGetType(d.specifier.expression).declaration);
 }

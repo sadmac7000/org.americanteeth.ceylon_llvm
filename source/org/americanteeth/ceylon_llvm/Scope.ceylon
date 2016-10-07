@@ -134,7 +134,7 @@ abstract class Scope(Anything(Scope) destroyer)
             return marked;
         }
 
-        return body.call(ptr(i64), getterName(declaration),
+        return callI64(getterName(declaration),
             *{ getContextFor(declaration) }.coalesced);
     }
 
@@ -143,9 +143,13 @@ abstract class Scope(Anything(Scope) destroyer)
             return;
         }
 
-        body.call(ptr(i64), setterName(declaration),
+        callI64(setterName(declaration),
             *{ getContextFor(declaration), val }.coalesced);
     }
+
+    "Call a function returning a pointer to I64."
+    shared Ptr<I64Type> callI64(String name, AnyLLVMValue* args)
+        => body.call(ptr(i64), name, *args);
 
     "Add a vtable entry for the given declaration model"
     shared default void vtableEntry(DeclarationModel d) {
