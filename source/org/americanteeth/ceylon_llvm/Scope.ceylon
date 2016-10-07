@@ -124,7 +124,12 @@ abstract class Scope(Anything(Scope) destroyer)
     }
 
     "Access a declaration"
-    shared Ptr<I64Type> load(FunctionOrValueModel declaration) {
+    shared Ptr<I64Type> load(DeclarationModel declaration) {
+        /* TODO: Support yet weirder values here */
+        if (! is FunctionOrValueModel declaration) {
+            return llvmNull;
+        }
+
         if (exists marked = body.getMarked(ptr(i64), declaration)) {
             return marked;
         }

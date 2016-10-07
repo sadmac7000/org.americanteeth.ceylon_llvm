@@ -111,10 +111,8 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         return callI64(functionName, *arguments);
     }
 
-    shared actual Ptr<I64Type> transformBaseExpression(BaseExpression that) {
-        assert (is FunctionOrValueModel declaration = termGetDeclaration(that));
-        return scope.load(declaration);
-    }
+    shared actual Ptr<I64Type> transformBaseExpression(BaseExpression that)
+        => scope.load(termGetDeclaration(that));
 
     shared actual Ptr<I64Type> transformQualifiedExpression(QualifiedExpression that) {
         "TODO: Support fancy member operators"
