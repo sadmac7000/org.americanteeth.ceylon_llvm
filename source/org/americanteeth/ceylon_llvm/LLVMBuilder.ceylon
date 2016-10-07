@@ -471,7 +471,9 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
 
         for (block in blocks) {
             scope.body.block = block;
-            scope.body.jump(endPoint);
+            if (! scope.body.blockTerminated()) {
+                scope.body.jump(endPoint);
+            }
         }
 
         scope.body.block = endPoint;
