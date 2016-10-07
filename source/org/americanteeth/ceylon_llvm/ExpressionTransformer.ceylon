@@ -486,4 +486,19 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     /* TODO: Character literals */
     shared actual Ptr<I64Type> transformCharacterLiteral(CharacterLiteral that)
         => llvmNull;
+
+    shared actual Ptr<I64Type> transformElementOrSubrangeExpression(
+            ElementOrSubrangeExpression that) {
+        value primary = that.primary.transform(this);
+
+        value name = switch(s = that.subscript)
+            case(is KeySubscript) "get"
+            case(is SpanSubscript) "span"
+            case(is MeasureSubscript) "measure"
+            case(is SpanFromSubscript) "spanFrom"
+            case(is SpanToSubscript) "spanTo";
+
+        return callI64(termGetMemberName(that.primary, name), primary,
+                *that.subscript.children.collect((x) => x.transform(this)));
+    }
 }
