@@ -457,4 +457,18 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         assignTerm(that.operand, ret);
         return ret;
     }
+
+    shared actual Ptr<I64Type> transformTuple(Tuple that) {
+        value tupleClass = languagePackage.getDirectMember("Tuple", null, false);
+        value emptyObject = getLanguageValue("empty");
+
+        /* TODO: support spread and comprehension arguments in tuples */
+        variable Ptr<I64Type> end = emptyObject;
+
+        for (item in that.argumentList.listedArguments.reversed) {
+            end = callI64(declarationName(tupleClass), item.transform(this), end);
+        }
+
+        return end;
+    }
 }
