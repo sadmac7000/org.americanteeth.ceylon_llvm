@@ -28,17 +28,6 @@ import com.redhat.ceylon.model.typechecker.model {
 
 class LLVMBuilder(String triple, PackageModel languagePackage)
         satisfies Visitor {
-    "Nodes to handle by just visiting all children"
-    alias StandardNode =>
-        ClassBody|InterfaceBody|CompilationUnit|Block;
-
-    "Nodes to handle by just visiting all children as expressions."
-    alias ExpressionNode => ExpressionStatement|InvocationStatement;
-
-    "Nodes to ignore completely"
-    alias IgnoredNode =>
-        Import|ModuleCompilationUnit|PackageCompilationUnit|Annotations;
-
     "Prefix for all units"
     String preamble = "%.constructor_type = type { i32, void ()* }
                        target triple = \"``triple``\"\n\n";
@@ -103,16 +92,31 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
     }
 
     shared actual void visitNode(Node that) {
-        if (is IgnoredNode that) {
-            return;
-        } else if (is StandardNode that) {
-            that.visitChildren(this);
-        } else if (is ExpressionNode that) {
-            that.transformChildren(expressionTransformer);
-        } else {
-            throw UnsupportedNode(that);
-        }
+        throw UnsupportedNode(that);
     }
+
+    shared actual void visitExpressionStatement(ExpressionStatement that)
+        => that.transformChildren(expressionTransformer);
+
+    shared actual void visitInvocationStatement(InvocationStatement that)
+        => that.transformChildren(expressionTransformer);
+
+    shared actual void visitCompilationUnit(CompilationUnit that)
+        => that.visitChildren(this);
+
+    shared actual void visitClassBody(ClassBody that)
+        => that.visitChildren(this);
+
+    shared actual void visitInterfaceBody(InterfaceBody that)
+        => that.visitChildren(this);
+
+    shared actual void visitBlock(Block that)
+        => that.visitChildren(this);
+
+    shared actual void visitImport(Import that) {}
+    shared actual void visitModuleCompilationUnit(ModuleCompilationUnit that) {}
+    shared actual void visitPackageCompilationUnit(PackageCompilationUnit that) {}
+    shared actual void visitAnnotations(Annotations that) {}
 
     shared actual void visitValueSpecification(ValueSpecification that) {
         assert(is Tree.SpecifierStatement tc = that.get(keys.tcNode));
