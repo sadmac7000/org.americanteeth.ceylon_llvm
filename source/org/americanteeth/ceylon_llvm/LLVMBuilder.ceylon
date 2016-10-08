@@ -26,7 +26,7 @@ import com.redhat.ceylon.model.typechecker.model {
     PackageModel=Package
 }
 
-class LLVMBuilder(String triple, PackageModel languagePackage)
+class LLVMBuilder(String triple, shared PackageModel languagePackage)
         satisfies Visitor {
     "Prefix for all units"
     String preamble = "%.constructor_type = type { i32, void ()* }
@@ -41,21 +41,17 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
             then "@__ceylon_run = alias i64*(),i64*()* @``declarationName(r)``\n"
             else "";
 
-    "Top-level scope of the compilation unit"
-    value unitScope = UnitScope();
-
     "The code we are outputting"
     value output = LLVMUnit();
+
+    "Top-level scope of the compilation unit"
+    shared Scope unitScope = UnitScope();
 
     "Stack of declarations we are processing"
     value scopeStack = ArrayList<Scope>();
 
     "The current scope"
     Scope scope => scopeStack.last else unitScope;
-
-    "Our expression transformer"
-    value expressionTransformer =
-        ExpressionTransformer(() => scope, languagePackage);
 
     "Push a new scope"
     T push<T>(T m) given T satisfies Scope {
@@ -76,11 +72,23 @@ class LLVMBuilder(String triple, PackageModel languagePackage)
         }
     }
 
-    GetterScope getterScope(ValueModel model) => push(GetterScope(model, pop));
-    SetterScope setterScope(SetterModel model) => push(SetterScope(model, pop));
-    ConstructorScope constructorScope(ClassModel model) => push(ConstructorScope(model, pop));
-    FunctionScope functionScope(FunctionModel model) => push(FunctionScope(model, pop));
-    InterfaceScope interfaceScope(InterfaceModel model) => push(InterfaceScope(model, pop));
+    GetterScope getterScope(ValueModel model)
+        => push(GetterScope(model, pop));
+    SetterScope setterScope(SetterModel model)
+        => push(SetterScope(model, pop));
+    ConstructorScope constructorScope(ClassModel model)
+        => push(ConstructorScope(model, pop));
+    FunctionScope functionScope(FunctionModel model)
+        => push(FunctionScope(model, pop));
+    InterfaceScope interfaceScope(InterfaceModel model)
+        => push(InterfaceScope(model, pop));
+
+    variable ExpressionTransformer? expressionTransformer_ = null;
+
+    "Our expression transformer"
+    value expressionTransformer
+        => expressionTransformer_ else (expressionTransformer_ =
+            ExpressionTransformer(() => scope, this));
 
     shared actual String string {
         for (item in unitScope.results) {

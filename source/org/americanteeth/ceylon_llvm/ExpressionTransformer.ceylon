@@ -12,11 +12,11 @@ import com.redhat.ceylon.compiler.typechecker.tree {
 }
 
 import com.redhat.ceylon.model.typechecker.model {
-    PackageModel=Package,
+    DeclarationModel=Declaration,
     FunctionOrValueModel=FunctionOrValue
 }
 
-class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
+class ExpressionTransformer(Scope() scopeGetter, LLVMBuilder builder)
         satisfies WideningTransformer<Ptr<I64Type>> {
 
     "The next string literal ID available"
@@ -27,11 +27,13 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
 
     value scope => scopeGetter();
 
+    "Get a declaration from the language package"
+    DeclarationModel getLanguageDeclaration(String name)
+        => builder.languagePackage.getDirectMember(name, null, false);
+
     "Get a value from the root of the language module."
-    Ptr<I64Type> getLanguageValue(String name) {
-        value declaration = languagePackage.getDirectMember(name, null, false);
-        return scope.callI64(getterName(declaration));
-    }
+    Ptr<I64Type> getLanguageValue(String name)
+        => scope.callI64(getterName(getLanguageDeclaration(name)));
 
     "Check whether a value is ceylonically true. I.e. convert a Ceylon Boolean
      to an LLVM I1."
@@ -221,8 +223,8 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         scope.body.jump(falseBlockEnd);
 
         scope.body.block = checkPosition;
-        package.transformConditions(that.conditions, scope, languagePackage, this,
-                trueBlock, falseBlock);
+        package.transformConditions(that.conditions, scope,
+                builder.languagePackage, this, trueBlock, falseBlock);
 
         scope.body.block = falseBlockEnd;
         assert(exists ret = scope.body.getMarked(ptr(i64), that));
@@ -246,15 +248,16 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         value right = that.leftOperand.transform(this);
 
         Ptr<I64Type> op(String name)
-            => scope.callI64(termGetMemberName(that.leftOperand, name), left, right);
+            => scope.callI64(termGetMemberName(that.leftOperand, name),
+                    left, right);
 
         Ptr<I64Type> opR(String name)
-            => scope.callI64(termGetMemberName(that.rightOperand, name), right, left);
+            => scope.callI64(termGetMemberName(that.rightOperand, name),
+                    right, left);
 
-        Ptr<I64Type> opS(String name) {
-            value target = languagePackage.getDirectMember(name, null, false);
-            return scope.callI64(declarationName(target), left, right);
-        }
+        Ptr<I64Type> opS(String name)
+            => scope.callI64(declarationName(getLanguageDeclaration(name)),
+                    left, right);
 
 
         "These operations are handled elsewhere."
@@ -464,7 +467,7 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
     }
 
     shared actual Ptr<I64Type> transformTuple(Tuple that) {
-        value tupleClass = languagePackage.getDirectMember("Tuple", null, false);
+        value tupleClass = getLanguageDeclaration("Tuple");
         value emptyObject = getLanguageValue("empty");
 
         /* TODO: support spread and comprehension arguments in tuples */
@@ -502,8 +505,8 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
         value expressions = that.expressions.map((x)
             => scope.callI64(termGetGetterName(x, "string"),
                 x.transform(this)));
-        value stringCat = languagePackage.getDirectMember("String", null,
-                false).getMember("plus", null, false);
+        value stringCat = getLanguageDeclaration("String")
+            .getMember("plus", null, false);
         value stringCatName = declarationName(stringCat);
 
         value flat = foldPairs({}, ({Ptr<I64Type>*} x, Ptr<I64Type> y, Ptr<I64Type> z)
