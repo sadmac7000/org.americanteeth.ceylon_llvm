@@ -528,4 +528,15 @@ class ExpressionTransformer(Scope() scopeGetter, LLVMBuilder builder)
         return scope.body.select(scope.body.compareEq(testValue, llvmNull),
                 ptr(i64), trueValue, falseValue);
     }
+
+    shared actual Ptr<I64Type> transformObjectExpression(ObjectExpression d) {
+        assert(is Tree.ObjectExpression tc = d.get(keys.tcNode));
+
+        try(builder.constructorScope(tc.anonymousClass)) {
+            d.extendedType?.visit(builder);
+            d.body.visit(builder);
+        }
+
+        return scope.callI64(declarationName(tc.anonymousClass));
+    }
 }

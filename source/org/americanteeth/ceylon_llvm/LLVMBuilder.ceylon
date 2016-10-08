@@ -72,15 +72,15 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
         }
     }
 
-    GetterScope getterScope(ValueModel model)
+    shared GetterScope getterScope(ValueModel model)
         => push(GetterScope(model, pop));
-    SetterScope setterScope(SetterModel model)
+    shared SetterScope setterScope(SetterModel model)
         => push(SetterScope(model, pop));
-    ConstructorScope constructorScope(ClassModel model)
+    shared ConstructorScope constructorScope(ClassModel model)
         => push(ConstructorScope(model, pop));
-    FunctionScope functionScope(FunctionModel model)
+    shared FunctionScope functionScope(FunctionModel model)
         => push(FunctionScope(model, pop));
-    InterfaceScope interfaceScope(InterfaceModel model)
+    shared InterfaceScope interfaceScope(InterfaceModel model)
         => push(InterfaceScope(model, pop));
 
     variable ExpressionTransformer? expressionTransformer_ = null;

@@ -22,9 +22,11 @@ import ceylon.interop.java {
 }
 
 String fullName(TypeDeclaration|FunctionOrValue p) {
-    value name = if (is TypeDeclaration p)
-        then "$``p.name``"
-        else p.name;
+    value name = if (is FunctionOrValue p)
+        then p.name
+        else if (p.name.startsWith("anonymous#"))
+        then p.name.replace("#", "$")
+        else "$``p.name``";
 
     if (exists q = p.qualifier) {
         return "``name``$q``q``";
@@ -54,9 +56,6 @@ String declarationName(DeclarationModel|Scope p) {
     if (is TypeDeclaration|FunctionOrValue p) {
         return declarationName(p.container) + ".``fullName(p)``" +
             (if (is Setter p) then "$set" else "");
-    }
-
-    if (is FunctionOrValue p) {
     }
 
     if (! is Package p) {
