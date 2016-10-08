@@ -516,4 +516,13 @@ class ExpressionTransformer(Scope() scopeGetter, PackageModel languagePackage)
                 => scope.callI64(stringCatName, x, y)));
         return ret;
     }
+
+    shared actual Ptr<I64Type> transformExistsOperation(ExistsOperation that) {
+        value trueValue = getLanguageValue("true");
+        value falseValue = getLanguageValue("false");
+        value testValue = that.operand.transform(this);
+
+        return scope.body.select(scope.body.compareEq(testValue, llvmNull),
+                ptr(i64), trueValue, falseValue);
+    }
 }
