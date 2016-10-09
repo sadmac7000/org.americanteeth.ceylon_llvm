@@ -7,7 +7,8 @@ import ceylon.ast.core {
     BaseExpression,
     Node,
     Declaration,
-    QualifiedExpression
+    QualifiedExpression,
+    ObjectExpression
 }
 
 import com.redhat.ceylon.compiler.typechecker.tree {
@@ -146,4 +147,10 @@ object preprocessVisitor satisfies Visitor {
 
     shared actual void visitQualifiedExpression(QualifiedExpression that)
             => setCapturedIfNeeded(that);
+
+    shared actual void visitObjectExpression(ObjectExpression that) {
+        assert(is Tree.ObjectExpression tc = that.get(keys.tcNode));
+        markDeclarationOrder(tc.anonymousClass);
+        that.visitChildren(this);
+    }
 }
