@@ -228,9 +228,16 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
             return;
         }
 
+        if (! model.parameterList exists) {
+            return; /* TODO: Support advanced constructors */
+        }
+
         try (constructorScope(tc.declarationModel)) {
-            for (parameter in CeylonList(model.parameterList.parameters)) {
-                scope.allocate(parameter.model, scope.body.register(ptr(i64), parameter.name));
+            if (exists parameterList = model.parameterList) {
+                for (parameter in CeylonList(parameterList.parameters)) {
+                    scope.allocate(parameter.model,
+                            scope.body.register(ptr(i64), parameter.name));
+                }
             }
 
             that.extendedType?.visit(this);
