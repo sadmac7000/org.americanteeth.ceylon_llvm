@@ -16,7 +16,7 @@ import com.redhat.ceylon.model.typechecker.model {
     FunctionOrValueModel=FunctionOrValue
 }
 
-class ExpressionTransformer(Scope() scopeGetter, LLVMBuilder builder)
+class ExpressionTransformer(LLVMBuilder builder)
         satisfies WideningTransformer<Ptr<I64Type>> {
 
     "The next string literal ID available"
@@ -25,7 +25,7 @@ class ExpressionTransformer(Scope() scopeGetter, LLVMBuilder builder)
     "A table of all string literals"
     value stringLiterals = HashMap<Integer,String>();
 
-    value scope => scopeGetter();
+    value scope => builder.scope;
 
     "Get a declaration from the language package"
     DeclarationModel getLanguageDeclaration(String name)
@@ -538,5 +538,28 @@ class ExpressionTransformer(Scope() scopeGetter, LLVMBuilder builder)
         }
 
         return scope.callI64(declarationName(tc.anonymousClass));
+    }
+
+    shared actual Ptr<I64Type> transformSwitchClause(SwitchClause that) {
+        value switched = that.switched;
+
+        value expr = if (is Expression switched)
+            then switched.transform(this)
+            else
+                switched.specifier.expression.transform(this);
+
+        if (is SpecifiedVariable switched) {
+            assert(is Tree.Variable s = switched.get(keys.tcNode));
+            scope.store(s.declarationModel, expr);
+        }
+
+        return expr;
+    }
+
+    shared actual Ptr<I64Type> transformSwitchCaseElseExpression(
+            SwitchCaseElseExpression that) {
+        processSwitch(that, builder);
+        assert(exists ret = scope.body.getMarked(ptr(i64), that));
+        return ret;
     }
 }

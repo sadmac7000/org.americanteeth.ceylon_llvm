@@ -51,7 +51,7 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
     value scopeStack = ArrayList<Scope>();
 
     "The current scope"
-    Scope scope => scopeStack.last else unitScope;
+    shared Scope scope => scopeStack.last else unitScope;
 
     "Push a new scope"
     T push<T>(T m) given T satisfies Scope {
@@ -86,9 +86,9 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
     variable ExpressionTransformer? expressionTransformer_ = null;
 
     "Our expression transformer"
-    value expressionTransformer
+    shared ExpressionTransformer expressionTransformer
         => expressionTransformer_ else (expressionTransformer_ =
-            ExpressionTransformer(() => scope, this));
+            ExpressionTransformer(this));
 
     shared actual String string {
         for (item in unitScope.results) {
@@ -450,56 +450,7 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
     }
 
     shared actual void visitSwitchCaseElse(SwitchCaseElse that) {
-        value switched = that.clause.switched;
-
-        value expr = if (is Expression switched)
-            then switched.transform(expressionTransformer)
-            else
-                switched.specifier.expression.transform(expressionTransformer);
-
-        if (is SpecifiedVariable switched) {
-            assert(is Tree.Variable s = switched.get(keys.tcNode));
-            scope.store(s.declarationModel, expr);
-        }
-
-        Label[2] processCaseItem(CaseItem item) {
-            if (is IsCase item) {
-                /* TODO: Handle this correctly when we have metamodel types */
-                return scope.body.branch(I1Lit(0));
-            }
-
-            value branch = item.expressions.map((x) =>
-                    scope.body.compareEq(x.transform(expressionTransformer), expr))
-                .reduce<I1>((x, y) => scope.body.or(i1, x, y));
-
-            return scope.body.branch(branch);
-        }
-
-        value blocks = ArrayList<Label>();
-
-        for (clause in that.cases.caseClauses) {
-            value [trueBlock, falseBlock] = processCaseItem(clause.caseItem);
-            scope.body.block = trueBlock;
-            clause.block.visit(this);
-            blocks.add(scope.body.block);
-            scope.body.block = falseBlock;
-        }
-
-        if (exists e = that.cases.elseClause) {
-            e.child.visit(this);
-            scope.body.splitBlock();
-        }
-
-        value endPoint = scope.body.block;
-
-        for (block in blocks) {
-            scope.body.block = block;
-            if (! scope.body.blockTerminated()) {
-                scope.body.jump(endPoint);
-            }
-        }
-
-        scope.body.block = endPoint;
+        processSwitch(that, this);
     }
 
     void assignPattern(Pattern pattern, Ptr<I64Type> val,
