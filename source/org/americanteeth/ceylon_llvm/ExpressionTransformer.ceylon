@@ -565,4 +565,8 @@ class ExpressionTransformer(LLVMBuilder builder)
 
     shared actual Ptr<I64Type> transformOfOperation(OfOperation that)
         => that.operand.transform(this);
+
+    /* TODO: Implement iterable literals. */
+    shared actual Ptr<I64Type> transformIterable(Iterable that)
+        => llvmNull;
 }
