@@ -67,7 +67,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
 
 "Get the vtable setup function and interface resolver function for a given class."
 [LLVMFunction, LLVMFunction, LLVMGlobal<I64Type>*] vtSetupFunction(ClassModel model) {
-    value parent = model.extendedType.declaration;
+    value parent = model.extendedType?.declaration;
     value ret = LLVMFunction(setupName(model), null, "private", []);
     value interfaceResolver =
         LLVMFunction(resolverName(model), i64, "", [loc(ptr(i64), ".target")]);
@@ -75,7 +75,9 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
     value ifacePositions = HashMap<InterfaceModel,I64>();
     value ifacePositionStorage = ArrayList<LLVMGlobal<I64Type>>();
 
-    variable value vtSize = ret.loadGlobal(i64, vtSizeName(parent));
+    variable value vtSize = if (exists parent)
+        then ret.loadGlobal(i64, vtSizeName(parent))
+        else I64Lit(0);
     value vtParentSize = vtSize;
 
     "Perform the actual vtable allocation."
@@ -84,9 +86,11 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
         value vtable = ret.call(ptr(i64), "malloc", vtSizeBytes);
 
         value vtParentSizeBytes = ret.mul(vtParentSize, 8);
-        value parentVtable = ret.loadGlobal(ptr(i64), vtableName(parent));
-        ret.callVoid("llvm.memcpy.p0i64.p0i64.i64", vtable,
-                parentVtable, vtParentSizeBytes, I32Lit(8), I1Lit(0));
+        if (exists parent) {
+            value parentVtable = ret.loadGlobal(ptr(i64), vtableName(parent));
+            ret.callVoid("llvm.memcpy.p0i64.p0i64.i64", vtable,
+                    parentVtable, vtParentSizeBytes, I32Lit(8), I1Lit(0));
+        }
         return vtable;
     }
 
@@ -119,9 +123,14 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
         interfaceResolver.block = falseBlock;
     }
 
-    value parentInterfaceResolution = interfaceResolver.call(i64,
-            resolverName(parent), ifaceTarget);
-    interfaceResolver.ret(parentInterfaceResolution);
+    if (exists parent) {
+        value parentInterfaceResolution = interfaceResolver.call(i64,
+                resolverName(parent), ifaceTarget);
+        interfaceResolver.ret(parentInterfaceResolution);
+    } else {
+        interfaceResolver.callVoid("abort");
+        interfaceResolver.unreachable();
+    }
 
     value resolver = ret.global(interfaceResolverType,
             resolverName(model));

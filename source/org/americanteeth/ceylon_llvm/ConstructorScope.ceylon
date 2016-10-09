@@ -13,7 +13,7 @@ Integer constructorPriorityOffset = 65536;
 "Scope of a class body"
 class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
         extends CallableScope(model, initializerName, destroyer) {
-    value parent = model.extendedType.declaration;
+    value parent = model.extendedType?.declaration;
     shared actual void initFrame() {}
 
     "Our vtPosition variables that store the vtable offsets in the binary"
@@ -44,9 +44,9 @@ class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
 
     "The allocation offset for this item"
     shared actual I64 getAllocationOffset(Integer slot, LLVMFunction func) {
-        value parent = model.extendedType.declaration;
-
-        value shift = func.load(func.global(i64, sizeName(parent)));
+        value shift = if (exists parent)
+            then func.load(func.global(i64, sizeName(parent)))
+            else I64Lit(0);
         value ret = func.add(shift, slot);
         return ret;
     }
@@ -82,7 +82,9 @@ class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
         setupFunction.makeConstructor(priority + constructorPriorityOffset);
 
         value sizeGlobal = setupFunction.global(i64, sizeName(model));
-        value parentSize = setupFunction.loadGlobal(i64, sizeName(parent));
+        value parentSize = if (exists parent)
+            then setupFunction.loadGlobal(i64, sizeName(parent))
+            else I64Lit(0);
         value size = setupFunction.add(parentSize, allocatedBlocks);
         setupFunction.store(sizeGlobal, size);
 
