@@ -562,4 +562,7 @@ class ExpressionTransformer(LLVMBuilder builder)
         assert(exists ret = scope.body.getMarked(ptr(i64), that));
         return ret;
     }
+
+    shared actual Ptr<I64Type> transformOfOperation(OfOperation that)
+        => that.operand.transform(this);
 }
