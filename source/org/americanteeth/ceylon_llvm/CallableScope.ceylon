@@ -2,6 +2,9 @@ import com.redhat.ceylon.model.typechecker.model {
     ValueModel=Value,
     DeclarationModel=Declaration,
     InterfaceModel=Interface,
+    PackageModel=Package,
+    FunctionOrValueModel=FunctionOrValue,
+    ConstructorModel=Constructor,
     SetterModel=Setter,
     SpecificationModel=Specification,
     ClassOrInterfaceModel=ClassOrInterface
@@ -16,6 +19,32 @@ abstract class CallableScope(DeclarationModel model,
                 then [contextRegister]
                 else []);
 
+    DeclarationModel? getContainer(DeclarationModel d) {
+        variable value s = if (is SpecificationModel c = d.container)
+           then c.declaration
+           else d.container;
+
+        while (! is DeclarationModel k = s) {
+            if (is PackageModel k) {
+                return null;
+            }
+            s = k.container;
+        }
+
+        assert(is DeclarationModel ret = s);
+
+        if (is FunctionOrValueModel d,
+                d.type.declaration is ConstructorModel) {
+            return getContainer(ret);
+        }
+
+        if (is ValueModel d, !d.transient) {
+            return getContainer(ret);
+        }
+
+        return ret;
+    }
+
     "Return the frame pointer for the given declaration by starting from the
      current frame and following the context pointers."
     Ptr<I64Type>? climbContextStackTo(DeclarationModel container, Boolean sup) {
@@ -23,22 +52,7 @@ abstract class CallableScope(DeclarationModel model,
             return body.register(ptr(i64), frameName);
         }
 
-        function getContainerScope(DeclarationModel d)
-            => if (is SpecificationModel c = d.container)
-               then c.declaration
-               else d.container;
-
-        function getContainer(DeclarationModel d) {
-            variable value s = getContainerScope(d);
-
-            while (! is DeclarationModel k = s) {
-                s = k.container;
-            }
-
-            return s;
-        }
-
-        variable Anything visitedContainer = getContainer(model);
+        variable DeclarationModel? visitedContainer = getContainer(model);
         variable Ptr<I64Type> context = body.register(ptr(i64), contextName);
 
         function isMatch(DeclarationModel v)
@@ -46,14 +60,13 @@ abstract class CallableScope(DeclarationModel model,
                then v is ClassOrInterfaceModel
                else v == container;
 
-        while (is DeclarationModel v = visitedContainer, !isMatch(v)) {
+        while (exists v = visitedContainer, !isMatch(v)) {
             context = body.toPtr(body.load(context), i64);
             visitedContainer = getContainer(v);
         }
 
-        "We should always find a parent scope. We'll get to a 'Package' if we
-         don't"
-        assert (visitedContainer is DeclarationModel);
+        "We should not climb out of the package"
+        assert(visitedContainer exists);
 
         return context;
     }
@@ -67,7 +80,7 @@ abstract class CallableScope(DeclarationModel model,
             return body.register(ptr(i64), frameName);
         }
 
-        value container = declaration.container;
+        value container = getContainer(declaration);
 
         if (! is DeclarationModel container) {
             return null;
