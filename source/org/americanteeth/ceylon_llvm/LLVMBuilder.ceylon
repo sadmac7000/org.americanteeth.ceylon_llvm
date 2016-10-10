@@ -519,4 +519,8 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
             assignPattern(pattern.pattern, result, dec);
         }
     }
+
+    /* TODO: Constructors. */
+    shared actual void visitCallableConstructorDefinition(
+            CallableConstructorDefinition that) {}
 }
