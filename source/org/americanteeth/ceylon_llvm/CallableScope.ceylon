@@ -23,10 +23,20 @@ abstract class CallableScope(DeclarationModel model,
             return body.register(ptr(i64), frameName);
         }
 
-        function getContainer(DeclarationModel d)
+        function getContainerScope(DeclarationModel d)
             => if (is SpecificationModel c = d.container)
                then c.declaration
                else d.container;
+
+        function getContainer(DeclarationModel d) {
+            variable value s = getContainerScope(d);
+
+            while (! is DeclarationModel k = s) {
+                s = k.container;
+            }
+
+            return s;
+        }
 
         variable Anything visitedContainer = getContainer(model);
         variable Ptr<I64Type> context = body.register(ptr(i64), contextName);
