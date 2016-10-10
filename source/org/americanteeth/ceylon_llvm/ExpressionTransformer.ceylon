@@ -113,16 +113,33 @@ class ExpressionTransformer(LLVMBuilder builder)
         => scope.load(termGetDeclaration(that));
 
     shared actual Ptr<I64Type> transformQualifiedExpression(QualifiedExpression that) {
-        "TODO: Support fancy member operators"
-        assert (that.memberOperator is MemberOperator);
-
         value receiver = if (that.receiverExpression is Super)
             then scope.getContextFor(termGetDeclaration(that), true)
             else that.receiverExpression.transform(this);
 
         assert(exists receiver);
 
-        return scope.callI64(getterName(termGetDeclaration(that)), receiver);
+        function getResult()
+            => scope.callI64(getterName(termGetDeclaration(that)), receiver);
+
+        if (that.memberOperator is MemberOperator) {
+            return getResult();
+        }
+
+        "TODO: Support spread member operators"
+        assert(that.memberOperator is SafeMemberOperator);
+
+        scope.body.mark(that, llvmNull);
+        value comparison = scope.body.compareNE(receiver, llvmNull);
+        value [trueBlock, falseBlock] = scope.body.branch(comparison);
+
+        scope.body.block = trueBlock;
+        scope.body.mark(that, getResult());
+        scope.body.jump(falseBlock);
+
+        scope.body.block = falseBlock;
+        assert(exists ret = scope.body.getMarked(ptr(i64), that));
+        return ret;
     }
 
     shared actual Ptr<I64Type> transformThis(This that) {
