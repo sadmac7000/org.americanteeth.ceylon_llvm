@@ -72,7 +72,7 @@ class ExpressionTransformer(LLVMBuilder builder)
     }
 
     shared actual Ptr<I64Type> transformInvocation(Invocation that) {
-        "We don't support expression callables yet"
+        "TODO: support expression callables"
         assert (is BaseExpression|QualifiedExpression b = that.invoked);
 
         value declaration = termGetDeclaration(that.invoked);
@@ -116,8 +116,13 @@ class ExpressionTransformer(LLVMBuilder builder)
         "TODO: Support fancy member operators"
         assert (that.memberOperator is MemberOperator);
 
-        return scope.callI64(getterName(termGetDeclaration(that)),
-                that.receiverExpression.transform(this));
+        value receiver = if (that.receiverExpression is Super)
+            then scope.getContextFor(termGetDeclaration(that), true)
+            else that.receiverExpression.transform(this);
+
+        assert(exists receiver);
+
+        return scope.callI64(getterName(termGetDeclaration(that)), receiver);
     }
 
     shared actual Ptr<I64Type> transformThis(This that) {
