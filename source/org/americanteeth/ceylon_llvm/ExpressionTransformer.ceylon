@@ -584,4 +584,8 @@ class ExpressionTransformer(LLVMBuilder builder)
     /* TODO: Fill this in once we have type meta stuff */
     shared actual Ptr<I64Type> transformIsOperation(IsOperation that)
         => llvmNull;
+
+    /* TODO: Implement the metamodel */
+    shared actual Ptr<I64Type> transformTypeMeta(TypeMeta that)
+        => llvmNull;
 }
