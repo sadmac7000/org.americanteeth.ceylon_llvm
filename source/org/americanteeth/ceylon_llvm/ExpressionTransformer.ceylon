@@ -78,10 +78,6 @@ class ExpressionTransformer(LLVMBuilder builder)
         value declaration = termGetDeclaration(that.invoked);
         value arguments = ArrayList<Ptr<I64Type>>();
 
-        /* TODO */
-        "We don't support named arguments yet"
-        assert (is PositionalArguments pa = that.arguments);
-
         /* TODO: Sequence arguments */
 
         value sup = if (is QualifiedExpression b, b.receiverExpression is Super)
@@ -102,8 +98,12 @@ class ExpressionTransformer(LLVMBuilder builder)
             functionName = declarationName(declaration);
         }
 
-        for (arg in pa.argumentList.listedArguments) {
-            arguments.add(arg.transform(this));
+        if (is PositionalArguments pa = that.arguments) {
+            for (arg in pa.argumentList.listedArguments) {
+                arguments.add(arg.transform(this));
+            }
+        } else {
+            /* TODO: Support named arguments */
         }
 
         return scope.callI64(functionName, *arguments);
