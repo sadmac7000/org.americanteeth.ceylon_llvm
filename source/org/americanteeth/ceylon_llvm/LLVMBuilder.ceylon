@@ -494,8 +494,17 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
         }
     }
 
-    shared actual void visitDestructure(Destructure d)
-        => assignPattern(d.pattern,
-                d.specifier.expression.transform(expressionTransformer),
-                termGetType(d.specifier.expression).declaration);
+    shared actual void visitDestructure(Destructure that)
+        => assignPattern(that.pattern,
+                that.specifier.expression.transform(expressionTransformer),
+                termGetType(that.specifier.expression).declaration);
+
+    shared actual void visitPatternList(PatternList that) {
+        for (pattern in that.patterns) {
+            value result =
+                pattern.specifier.expression.transform(expressionTransformer);
+            value dec = termGetType(pattern.specifier.expression).declaration;
+            assignPattern(pattern.pattern, result, dec);
+        }
+    }
 }

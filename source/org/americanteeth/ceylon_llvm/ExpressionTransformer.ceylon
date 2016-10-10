@@ -569,4 +569,10 @@ class ExpressionTransformer(LLVMBuilder builder)
     /* TODO: Implement iterable literals. */
     shared actual Ptr<I64Type> transformIterable(Iterable that)
         => llvmNull;
+
+    shared actual Ptr<I64Type> transformLetExpression(LetExpression that) {
+        that.patterns.visit(builder);
+
+        return that.expression.transform(this);
+    }
 }
