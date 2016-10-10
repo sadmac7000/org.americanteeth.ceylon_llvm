@@ -61,6 +61,18 @@ class ExpressionTransformer(LLVMBuilder builder)
         return result.string;
     }
 
+    Boolean isSuper(Node that) {
+        if (is Super that) {
+            return true;
+        } else if (is OfOperation that) {
+            return isSuper(that.operand);
+        } else if (is GroupedExpression that) {
+            return isSuper(that.innerExpression);
+        } else {
+            return false;
+        }
+    }
+
     shared actual Nothing transformNode(Node that) {
         throw UnsupportedNode(that);
     }
@@ -80,11 +92,12 @@ class ExpressionTransformer(LLVMBuilder builder)
 
         /* TODO: Sequence arguments */
 
-        value sup = if (is QualifiedExpression b, b.receiverExpression is Super)
+        value sup = if (is QualifiedExpression b, isSuper(b.receiverExpression))
             then true else false;
 
         if (is QualifiedExpression b,
-            ! b.receiverExpression is Super|Package|This) {
+            ! b.receiverExpression is Package|This,
+            ! isSuper(b.receiverExpression)) {
             arguments.add(b.receiverExpression.transform(this));
         } else if (exists f = scope.getContextFor(declaration, sup)) {
             arguments.add(f);
@@ -92,7 +105,7 @@ class ExpressionTransformer(LLVMBuilder builder)
 
         String functionName;
 
-        if (is QualifiedExpression b, b.receiverExpression is Super) {
+        if (is QualifiedExpression b, isSuper(b.receiverExpression)) {
             functionName = dispatchName(declaration);
         } else {
             functionName = declarationName(declaration);
@@ -113,7 +126,7 @@ class ExpressionTransformer(LLVMBuilder builder)
         => scope.load(termGetDeclaration(that));
 
     shared actual Ptr<I64Type> transformQualifiedExpression(QualifiedExpression that) {
-        value receiver = if (that.receiverExpression is Super)
+        value receiver = if (isSuper(that.receiverExpression))
             then scope.getContextFor(termGetDeclaration(that), true)
             else that.receiverExpression.transform(this);
 
@@ -604,5 +617,9 @@ class ExpressionTransformer(LLVMBuilder builder)
 
     /* TODO: Implement the metamodel */
     shared actual Ptr<I64Type> transformTypeMeta(TypeMeta that)
+        => llvmNull;
+
+    /* TODO: Implement float literals */
+    shared actual Ptr<I64Type> transformFloatLiteral(FloatLiteral that)
         => llvmNull;
 }
