@@ -129,7 +129,18 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
     shared actual void visitValueSpecification(ValueSpecification that) {
         assert(is Tree.SpecifierStatement tc = that.get(keys.tcNode));
 
-        assert(is ValueModel model = tc.declaration);
+        ValueModel model;
+
+        if (that.qualifier exists ) {
+            assert(is Tree.QualifiedMemberExpression qme =
+                    tc.baseMemberExpression);
+            assert(is ValueModel mod = qme.declaration);
+            model = mod;
+        } else {
+            assert(is ValueModel mod = tc.declaration);
+            model = mod;
+        }
+
         value setting =
             that.specifier.expression.transform(expressionTransformer);
 
