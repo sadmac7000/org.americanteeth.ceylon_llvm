@@ -580,4 +580,8 @@ class ExpressionTransformer(LLVMBuilder builder)
 
         return that.expression.transform(this);
     }
+
+    /* TODO: Fill this in once we have type meta stuff */
+    shared actual Ptr<I64Type> transformIsOperation(IsOperation that)
+        => llvmNull;
 }

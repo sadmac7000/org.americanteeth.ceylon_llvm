@@ -125,6 +125,7 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
     shared actual void visitModuleCompilationUnit(ModuleCompilationUnit that) {}
     shared actual void visitPackageCompilationUnit(PackageCompilationUnit that) {}
     shared actual void visitAnnotations(Annotations that) {}
+    shared actual void visitTypeAliasDefinition(TypeAliasDefinition that) {}
 
     shared actual void visitValueSpecification(ValueSpecification that) {
         assert(is Tree.SpecifierStatement tc = that.get(keys.tcNode));
