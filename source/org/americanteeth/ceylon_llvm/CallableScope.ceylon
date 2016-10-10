@@ -3,6 +3,7 @@ import com.redhat.ceylon.model.typechecker.model {
     DeclarationModel=Declaration,
     InterfaceModel=Interface,
     SetterModel=Setter,
+    SpecificationModel=Specification,
     ClassOrInterfaceModel=ClassOrInterface
 }
 
@@ -22,7 +23,12 @@ abstract class CallableScope(DeclarationModel model,
             return body.register(ptr(i64), frameName);
         }
 
-        variable Anything visitedContainer = model.container;
+        function getContainer(DeclarationModel d)
+            => if (is SpecificationModel c = d.container)
+               then c.declaration
+               else d.container;
+
+        variable Anything visitedContainer = getContainer(model);
         variable Ptr<I64Type> context = body.register(ptr(i64), contextName);
 
         function isMatch(DeclarationModel v)
@@ -32,7 +38,7 @@ abstract class CallableScope(DeclarationModel model,
 
         while (is DeclarationModel v = visitedContainer, !isMatch(v)) {
             context = body.toPtr(body.load(context), i64);
-            visitedContainer = v.container;
+            visitedContainer = getContainer(v);
         }
 
         "We should always find a parent scope. We'll get to a 'Package' if we
