@@ -28,6 +28,8 @@ class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
         LLVMGlobal(sizeName(model), I64Lit(0))
     ];
 
+    value basicParameters = parameterListToLLVMValues(model.parameterList);
+
     "Constructor arguments."
     [AnyLLVMValue*] arguments {
         value prepend =
@@ -35,8 +37,7 @@ class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
             then [contextRegister, frameRegister]
             else [frameRegister];
 
-        return prepend.chain(parameterListToLLVMValues(model.parameterList))
-            .sequence();
+        return prepend.prepend(basicParameters);
     }
 
     shared actual LLVMFunction body
@@ -53,9 +54,11 @@ class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
 
     "Our direct-call constructor that allocates the new object with malloc"
     LLVMDeclaration directConstructor() {
-        value directConstructor = LLVMFunction(declarationName(model), ptr(i64
-            ),
-            "", parameterListToLLVMValues(model.parameterList));
+        value fullParameters = if (model.toplevel)
+            then basicParameters
+            else [contextRegister].prepend(basicParameters);
+        value directConstructor = LLVMFunction(declarationName(model),
+                ptr(i64), "", fullParameters);
         value size = directConstructor.load(directConstructor.global(i64,
                 sizeName(model)));
         value bytes = directConstructor.mul(size, 8);
