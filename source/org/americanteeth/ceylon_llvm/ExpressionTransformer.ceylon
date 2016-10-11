@@ -572,7 +572,10 @@ class ExpressionTransformer(LLVMBuilder builder)
             d.body.visit(builder);
         }
 
-        return scope.callI64(declarationName(tc.anonymousClass));
+        value context = scope.getContextFor(tc.anonymousClass);
+
+        return scope.callI64(declarationName(tc.anonymousClass),
+                *{context}.coalesced);
     }
 
     shared actual Ptr<I64Type> transformSwitchClause(SwitchClause that) {
