@@ -104,6 +104,10 @@ abstract class Scope(Anything(Scope) destroyer)
             return;
         }
 
+        if (allocations.defines(declaration)) {
+            return;
+        }
+
         value newPosition = allocationBlock++;
         allocations.put(declaration, newPosition);
 
