@@ -44,11 +44,16 @@ class UnitScope() extends Scope((Anything x) => null) {
 
         value name = declarationName(declaration);
 
-        globalVariables.add(LLVMGlobal(name, startValue else llvmNull));
+        globalVariables.add(LLVMGlobal(name, llvmNull));
         mutators.add(getterFor(declaration));
 
         if (declaration.\ivariable) {
             mutators.add(setterFor(declaration));
+            if (exists startValue) {
+                body.call(ptr(i64), setterName(declaration), startValue);
+            }
+        } else if (exists startValue){
+            body.storeGlobal(declarationName(declaration), startValue);
         }
     }
 
