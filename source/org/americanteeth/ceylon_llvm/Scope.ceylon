@@ -104,6 +104,10 @@ abstract class Scope(Anything(Scope) destroyer)
             return;
         }
 
+        if (declaration.\iformal) {
+            return;
+        }
+
         if (allocations.defines(declaration)) {
             return;
         }
