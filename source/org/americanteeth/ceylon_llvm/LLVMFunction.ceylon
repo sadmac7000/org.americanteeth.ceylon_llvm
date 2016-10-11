@@ -1,9 +1,7 @@
 import ceylon.collection {
     ArrayList,
-    MutableSet,
     HashSet,
-    HashMap,
-    unmodifiableSet
+    HashMap
 }
 
 "An LLVM function declaration."
@@ -96,32 +94,80 @@ class LLVMFunction(String n, shared LLVMType? returnType,
         "Marked values."
         value marks = HashMap<Object,AnyLLVMValue>();
 
+        "Blocks that jump to this block."
+        value predecessors = HashSet<Block>();
+
+        "Phi node."
+        class Phi<out T>(shared Object key, shared LLVMValue<T> val,
+                shared Block owner)
+            given T satisfies LLVMType
+        {
+            value results = ArrayList<String>();
+            value resultPhi = ArrayList<Phi<T>>();
+
+            void addResult(LLVMValue<T> val, Block predecessor)
+                => results.add("[``val.identifier``, \
+                                ``predecessor.label.identifier``]");
+
+            shared void notePredecessor(Block predecessor) {
+                value val = predecessor.getMarkedOrPhi(this.val.type, key);
+
+                if (is Phi<T> val) {
+                    resultPhi.add(val);
+                } else {
+                    addResult(val, predecessor);
+                }
+            }
+
+            variable Boolean inValid = false;
+
+            void processPhiResults() {
+                while (exists node = resultPhi.findAndRemoveLast((x) =>
+                            x.valid)) {
+                    addResult(node.val, node.owner);
+                }
+            }
+
+            shared Boolean valid {
+                if (inValid) {
+                    return true;
+                }
+
+                inValid = true;
+                processPhiResults();
+                inValid = false;
+
+                return !results.empty;
+            }
+
+            string => "``val.identifier`` = phi ``val.type`` "
+                + ", ".join(results);
+        }
+
         "Phi'd values."
-        value phis = HashMap<Object,AnyLLVMValue>();
+        value phis = HashMap<Object,Phi<LLVMType>>();
+
+        "Mark that another block jumps to this block."
+        shared void addPredecessor(Block predecessor) {
+            if (predecessor in predecessors) {
+                return;
+            }
+
+            for (key->phi in phis) {
+                phi.notePredecessor(predecessor);
+            }
+
+            predecessors.add(predecessor);
+        }
 
         "Read accessor for terminated_."
         shared Boolean terminated => terminated_;
 
-        value successors_ = HashSet<Block>();
-        shared Set<Block> successors => unmodifiableSet(successors_);
-
-        shared MutableSet<Block> predecessors = HashSet<Block>();
-
-        String explode() { assert(false); }
-        [String*] phiNodes() => phis.map((x) {
-            value key->val = x;
-            return "``val.identifier`` = phi ``val.typeName`` " +
-                ", ".join(predecessors.map((y) => [y.label, y.getForPhi(key, true)])
-                    .select((y) => y[1] exists)
-                    .map((y) => "[``y[1]?.identifier else explode()``, ``y[0].identifier``]"));
-        }).sequence();
-
         "Accessor for instructions with appended default return."
         shared [String*] instructions =>
             if (terminated)
-            then instructions_.sequence().prepend(phiNodes())
-            else instructions_.sequence().prepend(phiNodes())
-                .withTrailing(stubReturn);
+            then instructions_.sequence()
+            else instructions_.sequence().withTrailing(stubReturn);
 
         "Add an instruction to this logical block."
         shared void instruction(String instruction) {
@@ -130,15 +176,25 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             instructions_.add(instruction);
         }
 
+        value phiNodes
+            => phis.items.select((x) => x.valid).collect(Object.string);
+
         string => "``label.tag``:\n    "
-                + "\n    ".join(instructions);
+                + "\n    ".join(phiNodes.append(instructions));
 
         shared void mark(Object key, AnyLLVMValue val) {
+            assert(!terminated);
             marks[key] = val;
         }
 
-        shared LLVMValue<T> getMarked<T>(T t, Object key)
+        LLVMValue<T>|Phi<T> getMarkedOrPhi<T>(T t, Object key)
                 given T satisfies LLVMType {
+            if (exists p = phis[key]) {
+                "Mark should be retrieved with the same type it was set as."
+                assert(is Phi<T> p);
+                return p;
+            }
+
             if (exists m = marks[key]) {
                 "Mark should be retrieved with the same type it was set as."
                 assert(is LLVMValue<T> m);
@@ -146,38 +202,26 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             }
 
             value ret = register(t);
-            phis[key] = ret;
             marks[key] = ret;
-            return ret;
+            value phi = Phi(key, ret, this);
+            phis[key] = phi;
+
+            for (predecessor in predecessors) {
+                phi.notePredecessor(predecessor);
+            }
+
+            return phi;
         }
 
-        variable Boolean inGetForPhi = false;
-        shared AnyLLVMValue? getForPhi(Object key,
-                Boolean root) {
-            if (inGetForPhi) {
-                return null;
+        shared LLVMValue<T> getMarked<T>(T t, Object key)
+                given T satisfies LLVMType {
+            value ret = getMarkedOrPhi(t, key);
+            
+            if (is Phi<T> ret) {
+                return ret.val;
             }
 
-
-            if (exists m = marks[key]) {
-                return m;
-            }
-
-            variable AnyLLVMValue? lastFound = null;
-            inGetForPhi = !root;
-            for (p in predecessors) {
-                if (exists v = p.getForPhi(key, false)) {
-                    if (exists l = lastFound) {
-                        lastFound = getMarked(v.type, key);
-                        break;
-                    } else {
-                        lastFound = v;
-                    }
-                }
-            }
-            inGetForPhi = false;
-
-            return lastFound;
+            return ret;
         }
 
         "Mark that we've had a terminating instruction."
@@ -185,10 +229,9 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             "Block should not be terminated twice."
             assert (!terminated);
             terminated_ = true;
-            successors_.addAll(successors);
 
             for (successor in successors) {
-                successor.predecessors.add(this);
+                successor.addPredecessor(this);
             }
         }
     }
