@@ -37,7 +37,7 @@ class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
             then [contextRegister, frameRegister]
             else [frameRegister];
 
-        return prepend.prepend(basicParameters);
+        return prepend.append(basicParameters);
     }
 
     shared actual LLVMFunction body
@@ -56,7 +56,7 @@ class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
     LLVMDeclaration directConstructor() {
         value fullParameters = if (model.toplevel)
             then basicParameters
-            else [contextRegister].prepend(basicParameters);
+            else [contextRegister].append(basicParameters);
         value directConstructor = LLVMFunction(declarationName(model),
                 ptr(i64), "", fullParameters);
         value size = directConstructor.load(directConstructor.global(i64,
