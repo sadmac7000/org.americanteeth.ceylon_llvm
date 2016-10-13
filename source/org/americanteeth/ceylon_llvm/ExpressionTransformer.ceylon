@@ -138,13 +138,7 @@ class ExpressionTransformer(LLVMBuilder builder)
                 arguments.add(arg);
             }
 
-            if (!leftOverArguments.empty) {
-                "Remaining arguments should go to a sequenced parameter."
-                assert(exists sequencedParameter);
-
-                arguments.add(makeTuple(leftOverArguments,
-                            getSpreadArg(pa.argumentList)[0]));
-            } else if (pa.argumentList.sequenceArgument exists , !leftOverParameters.empty) {
+            if (pa.argumentList.sequenceArgument exists , !leftOverParameters.empty) {
                 value [spreadArg, type] = getSpreadArg(pa.argumentList);
                 value finishedObject = getLanguageValue("finished");
                 value iteration = Iteration(spreadArg, type);
@@ -172,6 +166,15 @@ class ExpressionTransformer(LLVMBuilder builder)
                 for (parameter in leftOverParameters) {
                     arguments.add(defaulted);
                 }
+            } else if (!leftOverArguments.empty) {
+                "Remaining arguments should go to a sequenced parameter."
+                assert(exists sequencedParameter);
+
+                arguments.add(makeTuple(leftOverArguments,
+                            getSpreadArg(pa.argumentList)[0]));
+            } else if (exists sequencedParameter,
+                    pa.argumentList.sequenceArgument exists) {
+                arguments.add(getSpreadArg(pa.argumentList)[0]);
             }
         } else {
             /* TODO: Support named arguments */
