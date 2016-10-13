@@ -16,18 +16,15 @@ import com.redhat.ceylon.compiler.typechecker.tree {
 
 import com.redhat.ceylon.model.typechecker.model {
     DeclarationModel=Declaration,
-    TypeDeclaration,
     FunctionModel=Function,
     FunctionOrValueModel=FunctionOrValue,
     ValueModel=Value,
-    ClassModel=Class,
-    InterfaceModel=Interface,
     SetterModel=Setter,
     PackageModel=Package
 }
 
-class LLVMBuilder(String triple, shared PackageModel languagePackage)
-        satisfies Visitor {
+class LLVMBuilder(String triple, shared actual PackageModel languagePackage)
+        satisfies Visitor&CodeWriter {
     "Prefix for all units"
     String preamble = "%.constructor_type = type { i32, void ()* }
                        target triple = \"``triple``\"\n\n";
@@ -51,16 +48,16 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
     value scopeStack = ArrayList<Scope>();
 
     "The current scope"
-    shared Scope scope => scopeStack.last else unitScope;
+    shared actual Scope scope => scopeStack.last else unitScope;
 
     "Push a new scope"
-    T push<T>(T m) given T satisfies Scope {
+    shared actual T push<T>(T m) given T satisfies Scope {
         scopeStack.add(m);
         return m;
     }
 
     "pop a scope"
-    void pop(Scope check) {
+    shared actual void pop(Scope check) {
         "We must pop no more scopes than we push"
         assert (exists scope = scopeStack.deleteLast());
 
@@ -72,21 +69,10 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
         }
     }
 
-    shared GetterScope getterScope(ValueModel model)
-        => push(GetterScope(model, pop));
-    shared SetterScope setterScope(SetterModel model)
-        => push(SetterScope(model, pop));
-    shared ConstructorScope constructorScope(ClassModel model)
-        => push(ConstructorScope(model, pop));
-    shared FunctionScope functionScope(FunctionModel model)
-        => push(FunctionScope(model, pop));
-    shared InterfaceScope interfaceScope(InterfaceModel model)
-        => push(InterfaceScope(model, pop));
-
     variable ExpressionTransformer? expressionTransformer_ = null;
 
     "Our expression transformer"
-    shared ExpressionTransformer expressionTransformer
+    shared actual ExpressionTransformer expressionTransformer
         => expressionTransformer_ else (expressionTransformer_ =
             ExpressionTransformer(this));
 
@@ -342,22 +328,12 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
 
     shared actual void visitForFail(ForFail that) {
         value iteratedNode = that.forClause.iterator.iterated;
-        assert(is FunctionModel iteratorGetter
-                = termGetMember(iteratedNode, "iterator"));
-        value iterated = iteratedNode.transform(expressionTransformer);
-        value iteratorType = iteratorGetter.type.declaration;
-        value iteratorNext = iteratorType.getDirectMember("next", null, false);
-        value finishedDec = languagePackage.getDirectMember("finished", null,
-                false);
-        value finishedVal = scope.callI64(getterName(finishedDec));
-
-        value iterator = scope.callI64(declarationName(iteratorGetter),
-                iterated);
+        value iteration = Iteration(iteratedNode);
+        value finishedVal = getLanguageValue("finished");
 
         value loopStart = scope.body.splitBlock();
 
-        value nextValue = scope.callI64(declarationName(iteratorNext),
-                iterator);
+        value nextValue = iteration.getNext();
 
         value comparison = scope.body.compareEq(nextValue, finishedVal);
         value [loopEnd, loopBody] = scope.body.branch(comparison);
@@ -373,16 +349,10 @@ class LLVMBuilder(String triple, shared PackageModel languagePackage)
         }
 
         scope.body.block = loopBody;
-        assert(is TypeDeclaration iterableTypeDeclaration =
-            languagePackage.getDirectMember("Iterable", null, false));
-        value iteratedAsInterface =
-            termGetType(iteratedNode).getSupertype(iterableTypeDeclaration);
-        assert(exists param = iterableTypeDeclaration.typeParameters.get(0));
-        assert(exists elementType = iteratedAsInterface.typeArguments[param]);
 
         try (scope.LoopContext(loopStart, breakPosition)) {
             assignPattern(that.forClause.iterator.pattern, nextValue,
-                    elementType.declaration);
+                    iteration.elementType.declaration);
             that.forClause.block.visit(this);
         }
 
