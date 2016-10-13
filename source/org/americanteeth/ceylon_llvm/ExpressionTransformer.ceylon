@@ -7,17 +7,24 @@ import ceylon.collection {
     HashMap
 }
 
+import ceylon.interop.java {
+    CeylonList
+}
+
 import com.redhat.ceylon.compiler.typechecker.tree {
     Tree
 }
 
 import com.redhat.ceylon.model.typechecker.model {
-    DeclarationModel=Declaration,
-    FunctionOrValueModel=FunctionOrValue
+    FunctionOrValueModel=FunctionOrValue,
+    FunctionalModel=Functional,
+    PackageModel=Package,
+    TypeModel=Type,
+    ValueModel=Value
 }
 
 class ExpressionTransformer(LLVMBuilder builder)
-        satisfies WideningTransformer<Ptr<I64Type>> {
+        satisfies WideningTransformer<Ptr<I64Type>>&CodeWriter {
 
     "The next string literal ID available"
     variable value nextStringLiteral = 0;
@@ -25,15 +32,11 @@ class ExpressionTransformer(LLVMBuilder builder)
     "A table of all string literals"
     value stringLiterals = HashMap<Integer,String>();
 
-    value scope => builder.scope;
-
-    "Get a declaration from the language package"
-    DeclarationModel getLanguageDeclaration(String name)
-        => builder.languagePackage.getDirectMember(name, null, false);
-
-    "Get a value from the root of the language module."
-    Ptr<I64Type> getLanguageValue(String name)
-        => scope.callI64(getterName(getLanguageDeclaration(name)));
+    shared actual Scope scope => builder.scope;
+    shared actual ExpressionTransformer expressionTransformer => this;
+    shared actual T push<T>(T m) given T satisfies Scope => builder.push(m);
+    shared actual void pop(Scope check) => builder.pop(check);
+    shared actual PackageModel languagePackage => builder.languagePackage;
 
     "Check whether a value is ceylonically true. I.e. convert a Ceylon Boolean
      to an LLVM I1."
@@ -84,36 +87,91 @@ class ExpressionTransformer(LLVMBuilder builder)
     }
 
     shared actual Ptr<I64Type> transformInvocation(Invocation that) {
-        "TODO: support expression callables"
-        assert (is BaseExpression|QualifiedExpression b = that.invoked);
+        value invoked = that.invoked;
+        value declaration = termGetDeclaration(invoked);
 
-        value declaration = termGetDeclaration(that.invoked);
+        if (! is FunctionalModel declaration) {
+            value args = that.arguments.transform(this);
+            value callable = that.invoked.transform(this);
+            return scope.callI64("__ceylon_invoke_callable", callable, args);
+        }
+
         value arguments = ArrayList<Ptr<I64Type>>();
 
-        /* TODO: Sequence arguments */
-
-        value sup = if (is QualifiedExpression b, isSuper(b.receiverExpression))
+        value sup = if (is QualifiedExpression invoked,
+                isSuper(invoked.receiverExpression))
             then true else false;
 
-        if (is QualifiedExpression b,
-            ! b.receiverExpression is Package|This,
-            ! isSuper(b.receiverExpression)) {
-            arguments.add(b.receiverExpression.transform(this));
+        if (is QualifiedExpression invoked,
+            ! invoked.receiverExpression is Package|This,
+            ! isSuper(invoked.receiverExpression)) {
+            arguments.add(invoked.receiverExpression.transform(this));
         } else if (exists f = scope.getContextFor(declaration, sup)) {
             arguments.add(f);
         }
 
-        String functionName;
+        value functionName = if (is QualifiedExpression invoked,
+                isSuper(invoked.receiverExpression))
+            then dispatchName(declaration)
+            else declarationName(declaration);
 
-        if (is QualifiedExpression b, isSuper(b.receiverExpression)) {
-            functionName = dispatchName(declaration);
-        } else {
-            functionName = declarationName(declaration);
-        }
+        value parameterList =
+            ArrayList{*CeylonList(declaration.firstParameterList.parameters)};
+
+        value sequencedParameter = if (exists p = parameterList.last, p.sequenced)
+            then parameterList.deleteLast()
+            else null;
 
         if (is PositionalArguments pa = that.arguments) {
-            for (arg in pa.argumentList.listedArguments) {
-                arguments.add(arg.transform(this));
+            value argValues = pa.argumentList.listedArguments.collect(
+                    (x) => x.transform(this));
+            value serialArguments = argValues.spanTo(parameterList.size);
+            value leftOverArguments = argValues.spanFrom(parameterList.size);
+            value leftOverParameters =
+                parameterList.spanFrom(serialArguments.size);
+
+            "We should only be left with unused arguments
+             OR unbound parameters."
+            assert(leftOverParameters.empty || leftOverArguments.empty);
+
+            for (arg in serialArguments) {
+                arguments.add(arg);
+            }
+
+            if (!leftOverArguments.empty) {
+                "Remaining arguments should go to a sequenced parameter."
+                assert(exists sequencedParameter);
+
+                arguments.add(makeTuple(leftOverArguments,
+                            getSpreadArg(pa.argumentList)[0]));
+            } else if (pa.argumentList.sequenceArgument exists , !leftOverParameters.empty) {
+                value [spreadArg, type] = getSpreadArg(pa.argumentList);
+                value finishedObject = getLanguageValue("finished");
+                value iteration = Iteration(spreadArg, type);
+                value defaulted = scope.body.loadGlobal(ptr(i64),
+                        "__ceylon_default_poison");
+
+                for (parameter in leftOverParameters) {
+                    value nextArg = iteration.getNext();
+                    value checkFinished = scope.body.compareEq(nextArg,
+                            finishedObject);
+                    arguments.add(scope.body.select(checkFinished, ptr(i64),
+                                defaulted, nextArg));
+                }
+
+                if (pa.argumentList.sequenceArgument exists) {
+                    value spanFrom = type.declaration.getMember("spanFrom", null,
+                            false);
+
+                    arguments.add(scope.callI64(declarationName(spanFrom),
+                                spreadArg, I64Lit(leftOverParameters.size)));
+                }
+            } else if (!leftOverParameters.empty) {
+                value defaulted = scope.body.loadGlobal(ptr(i64),
+                        "__ceylon_default_poison");
+                for (parameter in leftOverParameters) {
+                    arguments.add(defaulted);
+                }
             }
         } else {
             /* TODO: Support named arguments */
@@ -501,19 +559,40 @@ class ExpressionTransformer(LLVMBuilder builder)
         return ret;
     }
 
-    shared actual Ptr<I64Type> transformTuple(Tuple that) {
+    Ptr<I64Type> makeTuple([Ptr<I64Type>*] values,
+            variable Ptr<I64Type> end) {
         value tupleClass = getLanguageDeclaration("Tuple");
-        value emptyObject = getLanguageValue("empty");
 
-        /* TODO: support spread and comprehension arguments in tuples */
-        variable Ptr<I64Type> end = emptyObject;
-
-        for (item in that.argumentList.listedArguments.reversed) {
-            end = scope.callI64(declarationName(tupleClass), item.transform(this), end);
+        for (item in values.reversed) {
+            end = scope.callI64(declarationName(tupleClass), item, end);
         }
 
         return end;
     }
+
+    value emptyType {
+        assert(is ValueModel v = getLanguageDeclaration("empty"));
+        return v.type;
+    }
+
+    /* TODO: support comprehension arguments in tuples */
+    [Ptr<I64Type>,TypeModel] getSpreadArg(ArgumentList that)
+        => switch (s = that.sequenceArgument)
+            case (is SpreadArgument)
+                [scope.callI64(termGetMemberName(s.argument, "sequence"),
+                        s.argument.transform(this)), termGetType(s.argument)]
+            else [getLanguageValue("empty"), emptyType];
+
+    shared actual Ptr<I64Type> transformTuple(Tuple that)
+        => that.argumentList.transform(this);
+
+    shared actual Ptr<I64Type> transformPositionalArguments(
+            PositionalArguments that)
+        => that.argumentList.transform(this);
+
+    shared actual Ptr<I64Type> transformArgumentList(ArgumentList that)
+        => makeTuple(that.listedArguments.collect((x) => x.transform(this)),
+                getSpreadArg(that)[0]);
 
     /* TODO: Character literals */
     shared actual Ptr<I64Type> transformCharacterLiteral(CharacterLiteral that)

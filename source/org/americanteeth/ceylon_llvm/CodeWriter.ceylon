@@ -40,28 +40,27 @@ interface CodeWriter {
     shared Ptr<I64Type> getLanguageValue(String name)
         => scope.callI64(getterName(getLanguageDeclaration(name)));
 
-    shared class Iteration(Node iteratedNode) {
+    shared class Iteration(shared Ptr<I64Type> iterator,
+            shared TypeModel iterableType) {
         assert(is FunctionModel iteratorGetter
-                = termGetMember(iteratedNode, "iterator"));
+                = iterableType.declaration.getMember("iterator", null, false));
         value iteratorNext =
             iteratorGetter.type.declaration.getDirectMember("next", null, false);
 
         assert(is TypeDeclaration iterableTypeDeclaration =
             languagePackage.getDirectMember("Iterable", null, false));
         value iteratedAsInterface =
-            termGetType(iteratedNode).getSupertype(iterableTypeDeclaration);
+            iterableType.getSupertype(iterableTypeDeclaration);
         assert(exists param = iterableTypeDeclaration.typeParameters.get(0));
         assert(exists et = iteratedAsInterface.typeArguments[param]);
 
         shared TypeModel elementType = et;
-
-        shared Ptr<I64Type> iterator = scope.callI64(
-                termGetMemberName(iteratedNode, "iterator"),
-                iteratedNode.transform(expressionTransformer));
 
         shared Ptr<I64Type> getNext()
             => scope.callI64(declarationName(iteratorNext),
                 iterator);
     }
 
+    shared Iteration iterationForNode(Node n)
+        => Iteration(n.transform(expressionTransformer), termGetType(n));
 }

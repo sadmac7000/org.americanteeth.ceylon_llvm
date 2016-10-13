@@ -16,9 +16,8 @@ import ceylon.interop.java {
 }
 
 "Get a declaration for a member of the type of a given term node."
-DeclarationModel termGetMember(Node that, String member) {
-    return termGetType(that).declaration.getMember(member, null, false);
-}
+DeclarationModel termGetMember(Node that, String member)
+    => termGetType(that).declaration.getMember(member, null, false);
 
 "Get the fully-qualified name of a member of the type of a given term node."
 String termGetMemberName(Node that, String member)

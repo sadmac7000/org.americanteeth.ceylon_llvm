@@ -328,7 +328,7 @@ class LLVMBuilder(String triple, shared actual PackageModel languagePackage)
 
     shared actual void visitForFail(ForFail that) {
         value iteratedNode = that.forClause.iterator.iterated;
-        value iteration = Iteration(iteratedNode);
+        value iteration = iterationForNode(iteratedNode);
         value finishedVal = getLanguageValue("finished");
 
         value loopStart = scope.body.splitBlock();
