@@ -38,7 +38,7 @@ abstract class CallableScope(DeclarationModel model,
             return getContainer(ret);
         }
 
-        if (is ValueModel d, !d.transient) {
+        if (is ValueModel ret, !ret.transient) {
             return getContainer(ret);
         }
 
