@@ -131,7 +131,11 @@ class LLVMBuilder(String triple, shared actual PackageModel languagePackage)
         value setting =
             that.specifier.expression.transform(expressionTransformer);
 
-        scope.allocate(model, setting);
+        if (scope.owns(model)) {
+            scope.allocate(model, setting);
+        } else {
+            scope.store(model, setting);
+        }
     }
 
     shared actual void visitLazySpecification(LazySpecification that) {

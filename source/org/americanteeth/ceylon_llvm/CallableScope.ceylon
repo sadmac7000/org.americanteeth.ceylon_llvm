@@ -45,6 +45,11 @@ abstract class CallableScope(DeclarationModel model,
         return ret;
     }
 
+    shared actual Boolean owns(DeclarationModel d)
+        => if (exists c = getContainer(d), c == model)
+            then true
+            else false;
+
     "Return the frame pointer for the given declaration by starting from the
      current frame and following the context pointers."
     Ptr<I64Type>? climbContextStackTo(DeclarationModel container, Boolean sup) {

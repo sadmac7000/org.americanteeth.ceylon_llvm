@@ -5,7 +5,8 @@ import ceylon.collection {
 import com.redhat.ceylon.model.typechecker.model {
     FunctionModel=Function,
     ValueModel=Value,
-    InterfaceModel=Interface
+    InterfaceModel=Interface,
+    DeclarationModel=Declaration
 }
 
 "Scope of an interface."
@@ -15,6 +16,9 @@ class InterfaceScope(InterfaceModel model, Anything(Scope) destroyer)
         "Interfaces are not backed by a function body."
         assert(false);
     }
+
+    shared actual Boolean owns(DeclarationModel d)
+        => if (exists c = d.container, c == model) then true else false;
 
     shared actual {LLVMDeclaration*} results {
         value setup = LLVMFunction(setupName(model), null, "private",

@@ -93,6 +93,8 @@ abstract class Scope(Anything(Scope) destroyer)
         return getter;
     }
 
+    shared formal Boolean owns(DeclarationModel d);
+
     "Create space in this scope for a value"
     shared default void allocate(FunctionOrValueModel declaration,
         Ptr<I64Type>? startValue) {
@@ -109,6 +111,9 @@ abstract class Scope(Anything(Scope) destroyer)
         }
 
         if (allocations.defines(declaration)) {
+            if (exists startValue) {
+                store(declaration, startValue);
+            }
             return;
         }
 

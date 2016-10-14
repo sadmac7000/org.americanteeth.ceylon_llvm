@@ -3,6 +3,7 @@ import ceylon.collection {
 }
 
 import com.redhat.ceylon.model.typechecker.model {
+    DeclarationModel=Declaration,
     FunctionOrValueModel=FunctionOrValue,
     ValueModel=Value
 }
@@ -20,6 +21,8 @@ class UnitScope() extends Scope((Anything x) => null) {
 
     shared actual LLVMFunction body
             = LLVMFunction("__ceylon_constructor", null, "private", []);
+
+    shared actual Boolean owns(DeclarationModel d) => d.toplevel;
 
     LLVMFunction getterFor(ValueModel model) {
         value getter = LLVMFunction(getterName(model), ptr(i64), "", []);
