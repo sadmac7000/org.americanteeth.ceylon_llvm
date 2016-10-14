@@ -213,7 +213,8 @@ class LLVMBuilder(String triple, shared actual PackageModel languagePackage)
             that.body.visit(this);
         }
 
-        value val = scope.callI64(declarationName(tc.anonymousClass));
+        value val = scope.callI64(declarationName(tc.anonymousClass),
+                *{scope.getContextFor(tc.anonymousClass)}.coalesced);
         scope.allocate(tc.declarationModel, null);
         scope.body.storeGlobal(declarationName(tc.declarationModel), val);
     }
