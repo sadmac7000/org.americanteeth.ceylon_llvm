@@ -2,11 +2,7 @@ import com.redhat.ceylon.model.typechecker.model {
     ValueModel=Value,
     DeclarationModel=Declaration,
     InterfaceModel=Interface,
-    PackageModel=Package,
-    FunctionOrValueModel=FunctionOrValue,
-    ConstructorModel=Constructor,
     SetterModel=Setter,
-    SpecificationModel=Specification,
     ClassOrInterfaceModel=ClassOrInterface
 }
 
@@ -19,34 +15,8 @@ abstract class CallableScope(DeclarationModel model,
                 then [contextRegister]
                 else []);
 
-    DeclarationModel? getContainer(DeclarationModel d) {
-        variable value s = if (is SpecificationModel c = d.container)
-           then c.declaration
-           else d.container;
-
-        while (! is DeclarationModel k = s) {
-            if (is PackageModel k) {
-                return null;
-            }
-            s = k.container;
-        }
-
-        assert(is DeclarationModel ret = s);
-
-        if (is FunctionOrValueModel d,
-                d.type.declaration is ConstructorModel) {
-            return getContainer(ret);
-        }
-
-        if (is ValueModel ret, !ret.transient) {
-            return getContainer(ret);
-        }
-
-        return ret;
-    }
-
     shared actual Boolean owns(DeclarationModel d)
-        => if (exists c = getContainer(d), c == model)
+        => if (exists c = containingDeclaration(d), c == model)
             then true
             else false;
 
@@ -57,7 +27,7 @@ abstract class CallableScope(DeclarationModel model,
             return body.register(ptr(i64), frameName);
         }
 
-        variable DeclarationModel? visitedContainer = getContainer(model);
+        variable DeclarationModel? visitedContainer = containingDeclaration(model);
         variable Ptr<I64Type> context = body.register(ptr(i64), contextName);
 
         function isMatch(DeclarationModel v)
@@ -67,7 +37,7 @@ abstract class CallableScope(DeclarationModel model,
 
         while (exists v = visitedContainer, !isMatch(v)) {
             context = body.toPtr(body.load(context), i64);
-            visitedContainer = getContainer(v);
+            visitedContainer = containingDeclaration(v);
         }
 
         "We should not climb out of the package"
@@ -85,7 +55,7 @@ abstract class CallableScope(DeclarationModel model,
             return body.register(ptr(i64), frameName);
         }
 
-        value container = getContainer(declaration);
+        value container = containingDeclaration(declaration);
 
         if (! is DeclarationModel container) {
             return null;

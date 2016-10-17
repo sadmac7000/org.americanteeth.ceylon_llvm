@@ -34,6 +34,10 @@ import ceylon.interop.java {
 HashMap<DeclarationModel,Integer> declarationOrder =
     HashMap<DeclarationModel,Integer>();
 
+"Counters for local variable qualifiers."
+HashMap<[DeclarationModel,String],Integer> nextQualifier =
+    HashMap<[DeclarationModel,String],Integer>();
+
 "Preprocess the AST. Responsibilities include marking captured variables and
  setting table initialization order."
 object preprocessVisitor satisfies Visitor {
@@ -88,6 +92,27 @@ object preprocessVisitor satisfies Visitor {
         doMark(d);
     }
 
+    void setQualifier(DeclarationModel scope) {
+        if (scope.qualifier exists) {
+            return;
+        }
+
+        if (scope.toplevel) {
+            return;
+        }
+
+        assert(is DeclarationModel container =
+                nearestAllocatingScope(scope.container));
+
+        if (scope.\ishared) {
+            return;
+        }
+
+        value qualifier = nextQualifier[[container,scope.name]] else 1;
+        nextQualifier[[container,scope.name]] = qualifier + 1;
+        scope.qualifier = qualifier.string;
+    }
+
     shared actual void visitDeclaration(Declaration that) {
         assert (is Tree.Declaration tc = that.get(keys.tcNode));
 
@@ -98,6 +123,8 @@ object preprocessVisitor satisfies Visitor {
         if (! baremetalSupports(scope)) {
             return;
         }
+
+        setQualifier(scope);
 
         if (is ClassOrInterfaceModel scope) {
             markDeclarationOrder(scope);

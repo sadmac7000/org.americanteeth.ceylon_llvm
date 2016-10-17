@@ -11,7 +11,6 @@ import com.redhat.ceylon.model.typechecker.model {
     ClassModel=Class,
     InterfaceModel=Interface,
     Scope,
-    Package,
     TypeDeclaration,
     Setter,
     FunctionOrValue
@@ -53,17 +52,15 @@ String fullName(TypeDeclaration|FunctionOrValue p) {
      cMS4zLjA.ceylon.language.$String
 "
 String declarationName(DeclarationModel|Scope p) {
-    if (is TypeDeclaration|FunctionOrValue p) {
-        return declarationName(p.container) + ".``fullName(p)``" +
-            (if (is Setter p) then "$set" else "");
+    assert(exists scope = nearestAllocatingScope(p));
+
+    if (is TypeDeclaration|FunctionOrValue scope) {
+        return declarationName(scope.container) + ".``fullName(scope)``" +
+            (if (is Setter scope) then "$set" else "");
     }
 
-    if (! is Package p) {
-        return declarationName(p.container);
-    }
-
-    String? v = p.\imodule.version;
-    value pkg = CeylonList(p.name)
+    String? v = scope.\imodule.version;
+    value pkg = CeylonList(scope.name)
         .reduce<String>((x, y) => x.string + ".``y.string``")?.string;
     assert (exists pkg);
 
