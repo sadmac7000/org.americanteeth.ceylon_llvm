@@ -20,7 +20,8 @@ import com.redhat.ceylon.model.typechecker.model {
     FunctionalModel=Functional,
     PackageModel=Package,
     TypeModel=Type,
-    ValueModel=Value
+    ValueModel=Value,
+    ParameterModel=Parameter
 }
 
 class ExpressionTransformer(LLVMBuilder builder)
@@ -122,8 +123,11 @@ class ExpressionTransformer(LLVMBuilder builder)
             then parameterList.deleteLast()
             else null;
 
-        if (is PositionalArguments pa = that.arguments) {
-            value argValues = pa.argumentList.listedArguments.collect(
+        value args = that.arguments;
+
+        if (is PositionalArguments args) {
+            value list = args.argumentList;
+            value argValues = list.listedArguments.collect(
                     (x) => x.transform(this));
             value serialArguments = argValues.spanTo(parameterList.size);
             value leftOverArguments = argValues.spanFrom(parameterList.size);
@@ -138,8 +142,9 @@ class ExpressionTransformer(LLVMBuilder builder)
                 arguments.add(arg);
             }
 
-            if (pa.argumentList.sequenceArgument exists , !leftOverParameters.empty) {
-                value [spreadArg, type] = getSpreadArg(pa.argumentList);
+            if (list.sequenceArgument exists,
+                    !leftOverParameters.empty) {
+                value [spreadArg, type] = getSpreadArg(list);
                 value finishedObject = getLanguageValue("finished");
                 value iteration = Iteration(spreadArg, type);
                 value defaulted = scope.body.loadGlobal(ptr(i64),
@@ -153,7 +158,7 @@ class ExpressionTransformer(LLVMBuilder builder)
                                 defaulted, nextArg));
                 }
 
-                if (pa.argumentList.sequenceArgument exists) {
+                if (list.sequenceArgument exists) {
                     value spanFrom = type.declaration.getMember("spanFrom", null,
                             false);
 
@@ -171,17 +176,66 @@ class ExpressionTransformer(LLVMBuilder builder)
                 assert(exists sequencedParameter);
 
                 arguments.add(makeTuple(leftOverArguments,
-                            getSpreadArg(pa.argumentList)[0]));
+                            getSpreadArg(list)[0]));
             } else if (exists sequencedParameter,
-                    pa.argumentList.sequenceArgument exists) {
-                arguments.add(getSpreadArg(pa.argumentList)[0]);
+                    list.sequenceArgument exists) {
+                arguments.add(getSpreadArg(list)[0]);
             }
         } else {
-            /* TODO: Support named arguments */
+            value iterableArgument =
+                if (args.iterableArgument.sequenceArgument exists ||
+                        !args.iterableArgument.listedArguments.empty)
+                then args.iterableArgument.transform(this)
+                else null;
+
+            /* Sometimes we get a named argument here. No idea why. */
+            Tree.SequencedArgument? iterableTc =
+                    if (is Tree.SequencedArgument t =
+                            args.iterableArgument.get(keys.tcNode))
+                    then t
+                    else null;
+
+            value iterableDecl = iterableTc?.parameter;
+
+            value argumentValues = HashMap<ParameterModel,Ptr<I64Type>>();
+
+            if (exists iterableArgument) {
+                assert(exists iterableDecl);
+                argumentValues[iterableDecl] = iterableArgument;
+            }
+
+            for (namedArgument in args.namedArguments) {
+                assert(is Tree.NamedArgument tc = namedArgument.get(keys.tcNode));
+                argumentValues[tc.parameter] = namedArgument.transform(this);
+            }
+
+            variable Ptr<I64Type>? defaulted_ = null;
+            value defaulted => defaulted_ = defaulted_ else
+                scope.body.loadGlobal(ptr(i64), "__ceylon_default_poison");
+
+            for (p in parameterList) {
+                if (exists val = argumentValues[p]) {
+                    arguments.add(val);
+                } else {
+                    arguments.add(defaulted);
+                }
+            }
         }
 
         return scope.callI64(functionName, *arguments);
     }
+
+    shared actual Ptr<I64Type> transformAnonymousArgument(
+            AnonymousArgument that)
+        => that.expression.transform(this);
+
+    /* Normal and lazy specifiers behave the same way in named arguments. The
+     * other back ends seem to agree with this behavior. The spec has no
+     * opinion I can find.
+     */
+    shared actual Ptr<I64Type> transformSpecifiedArgument(
+            SpecifiedArgument that)
+        => that.specification.specifier.expression.transform(this);
 
     shared actual Ptr<I64Type> transformBaseExpression(BaseExpression that)
         => scope.load(termGetDeclaration(that));
