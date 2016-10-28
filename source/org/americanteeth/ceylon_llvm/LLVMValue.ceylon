@@ -65,6 +65,10 @@ LLVMValue<T> val<T>(T t, String ident)
             identifier = ident;
         };
 
+"Constructor for LLVM 'undef' value"
+LLVMValue<T> undef<T>(T t) given T satisfies LLVMType
+    => val(t, "undef");
+
 "Constructor for LLVM local values"
 LLVMValue<T> loc<T>(T t, String ident)
         given T satisfies LLVMType

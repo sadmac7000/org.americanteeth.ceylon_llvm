@@ -174,7 +174,9 @@ class LLVMBuilder(String triple, shared actual PackageModel languagePackage)
             assert(is Specifier? specifier);
 
             Ptr<I64Type>? initialValue =
-                specifier?.expression?.transform(expressionTransformer);
+                specifier?.expression?.transform(expressionTransformer) else
+                (if (model.captured) then null
+                else undef(ptr(i64)));
 
             scope.allocate(model, initialValue);
         }
