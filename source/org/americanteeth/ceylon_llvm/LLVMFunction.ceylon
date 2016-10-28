@@ -114,8 +114,11 @@ class LLVMFunction(String n, shared LLVMType? returnType,
                 addResult(val, predecessor);
             }
 
-            string => "``val.identifier`` = phi ``val.type`` "
-                + ", ".join(results);
+            string => if (results.empty)
+                then "``val.identifier`` = bitcast ``val.type`` \
+                      undef to ``val.type``"
+                else "``val.identifier`` = phi ``val.type`` "
+                    + ", ".join(results);
         }
 
         "Phi'd values."
