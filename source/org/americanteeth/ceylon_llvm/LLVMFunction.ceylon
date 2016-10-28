@@ -103,41 +103,15 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             given T satisfies LLVMType
         {
             value results = ArrayList<String>();
-            value resultPhi = ArrayList<Phi<T>>();
 
             void addResult(LLVMValue<T> val, Block predecessor)
                 => results.add("[``val.identifier``, \
                                 ``predecessor.label.identifier``]");
 
             shared void notePredecessor(Block predecessor) {
-                value val = predecessor.getMarkedOrPhi(this.val.type, key);
+                value val = predecessor.getMarked(this.val.type, key);
 
-                if (is Phi<T> val) {
-                    resultPhi.add(val);
-                } else {
-                    addResult(val, predecessor);
-                }
-            }
-
-            variable Boolean inValid = false;
-
-            void processPhiResults() {
-                while (exists node = resultPhi.findAndRemoveLast((x) =>
-                            x.valid)) {
-                    addResult(node.val, node.owner);
-                }
-            }
-
-            shared Boolean valid {
-                if (inValid) {
-                    return true;
-                }
-
-                inValid = true;
-                processPhiResults();
-                inValid = false;
-
-                return !results.empty;
+                addResult(val, predecessor);
             }
 
             string => "``val.identifier`` = phi ``val.type`` "
@@ -176,8 +150,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             instructions_.add(instruction);
         }
 
-        value phiNodes
-            => phis.items.select((x) => x.valid).collect(Object.string);
+        value phiNodes => phis.items.collect(Object.string);
 
         string => "``label.tag``:\n    "
                 + "\n    ".join(phiNodes.append(instructions));
@@ -187,14 +160,8 @@ class LLVMFunction(String n, shared LLVMType? returnType,
             marks[key] = val;
         }
 
-        LLVMValue<T>|Phi<T> getMarkedOrPhi<T>(T t, Object key)
+        shared LLVMValue<T> getMarked<T>(T t, Object key)
                 given T satisfies LLVMType {
-            if (exists p = phis[key]) {
-                "Mark should be retrieved with the same type it was set as."
-                assert(is Phi<T> p);
-                return p;
-            }
-
             if (exists m = marks[key]) {
                 "Mark should be retrieved with the same type it was set as."
                 assert(is LLVMValue<T> m);
@@ -210,18 +177,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
                 phi.notePredecessor(predecessor);
             }
 
-            return phi;
-        }
-
-        shared LLVMValue<T> getMarked<T>(T t, Object key)
-                given T satisfies LLVMType {
-            value ret = getMarkedOrPhi(t, key);
-            
-            if (is Phi<T> ret) {
-                return ret.val;
-            }
-
-            return ret;
+            return phi.val;
         }
 
         "Mark that we've had a terminating instruction."
@@ -557,7 +513,8 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     "Jump to the given label."
     shared void jump(Label l) {
         currentBlock.instruction("br ``l``");
-        currentBlock.terminate({findBlock(l)}.coalesced);
+        assert(exists b = findBlock(l));
+        currentBlock.terminate({b});
     }
 
     "Branch on the given conditional"
