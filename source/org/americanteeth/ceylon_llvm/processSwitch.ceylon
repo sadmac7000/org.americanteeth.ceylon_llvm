@@ -61,6 +61,9 @@ void processSwitch(SwitchCaseElse|SwitchCaseElseExpression sw,
             elseItem.visit(builder);
         }
         scope.body.splitBlock();
+    } else if (is SwitchCaseElseExpression sw) {
+        scope.body.unreachable();
+        scope.body.splitBlock();
     }
 
     value endPoint = scope.body.block;
