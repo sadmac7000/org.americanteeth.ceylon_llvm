@@ -35,8 +35,7 @@ class UnitScope() extends Scope((Anything x) => null) {
         value setter = LLVMFunction(setterName(model), ptr(i64), "",
                 [loc(ptr(i64), ".value")]);
         value valueReg = setter.register(ptr(i64), ".value");
-        value packedValue = setter.toI64(valueReg);
-        setter.storeGlobal(declarationName(model), packedValue);
+        setter.storeGlobal(declarationName(model), valueReg);
         return setter;
     }
 
