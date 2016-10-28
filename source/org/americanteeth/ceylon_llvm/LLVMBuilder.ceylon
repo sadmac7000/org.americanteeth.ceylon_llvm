@@ -452,7 +452,7 @@ class LLVMBuilder(String triple, shared actual PackageModel languagePackage)
         if (is VariablePattern pattern) {
             assert(is FunctionOrValueModel mod =
                     termGetDeclaration(pattern.\ivariable));
-            scope.store(mod, val);
+            scope.allocate(mod, val);
         } else if (is EntryPattern pattern) {
             value keyDeclaration = d.getMember("key", null, false);
             value itemDeclaration = d.getMember("item", null, false);
@@ -477,7 +477,7 @@ class LLVMBuilder(String triple, shared actual PackageModel languagePackage)
             value remainder = scope.callI64(declarationName(d.getMember("spanFrom", null, false)),
                     I64Lit(index));
             assert(is FunctionOrValueModel mod = termGetDeclaration(variadic));
-            scope.store(mod, remainder);
+            scope.allocate(mod, remainder);
         }
     }
 
