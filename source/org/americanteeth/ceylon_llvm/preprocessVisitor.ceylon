@@ -8,7 +8,9 @@ import ceylon.ast.core {
     Node,
     Declaration,
     QualifiedExpression,
-    ObjectExpression
+    ObjectExpression,
+    VariablePattern,
+    VariadicVariable
 }
 
 import com.redhat.ceylon.compiler.typechecker.tree {
@@ -52,7 +54,7 @@ object preprocessVisitor satisfies Visitor {
     }
 
     shared actual void visitNode(Node that)
-            => that.visitChildren(this);
+        => that.visitChildren(this);
 
     "Mark a declaration with a number that gives an inheritance ordering of all
      declarations."
@@ -141,11 +143,7 @@ object preprocessVisitor satisfies Visitor {
     }
 
     "Set the captured property on a used symbol if it needs it."
-    void setCapturedIfNeeded(BaseExpression|QualifiedExpression that) {
-        assert (is Tree.MemberOrTypeExpression tb = that.get(keys.tcNode));
-
-        value declaration = tb.declaration;
-
+    void setCapturedIfNeeded(DeclarationModel declaration) {
         if (!is FunctionOrValueModel declaration) {
             return;
         }
@@ -170,14 +168,26 @@ object preprocessVisitor satisfies Visitor {
     }
 
     shared actual void visitBaseExpression(BaseExpression that)
-            => setCapturedIfNeeded(that);
+            => setCapturedIfNeeded(termGetDeclaration(that));
 
     shared actual void visitQualifiedExpression(QualifiedExpression that)
-            => setCapturedIfNeeded(that);
+            => setCapturedIfNeeded(termGetDeclaration(that));
 
     shared actual void visitObjectExpression(ObjectExpression that) {
         assert(is Tree.ObjectExpression tc = that.get(keys.tcNode));
         markDeclarationOrder(tc.anonymousClass);
         that.visitChildren(this);
+    }
+
+    shared actual void visitVariablePattern(VariablePattern that) {
+        value declaration = termGetDeclaration(that.\ivariable);
+        setCapturedIfNeeded(declaration);
+        setQualifier(declaration);
+    }
+
+    shared actual void visitVariadicVariable(VariadicVariable that) {
+        value declaration = termGetDeclaration(that);
+        setCapturedIfNeeded(declaration);
+        setQualifier(declaration);
     }
 }
