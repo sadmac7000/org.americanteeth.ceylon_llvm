@@ -20,6 +20,7 @@ import com.redhat.ceylon.model.typechecker.model {
     FunctionalModel=Functional,
     PackageModel=Package,
     TypeModel=Type,
+    TypeDeclaration,
     ValueModel=Value,
     ParameterModel=Parameter
 }
@@ -309,8 +310,19 @@ class ExpressionTransformer(LLVMBuilder builder)
             is BaseExpression|QualifiedExpression|ElementOrSubrangeExpression
                 term);
 
-        "TODO: make element assignment work"
-        assert(is BaseExpression|QualifiedExpression term);
+        if (is ElementOrSubrangeExpression term) {
+            value type = termGetType(term.primary);
+            assert(is TypeDeclaration icMutator =
+                languagePackage.getDirectMember("IndexedCorrespondenceMutator",
+                        null, false));
+            value callName = if (type.getSupertype(icMutator) exists)
+                then "set"
+                else "put";
+
+            scope.callI64(termGetMemberName(term.primary, callName),
+                    term.subscript.transform(this), toAssign);
+            return;
+        }
 
         assert(is FunctionOrValueModel declaration = termGetDeclaration(term));
 
