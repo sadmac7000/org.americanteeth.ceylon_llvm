@@ -9,6 +9,7 @@ import com.redhat.ceylon.model.typechecker.model {
     DeclarationModel=Declaration,
     ClassOrInterfaceModel=ClassOrInterface,
     ClassModel=Class,
+    ConstructorModel=Constructor,
     InterfaceModel=Interface,
     Scope,
     TypeDeclaration,
@@ -53,6 +54,10 @@ String fullName(TypeDeclaration|FunctionOrValue p) {
 "
 String declarationName(DeclarationModel|Scope p) {
     assert(exists scope = nearestAllocatingScope(p));
+
+    if (is ConstructorModel p, ! p.name exists) {
+        return declarationName(scope.container);
+    }
 
     if (is TypeDeclaration|FunctionOrValue scope) {
         return declarationName(scope.container) + ".``fullName(scope)``" +
