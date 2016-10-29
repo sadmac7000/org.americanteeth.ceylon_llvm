@@ -34,7 +34,7 @@ DeclarationModel termGetDeclaration(Node that) {
     } else if (is Tree.Variable tc) {
         return tc.declarationModel;
     } else {
-        assert(false);
+        return termGetType(that).declaration;
     }
 }
 
