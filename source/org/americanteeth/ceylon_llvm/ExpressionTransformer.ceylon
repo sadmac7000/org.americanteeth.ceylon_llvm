@@ -773,4 +773,7 @@ class ExpressionTransformer(LLVMBuilder builder)
     /* TODO: Implement float literals */
     shared actual Ptr<I64Type> transformFloatLiteral(FloatLiteral that)
         => llvmNull;
+
+    shared actual Ptr<I64Type> transformKeySubscript(KeySubscript that)
+        => that.key.transform(this);
 }
