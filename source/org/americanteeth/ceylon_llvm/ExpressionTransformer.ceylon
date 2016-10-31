@@ -230,13 +230,26 @@ class ExpressionTransformer(LLVMBuilder builder)
             AnonymousArgument that)
         => that.expression.transform(this);
 
+    shared actual Ptr<I64Type> transformSpecifiedArgument(
+            SpecifiedArgument that)
+        => that.specification.transform(this);
+
+    shared actual Ptr<I64Type> transformValueSpecification(
+            ValueSpecification that)
+        => that.specifier.expression.transform(this);
+
     /* Normal and lazy specifiers behave the same way in named arguments. The
      * other back ends seem to agree with this behavior. The spec has no
      * opinion I can find.
      */
-    shared actual Ptr<I64Type> transformSpecifiedArgument(
-            SpecifiedArgument that)
-        => that.specification.specifier.expression.transform(this);
+    shared actual Ptr<I64Type> transformLazySpecification(
+            LazySpecification that) {
+        that.visit(builder);
+        assert(is Tree.MethodArgument tc = that.get(keys.tcNode));
+        value declaration = tc.declarationModel;
+        value context = scope.getContextFor(declaration);
+        return scope.callI64(getterName(declaration), *{context}.coalesced);
+    }
 
     shared actual Ptr<I64Type> transformBaseExpression(BaseExpression that)
         => scope.load(termGetDeclaration(that));

@@ -139,9 +139,13 @@ class LLVMBuilder(String triple, shared actual PackageModel languagePackage)
     }
 
     shared actual void visitLazySpecification(LazySpecification that) {
-        assert(is Tree.SpecifierStatement tc = that.get(keys.tcNode));
+        assert(is Tree.SpecifierStatement|Tree.MethodArgument tc = that.get(keys.tcNode));
 
-        assert(is FunctionModel|ValueModel model = tc.declaration);
+        value model = if (is Tree.SpecifierStatement tc)
+            then tc.declaration
+            else tc.declarationModel;
+
+        assert(is FunctionModel|ValueModel model);
 
         value newScope = if (is FunctionModel model)
             then functionScope(model)
