@@ -143,8 +143,7 @@ class ExpressionTransformer(LLVMBuilder builder)
                 arguments.add(arg);
             }
 
-            if (list.sequenceArgument exists,
-                    !leftOverParameters.empty) {
+            if (list.sequenceArgument exists, !leftOverParameters.empty) {
                 value [spreadArg, type] = getSpreadArg(list);
                 value finishedObject = getLanguageValue("finished");
                 value iteration = Iteration(spreadArg, type);
@@ -159,7 +158,7 @@ class ExpressionTransformer(LLVMBuilder builder)
                                 defaulted, nextArg));
                 }
 
-                if (list.sequenceArgument exists) {
+                if (sequencedParameter exists) {
                     value spanFrom = type.declaration.getMember("spanFrom", null,
                             false);
 
@@ -432,7 +431,6 @@ class ExpressionTransformer(LLVMBuilder builder)
         Ptr<I64Type> opS(String name)
             => scope.callI64(declarationName(getLanguageDeclaration(name)),
                     left, right);
-
 
         "These operations are handled elsewhere."
         assert(! is
