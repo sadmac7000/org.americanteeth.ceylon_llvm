@@ -358,6 +358,8 @@ class ExpressionTransformer(LLVMBuilder builder)
         Ptr<I64Type> op(String name)
             => scope.callI64(termGetMemberName(that.leftOperand, name),
                     transformedLeft, transformedRight);
+        "Logical assignment should be handled elsewhere"
+        assert(! is LogicalAssignmentOperation that);
 
         value toAssign = switch(that)
             case (is AssignOperation) transformedRight
@@ -368,11 +370,8 @@ class ExpressionTransformer(LLVMBuilder builder)
             case (is RemainderAssignmentOperation) op("remainder")
             case (is UnionAssignmentOperation) op("union")
             case (is IntersectAssignmentOperation) op("intersection")
-            case (is ComplementAssignmentOperation) op("complement")
-            else null;
+            case (is ComplementAssignmentOperation) op("complement");
 
-        "TODO: Support logical assignment operators"
-        assert(exists toAssign);
 
         assignTerm(that.leftOperand, toAssign);
 
@@ -577,11 +576,20 @@ class ExpressionTransformer(LLVMBuilder builder)
     }
 
     shared actual Ptr<I64Type> transformLogicalOperation(
-            LogicalOperation that) {
+            LogicalOperation that)
+        => doLogicTransform(that);
+
+    shared actual Ptr<I64Type> transformLogicalAssignmentOperation(
+            LogicalAssignmentOperation that)
+        => doLogicTransform(that);
+
+    Ptr<I64Type> doLogicTransform(
+            LogicalOperation|LogicalAssignmentOperation that) {
+        value isAnd = that is AndOperation|AndAssignmentOperation ;
         value trueValue = getLanguageValue("true");
         value falseValue = getLanguageValue("false");
 
-        if (is AndOperation that) {
+        if (isAnd) {
             scope.body.mark(that, falseValue);
         } else {
             scope.body.mark(that, trueValue);
@@ -591,19 +599,20 @@ class ExpressionTransformer(LLVMBuilder builder)
         value firstSuccess = scope.body.compareEq(first, trueValue);
         value [trueBlock, falseBlock] = scope.body.branch(firstSuccess);
 
-        value returnLabel = if (is AndOperation that)
-            then falseBlock
-            else trueBlock;
+        value returnLabel = if (isAnd) then falseBlock else trueBlock;
 
-        scope.body.block = if (is AndOperation that)
-            then trueBlock
-            else falseBlock;
+        scope.body.block = if (isAnd) then trueBlock else falseBlock;
 
         scope.body.mark(that, that.rightOperand.transform(this));
         scope.body.jump(returnLabel);
         scope.body.block = returnLabel;
 
         assert(exists ret = scope.body.getMarked(ptr(i64), that));
+
+        if (is LogicalAssignmentOperation that) {
+            assignTerm(that.leftOperand, ret);
+        }
+
         return ret;
     }
 
