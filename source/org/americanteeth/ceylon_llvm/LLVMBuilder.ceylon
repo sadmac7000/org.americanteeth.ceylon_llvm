@@ -469,9 +469,11 @@ class LLVMBuilder(String triple, shared actual PackageModel languagePackage)
         } else {
             variable value index = 0;
             for(element in pattern.elementPatterns)  {
-                value pos = index++;
+                //value pos = index++;
                 assert(is FunctionModel getModel = d.getMember("get", null, false));
-                value next = scope.callI64(declarationName(getModel), I64Lit(pos));
+                // TODO: That llvmNull becomes an integer literal == pos when we
+                // have integers.
+                value next = scope.callI64(declarationName(getModel), val, llvmNull);
                 assignPattern(element, next, getModel.type.declaration);
             }
 
