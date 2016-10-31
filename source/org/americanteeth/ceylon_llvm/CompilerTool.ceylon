@@ -29,9 +29,6 @@ import com.redhat.ceylon.compiler.typechecker {
 import com.redhat.ceylon.compiler.typechecker.context {
     Context
 }
-import com.redhat.ceylon.compiler.typechecker.tree {
-    TCNode=Node
-}
 import com.redhat.ceylon.compiler.typechecker.util {
     ModuleManagerFactory
 }
@@ -90,20 +87,11 @@ import java.io {
     JFile=File
 }
 
-"Options for formatting code output"
-FormattingOptions formatOpts = FormattingOptions {
-    maxLineLength = 80;
-};
-
 "Recover the source from the AST"
-void printNodeAsCode(Node node) {
-    TCNode tcNode(Node node)
-            => node.transform(
-                RedHatTransformer(
-                    SimpleTokenFactory()));
-
-    print(format(tcNode(node), formatOpts));
-}
+void printNodeAsCode(Node node)
+    => format(node.transform(
+        RedHatTransformer(SimpleTokenFactory())),
+        FormattingOptions { maxLineLength = 80; });
 
 "Compiler utility for baremetal compilation"
 shared class CompilerTool() extends OutputRepoUsingTool(null) {
