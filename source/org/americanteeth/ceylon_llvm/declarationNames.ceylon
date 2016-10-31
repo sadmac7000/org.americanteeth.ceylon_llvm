@@ -56,7 +56,7 @@ String declarationName(DeclarationModel|Scope p) {
     assert(exists scope = nearestAllocatingScope(p));
 
     if (is ConstructorModel p, ! p.name exists) {
-        return declarationName(scope.container);
+        return declarationName(scope.container) + ".$$";
     }
 
     if (is TypeDeclaration|FunctionOrValue scope) {
