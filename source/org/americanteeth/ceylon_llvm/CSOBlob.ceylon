@@ -31,10 +31,10 @@ import ceylon.interop.java {
 
 "Marking bytes for differend serialized declarations."
 object blobKeys {
-    shared Byte cls = 1.byte;
+    shared Byte \iclass = 1.byte;
     shared Byte \iinterface = 2.byte;
-    shared Byte attribute = 3.byte;
-    shared Byte method = 4.byte;
+    shared Byte \ival = 3.byte;
+    shared Byte \ifunction = 4.byte;
     shared Byte \iobject = 5.byte;
     shared Byte \ialias = 6.byte;
 }

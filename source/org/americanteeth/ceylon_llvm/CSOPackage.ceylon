@@ -11,6 +11,7 @@ import com.redhat.ceylon.model.typechecker.model {
     IntersectionType,
     ParameterList,
     Parameter,
+    Setter,
     Value,
     UnknownType,
     Unit
@@ -67,6 +68,21 @@ object functionFlags {
 
     "Flag indicating a function was deferred."
     shared Byte deferred = 2.byte;
+}
+
+"Flags for values."
+object valueFlags {
+    "Flag indicating a value is transient."
+    shared Byte transient = 1.byte;
+
+    "Flag indicating a value is static."
+    shared Byte static = 2.byte;
+
+    "Flag indicating a value has a setter."
+    shared Byte hasSetter = 4.byte;
+
+    "Flag indicating a value is variable."
+    shared Byte \ivariable = 8.byte;
 }
 
 "Byte marking the start of a parameter list."
@@ -127,38 +143,31 @@ class CSOPackage() extends LazyPackage() {
 
     "Load a declaration from the blob."
     void loadDeclaration(CSOBlob data, Byte blobKey) {
-        if (blobKey == blobKeys.method) {
-            loadFunction(data, this);
+        if (blobKey == blobKeys.\ifunction) {
+            loadFunctionOrValue(Function(), data, this);
+        } else if (blobKey == blobKeys.\ival) {
+            loadFunctionOrValue(Value(), data, this);
         }
 
         /* TODO: Other declaration types */
     }
 
-    "Consume and deserialize a function declaration."
-    shared Function loadFunction(CSOBlob data, Scope parent) {
-        value f = Function();
+    "Consume and deserialize a function or value declaration."
+    void loadFunctionOrValue(FunctionOrValue f, CSOBlob data, Scope parent) {
         f.name = data.getString();
         f.container = parent;
         f.unit = defaultUnit;
 
-        if (parent == this) {
-            defaultUnit.addDeclaration(f);
-            addMember(null);
+        void doAddDeclaration(Declaration d) {
+            if (parent == this) {
+                defaultUnit.addDeclaration(d);
+                addMember(null);
+            }
         }
+
+        doAddDeclaration(f);
 
         loadAnnotations(data, f);
-
-        value flags = data.get();
-
-        if (flags.and(functionFlags.\ivoid) != 0.byte) {
-            f.declaredVoid = true;
-        }
-
-        if (flags.and(functionFlags.deferred) != 0.byte) {
-            f.deferred = true;
-        }
-
-        /* TODO: Type parameters. */
 
         value parentDeclaration =
             if (is Declaration parent)
@@ -166,6 +175,50 @@ class CSOPackage() extends LazyPackage() {
             else null;
 
         f.type = loadType(data, parentDeclaration);
+
+        value flags = data.get();
+
+        if (is Function f) {
+            if (flags.and(functionFlags.\ivoid) != 0.byte) {
+                f.declaredVoid = true;
+            }
+
+            if (flags.and(functionFlags.deferred) != 0.byte) {
+                f.deferred = true;
+            }
+        } else {
+            assert(is Value f);
+            if (flags.and(valueFlags.transient) != 0.byte) {
+                f.transient = true;
+            }
+
+            if (flags.and(valueFlags.static) != 0.byte) {
+                f.staticallyImportable = true;
+            }
+
+            if (flags.and(valueFlags.\ivariable) != 0.byte) {
+                f.\ivariable = true;
+            }
+
+            if (flags.and(valueFlags.hasSetter) != 0.byte) {
+                f.setter = Setter();
+                f.setter.name = f.name;
+                f.setter.container = parent;
+                f.setter.unit = defaultUnit;
+                f.setter.getter = f;
+                f.setter.type = f.type;
+                doAddDeclaration(f.setter);
+                loadAnnotations(data, f.setter);
+            }
+        }
+
+        /* TODO: Type parameters. */
+
+        if (is Value f) {
+            return;
+        }
+
+        assert(is Function f);
 
         variable value first = true;
 
@@ -177,8 +230,6 @@ class CSOPackage() extends LazyPackage() {
 
         "Function should have at least one parameter list."
         assert(!first);
-
-        return f;
     }
 
     "Load a parameter list from the blob."
@@ -363,34 +414,67 @@ class CSOPackage() extends LazyPackage() {
     "Write one member to the blob."
     void storeMember(CSOBlob buf, Declaration d) {
         if (is Function d) {
-            buf.put(blobKeys.method);
-            storeFunction(buf, d);
+            buf.put(blobKeys.\ifunction);
+            storeFunctionOrValue(buf, d);
+        } else if (is Value d) {
+            buf.put(blobKeys.\ival);
+            storeFunctionOrValue(buf, d);
         }
 
         /* TODO: Other declaration types */
     }
 
     "Write one function member to the blob."
-    void storeFunction(CSOBlob buf, Function f) {
+    void storeFunctionOrValue(CSOBlob buf, FunctionOrValue f) {
         buf.putString(f.name);
 
         storeAnnotations(buf, f);
 
+        storeType(buf, f.type);
+
         variable value flags = 0.byte;
 
-        if (f.declaredVoid) {
-            flags = flags.or(functionFlags.\ivoid);
-        }
+        if (is Function f) {
+            if (f.declaredVoid) {
+                flags = flags.or(functionFlags.\ivoid);
+            }
 
-        if (f.deferred) {
-            flags = flags.or(functionFlags.deferred);
+            if (f.deferred) {
+                flags = flags.or(functionFlags.deferred);
+            }
+        } else {
+            assert(is Value f);
+
+            if (f.transient) {
+                flags = flags.or(valueFlags.transient);
+            }
+
+            if (f.\ivariable) {
+                flags = flags.or(valueFlags.\ivariable);
+            }
+
+            if (f.staticallyImportable) {
+                flags = flags.or(valueFlags.static);
+            }
+
+            if (f.setter exists) {
+                flags = flags.or(valueFlags.hasSetter);
+            }
         }
 
         buf.put(flags);
 
+        if (is Value f, exists s = f.setter) {
+            storeAnnotations(buf, s);
+        }
+
         /* TODO: Type parameters. */
 
-        storeType(buf, f.type);
+        if (is Value f) {
+            return;
+        }
+
+        assert(is Function f);
 
         for (p in f.parameterLists) {
             storeParameterList(buf, p);
