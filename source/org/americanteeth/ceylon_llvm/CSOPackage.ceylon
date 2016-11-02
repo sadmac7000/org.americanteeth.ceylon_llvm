@@ -94,7 +94,6 @@ class CSOPackage() extends LazyPackage() {
 
     "A compilation unit for things that don't have one."
     value defaultUnit = Unit();
-    variable value tmp = false;
 
     "Declaration for unknown types."
     value unknownDecl = UnknownType(defaultUnit);
@@ -119,7 +118,6 @@ class CSOPackage() extends LazyPackage() {
     shared actual void load() {
         CSOBlob data;
 
-        assert(!tmp);
         if (exists d = blobData) {
             data = d;
             blobData = null;
