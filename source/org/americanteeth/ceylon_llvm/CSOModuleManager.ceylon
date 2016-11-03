@@ -89,8 +89,7 @@ class CSOModuleSourceMapper(Context c, ModuleManager m)
 
 class CSOModuleManager() extends ModuleManager() {
     shared actual JIterable<JString> searchedArtifactExtensions
-            => JavaIterable([ javaString("cso"),
-                    javaString("src") ]);
+            => JavaIterable([ javaString("cso") ]);
 
     shared actual Backends supportedBackends => baremetalBackend.asSet();
 

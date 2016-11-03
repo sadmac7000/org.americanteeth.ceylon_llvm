@@ -93,14 +93,14 @@ abstract class LazyPackage() extends Package() {
         return super.hash;
     }
 
-    shared actual Declaration? getMember(String name, JList<Type> signature,
+    shared actual Declaration? getMember(String name, JList<Type>? signature,
             Boolean variadic) {
         load();
         return super.getMember(name, signature, variadic);
     }
 
     shared actual Declaration? getDirectMember(String name,
-            JList<Type> signature, Boolean variadic) {
+            JList<Type>? signature, Boolean variadic) {
         load();
         return super.getDirectMember(name, signature, variadic);
     }

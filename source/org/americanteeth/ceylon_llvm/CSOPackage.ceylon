@@ -22,7 +22,13 @@ import ceylon.interop.java {
 }
 
 import ceylon.collection {
-    ArrayList
+    ArrayList,
+    HashMap
+}
+
+import ceylon.promise {
+    Deferred,
+    Promise
 }
 
 "Byte markers for standard types."
@@ -98,6 +104,40 @@ class CSOPackage() extends LazyPackage() {
     "Declaration for unknown types."
     value unknownDecl = UnknownType(defaultUnit);
 
+    "Deferred accessor to unknownDecl"
+    value unknownDeclDeferred = Deferred<UnknownType>();
+
+    unknownDeclDeferred.fulfill(unknownDecl);
+
+    "Promises of values to be delivered later."
+    value deferreds = HashMap<String,Deferred<Declaration>>();
+
+    "Get a promise if we aren't done loading."
+    shared Promise<Declaration> expectDirectMember(String name) {
+        if (exists e = deferreds[name]) {
+            return e.promise;
+        }
+
+        value deferred = Deferred<Declaration>();
+
+        if (exists d = getDirectMember(name, null, false)) {
+            deferred.fulfill(d);
+        }
+
+        deferreds[name] = deferred;
+        return deferred.promise;
+    }
+
+    "Add a direct member we just loaded."
+    void addLoadedMember(Declaration member) {
+        defaultUnit.addDeclaration(member);
+        addMember(member);
+
+        if (exists d = deferreds[member.name]) {
+            d.fulfill(member);
+        }
+    }
+
     shared actual Module? \imodule => super.\imodule;
     assign \imodule {
         if (is CSOModule \imodule,
@@ -156,14 +196,9 @@ class CSOPackage() extends LazyPackage() {
         f.container = parent;
         f.unit = defaultUnit;
 
-        void doAddDeclaration(Declaration d) {
-            if (parent == this) {
-                defaultUnit.addDeclaration(d);
-                addMember(null);
-            }
+        if (parent == this) {
+            addLoadedMember(f);
         }
-
-        doAddDeclaration(f);
 
         loadAnnotations(data, f);
 
@@ -172,7 +207,11 @@ class CSOPackage() extends LazyPackage() {
             then parent
             else null;
 
-        f.type = loadType(data, parentDeclaration);
+        value gottenType = loadType(data, parentDeclaration);
+
+        if (exists gottenType) {
+            gottenType.completed((x) => f.type = x);
+        }
 
         value flags = data.get();
 
@@ -204,8 +243,15 @@ class CSOPackage() extends LazyPackage() {
                 f.setter.container = parent;
                 f.setter.unit = defaultUnit;
                 f.setter.getter = f;
-                f.setter.type = f.type;
-                doAddDeclaration(f.setter);
+
+                if (exists gottenType) {
+                    gottenType.completed((x) => f.setter.type = x);
+                }
+
+                if (parent == this) {
+                    addLoadedMember(f.setter);
+                }
+
                 loadAnnotations(data, f.setter);
             }
         }
@@ -292,7 +338,7 @@ class CSOPackage() extends LazyPackage() {
 
         "Parameter should have a type."
         assert(exists type = loadType(data, owner));
-        m.type = type;
+        type.completed((x) => m.type = x);
 
         loadAnnotations(data, m);
 
@@ -300,7 +346,8 @@ class CSOPackage() extends LazyPackage() {
     }
 
     "Load a type declaration from the blob."
-    TypeDeclaration? loadTypeDeclaration(CSOBlob data, Declaration? container) {
+    Promise<TypeDeclaration>? loadTypeDeclaration(CSOBlob data,
+            Declaration? container) {
         value typeKind = data.get();
 
         if (typeKind == 0.byte) {
@@ -308,27 +355,33 @@ class CSOPackage() extends LazyPackage() {
         }
 
         if (typeKind == typeKinds.unknown) {
-            return unknownDecl;
+            return unknownDeclDeferred.promise;
         }
 
         if (typeKind == typeKinds.union) {
             value ret = UnionType(defaultUnit);
 
             while (exists t = loadType(data, container)) {
-                ret.caseTypes.add(t);
+                t.completed { (x) => ret.caseTypes.add(x); };
             }
 
-            return ret;
+            value def = Deferred<UnionType>();
+            def.fulfill(ret);
+
+            return def.promise;
         }
 
         if (typeKind == typeKinds.intersection) {
             value ret = IntersectionType(defaultUnit);
 
             while (exists t = loadType(data, container)) {
-                ret.satisfiedTypes.add(t);
+                t.completed { (x) => ret.satisfiedTypes.add(x); };
             }
 
-            return ret;
+            value def = Deferred<IntersectionType>();
+            def.fulfill(ret);
+
+            return def.promise;
         }
 
         /* TODO */
@@ -340,10 +393,10 @@ class CSOPackage() extends LazyPackage() {
 
         value packageName = ".".join(data.getStringList());
 
-        "Package should be found."
-        assert(exists pkg = \imodule?.getPackage(packageName));
+        "Package should be found, and from the baremetal backend."
+        assert(is CSOPackage pkg = \imodule?.getPackage(packageName));
 
-        if (is CSOPackage pkg) { pkg.load(); }
+        if (pkg != this) { pkg.load(); }
 
         value name = data.getStringList();
 
@@ -351,62 +404,47 @@ class CSOPackage() extends LazyPackage() {
         assert(exists level1 = name.first);
 
         if (name.size == 1) {
-            "Package should have member matching type declaration."
-            assert(exists d = pkg.getDirectMember(level1, null, false));
+            return expectDirectMember(level1).map {
+                (x) {
+                    "Fetched member should map to a type."
+                    assert(is TypeDeclaration|FunctionOrValue x);
 
-            if (is TypeDeclaration d) {
-                return d;
-            }
-
-            if (is FunctionOrValue d) {
-                return d.typeDeclaration;
-            }
+                    if (is TypeDeclaration x) {
+                        return x;
+                    } else {
+                        return x.typeDeclaration;
+                    }
+                };
+            };
         }
 
-        if (is CSOPackage pkg) {
-            "TODO: loadNestedType equivalent to dart back end."
-            assert(false);
-        }
+        return expectDirectMember(level1).map {
+            (x) {
+                variable value ret = x;
 
-        "Only nested types should remain."
-        assert(name.size > 1);
+                for (item in name[1...]) {
+                    "Type member should be present."
+                    assert(exists r = ret.getMember(item, null, false));
+                    ret = r;
+                }
 
-        variable Declaration? result = null;
-
-        for (d in pkg.members) {
-            if (is TypeDeclaration d, d.name == level1) {
-                return d;
-            }
-        }
-
-        for (term in name.rest) {
-            "Should have a base declaration."
-            assert(is TypeDeclaration r = result);
-
-            "Should have appropriate member."
-            assert(exists m = r.getDirectMember(term, null, false));
-            result = m;
-        }
-
-        "Should produce a final result."
-        assert(is TypeDeclaration r = result);
-        return r;
+                assert(is TypeDeclaration r = ret);
+                return r;
+            };
+        };
     }
 
     "Load a Type object from the blob."
-    Type? loadType(CSOBlob data, Declaration? parent) {
+    Promise<Type>? loadType(CSOBlob data, Declaration? parent) {
         value typeDeclaration = loadTypeDeclaration(data, parent);
 
         if (! exists typeDeclaration) {
             return null;
         }
 
-        if (is UnknownType typeDeclaration) {
-            return typeDeclaration.type;
-        }
-
         /* TODO: Type parameters. */
-        return typeDeclaration.type;
+
+        return typeDeclaration.map((x) => x.type);
     }
 
     "Write one member to the blob."
