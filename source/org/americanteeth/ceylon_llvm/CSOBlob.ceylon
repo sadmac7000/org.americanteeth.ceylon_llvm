@@ -137,7 +137,7 @@ class CSOBlob({Byte*} blobData = {}) {
 
     "Get an unsigned 64-bit integer stored in big endian format."
     shared Integer getUnsignedBigEndian64() {
-        value bytes = blob_.spanFrom(readPosition).spanTo(8);
+        value bytes = blob_.spanFrom(readPosition).spanTo(7);
         readPosition += 8;
 
         variable value ret = 0;
@@ -159,7 +159,7 @@ class CSOBlob({Byte*} blobData = {}) {
             return null;
         }
 
-        value ret = CSOBlob(blob_.spanFrom(readPosition).spanTo(size));
+        value ret = CSOBlob(blob_.spanFrom(readPosition).spanTo(size-1));
         readPosition += size;
         return ret;
     }
