@@ -38,6 +38,23 @@ import org.americanteeth.ceylon_llvm.blob {
     storeAnnotations
 }
 
+"Create an already-fulfilled promise."
+Promise<T> promiseLift<T>(T val) {
+    value def = Deferred<T>();
+    def.fulfill(val);
+    return def.promise;
+}
+
+"Turn a sequence of promises into a promise of a sequence."
+Promise<[T*]> promiseAggregate<T>([Promise<T>*] val) {
+    if (! nonempty val) {
+        return promiseLift<[T*]>([]);
+    }
+
+    return val.collect((x) => x.map((y) => [y]))
+        .reduce<Promise<[T*]>>((x,y) => x.and(y).map((a,b) => a.append(b)));
+}
+
 "Byte markers for standard types."
 object typeKinds {
     "Type marker for a standard type."
@@ -108,14 +125,6 @@ class CSOPackage() extends LazyPackage() {
     "A compilation unit for things that don't have one."
     value defaultUnit = Unit();
 
-    "Declaration for unknown types."
-    value unknownDecl = UnknownType(defaultUnit);
-
-    "Deferred accessor to unknownDecl"
-    value unknownDeclDeferred = Deferred<UnknownType>();
-
-    unknownDeclDeferred.fulfill(unknownDecl);
-
     "Promises of values to be delivered later."
     value deferreds = HashMap<String,Deferred<Declaration>>();
 
@@ -125,14 +134,11 @@ class CSOPackage() extends LazyPackage() {
             return e.promise;
         }
 
-        value deferred = Deferred<Declaration>();
-
         if (exists d = getDirectMember(name, null, false)) {
-            deferred.fulfill(d);
+            return promiseLift(d);
         }
 
-        deferreds[name] = deferred;
-        return deferred.promise;
+        return (deferreds[name] = Deferred<Declaration>()).promise;
     }
 
     "Add a direct member we just loaded."
@@ -378,33 +384,33 @@ class CSOPackage() extends LazyPackage() {
         }
 
         if (typeKind == typeKinds.unknown) {
-            return unknownDeclDeferred.promise;
+            return promiseLift(UnknownType(defaultUnit));
         }
 
-        if (typeKind == typeKinds.union) {
-            value ret = UnionType(defaultUnit);
+        if (typeKind == typeKinds.union || typeKind == typeKinds.intersection) {
+            value types = ArrayList<Promise<Type>>();
 
             while (exists t = loadType(data, container)) {
-                t.completed { (x) => ret.caseTypes.add(x); };
+                types.add(t);
             }
 
-            value def = Deferred<UnionType>();
-            def.fulfill(ret);
+            return promiseAggregate(types.sequence()).map{
+                (x) {
+                    value ret = if (typeKind == typeKinds.union)
+                        then UnionType(defaultUnit)
+                        else IntersectionType(defaultUnit);
 
-            return def.promise;
-        }
+                    value typeList = if (is UnionType ret)
+                        then ret.caseTypes
+                        else ret.satisfiedTypes;
 
-        if (typeKind == typeKinds.intersection) {
-            value ret = IntersectionType(defaultUnit);
+                    for (y in typeList) {
+                        typeList.add(y);
+                    }
 
-            while (exists t = loadType(data, container)) {
-                t.completed { (x) => ret.satisfiedTypes.add(x); };
-            }
-
-            value def = Deferred<IntersectionType>();
-            def.fulfill(ret);
-
-            return def.promise;
+                    return ret;
+                };
+            };
         }
 
         /* TODO */
