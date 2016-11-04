@@ -10,6 +10,10 @@ import com.redhat.ceylon.model.typechecker.model {
     Value
 }
 
+import org.americanteeth.ceylon_llvm {
+    baremetalBackend
+}
+
 "First byte of packed annotation flags."
 object packedAnnotations1 {
     "Flag for the shared annotation."
@@ -50,7 +54,7 @@ object packedAnnotations2 {
 }
 
 "Write the annotations for a declaration to the blob."
-void storeAnnotations(CSOBlob buf, Declaration d) {
+shared void storeAnnotations(CSOBlob buf, Declaration d) {
     variable value packed1 = 0.byte;
     variable value packed2 = 0.byte;
 
@@ -103,7 +107,7 @@ void storeAnnotations(CSOBlob buf, Declaration d) {
 }
 
 "Read the annotations for a declaration from a blob."
-void loadAnnotations(CSOBlob data, Declaration target) {
+shared void loadAnnotations(CSOBlob data, Declaration target) {
     variable value packed1 = data.get();
     variable value packed2 = data.get();
 
@@ -148,7 +152,7 @@ void loadAnnotations(CSOBlob data, Declaration target) {
 }
 
 "Write the annotations for a module to the blob."
-void storeModuleAnnotations(CSOBlob buf, Module m) {
+shared void storeModuleAnnotations(CSOBlob buf, Module m) {
     variable value packed1 = 0.byte;
 
     /* TODO: Native? */
@@ -164,7 +168,7 @@ void storeModuleAnnotations(CSOBlob buf, Module m) {
 }
 
 "Read annotations for a module from a blob."
-void loadModuleAnnotations(CSOBlob data, Module target) {
+shared void loadModuleAnnotations(CSOBlob data, Module target) {
     variable value packed1 = data.get();
     data.get(); // Throw away always-empty byte.
 

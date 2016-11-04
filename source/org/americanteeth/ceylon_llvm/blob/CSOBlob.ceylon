@@ -30,7 +30,7 @@ import ceylon.interop.java {
 }
 
 "Marking bytes for differend serialized declarations."
-object blobKeys {
+shared object blobKeys {
     shared Byte \iclass = 1.byte;
     shared Byte \iinterface = 2.byte;
     shared Byte \ival = 3.byte;
@@ -55,7 +55,7 @@ Byte contravariant = 1.byte;
 Byte covariant = 2.byte;
 
 "A consumable byte blob with some parsing helpers."
-class CSOBlob({Byte*} blobData = {}) {
+shared class CSOBlob({Byte*} blobData = {}) {
     value blob_ = ArrayList<Byte>{*blobData};
 
     "Our resulting blob data."

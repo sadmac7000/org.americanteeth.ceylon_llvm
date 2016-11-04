@@ -31,6 +31,13 @@ import ceylon.promise {
     Promise
 }
 
+import org.americanteeth.ceylon_llvm.blob {
+    CSOBlob,
+    blobKeys,
+    loadAnnotations,
+    storeAnnotations
+}
+
 "Byte markers for standard types."
 object typeKinds {
     "Type marker for a standard type."

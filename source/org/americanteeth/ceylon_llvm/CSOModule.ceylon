@@ -26,6 +26,11 @@ import com.redhat.ceylon.model.typechecker.util {
     ModuleManager
 }
 
+import org.americanteeth.ceylon_llvm.blob {
+    CSOBlob,
+    loadModuleAnnotations,
+    storeModuleAnnotations
+}
 "ABI version number"
 Byte abiVersion = 0.byte;
 
