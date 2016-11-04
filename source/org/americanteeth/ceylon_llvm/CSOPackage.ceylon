@@ -172,23 +172,39 @@ class CSOPackage() extends LazyPackage() {
 
         \ishared = data.get() == 1.byte;
 
-        variable value b = data.get();
-        while (b != 0.byte) {
-            loadDeclaration(data, b);
-            b = data.get();
-        }
+        while (loadDeclaration(data, this)) {}
     }
 
     "Load a declaration from the blob."
-    void loadDeclaration(CSOBlob data, Byte blobKey) {
-        if (blobKey == blobKeys.\ifunction) {
-            loadFunctionOrValue(Function(), data, this);
+    Boolean loadDeclaration(CSOBlob data, Scope parent) {
+        value blobKey = data.get();
+
+        if (blobKey == 0.byte) {
+            return false;
+        } else if (blobKey == blobKeys.\ifunction) {
+            loadFunctionOrValue(Function(), data, parent);
         } else if (blobKey == blobKeys.\ival) {
-            loadFunctionOrValue(Value(), data, this);
+            loadFunctionOrValue(Value(), data, parent);
+        } else if (blobKey == blobKeys.\iinterface) {
+            loadInterface(data, parent);
+        } else if (blobKey == blobKeys.\iclass) {
+            loadClass(data, parent);
+        } else if (blobKey == blobKeys.\iobject) {
+            loadObject(data, parent);
+        } else if (blobKey == blobKeys.\ialias) {
+            loadAlias(data, parent);
+        } else {
+            "Key byte should be a recognized value."
+            assert(false);
         }
 
-        /* TODO: Other declaration types */
+        return true;
     }
+
+    void loadInterface(CSOBlob data, Scope parent) {}
+    void loadClass(CSOBlob data, Scope parent) {}
+    void loadObject(CSOBlob data, Scope parent) {}
+    void loadAlias(CSOBlob data, Scope parent) {}
 
     "Consume and deserialize a function or value declaration."
     void loadFunctionOrValue(FunctionOrValue f, CSOBlob data, Scope parent) {
