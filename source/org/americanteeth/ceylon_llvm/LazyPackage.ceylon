@@ -25,7 +25,7 @@ import java.util {
     JMap=Map
 }
 
-abstract class LazyPackage() extends Package() {
+shared abstract class LazyPackage() extends Package() {
     "Load this package's data."
     shared formal void load();
 

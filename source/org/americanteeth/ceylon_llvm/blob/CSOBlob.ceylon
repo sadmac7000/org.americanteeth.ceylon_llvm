@@ -1,6 +1,13 @@
 import com.redhat.ceylon.model.typechecker.model {
+    Declaration,
+    Package,
     ModuleImport,
-    Annotation
+    Annotation,
+    TypeDeclaration,
+    Type,
+    UnknownType,
+    UnionType,
+    IntersectionType
 }
 
 import com.redhat.ceylon.model.typechecker.util {
@@ -37,6 +44,24 @@ shared object blobKeys {
     shared Byte \ifunction = 4.byte;
     shared Byte \iobject = 5.byte;
     shared Byte \ialias = 6.byte;
+}
+
+"Byte markers for standard types."
+object typeKinds {
+    "Type marker for a standard type."
+    shared Byte plain = 1.byte;
+
+    "Type marker for union types."
+    shared Byte union = 2.byte;
+
+    "Type marker for intersection types."
+    shared Byte intersection = 3.byte;
+
+    "Type marker for unknown types."
+    shared Byte unknown = 4.byte;
+
+    "Type marker for type parameters."
+    shared Byte parameter = 5.byte;
 }
 
 "Flag bit indicating an import has the export annotation."
@@ -127,6 +152,62 @@ shared class CSOBlob({Byte*} blobData = {}) {
         putStringList(ann.positionalArguments);
     }
 
+    "Serialize and write a type declaration."
+    shared void putTypeDeclaration(TypeDeclaration t) {
+        if (is UnknownType t) {
+            put(typeKinds.unknown);
+            return;
+        }
+
+        if (is UnionType t) {
+            put(typeKinds.union);
+
+            for (sub in t.caseTypes) {
+                putType(sub);
+            }
+
+            put(0.byte);
+            return;
+        }
+
+        if (is IntersectionType t) {
+            put(typeKinds.intersection);
+
+            for (sub in t.satisfiedTypes) {
+                putType(sub);
+            }
+
+            put(0.byte);
+            return;
+        }
+
+        put(typeKinds.plain);
+
+        value name = ArrayList<String>();
+        variable value pkg = t.container;
+
+        while (! is Package p = pkg) {
+            if (is Declaration p) {
+                name.insert(0, p.name);
+            }
+
+            pkg = p.container;
+        }
+
+        "Loop should halt at a package."
+        assert(is Package p = pkg);
+
+        putStringList(p.name);
+        name.add(t.name);
+        putStringList(name);
+    }
+
+    "Serialize and write a type."
+    shared void putType(Type t) {
+        putTypeDeclaration(t.declaration);
+        /* TODO: Type parameters. */
+    }
+
     "Consume a single byte."
     shared Byte get() {
         "Must have a byte to get."
@@ -202,7 +283,7 @@ shared class CSOBlob({Byte*} blobData = {}) {
 
     "Deserialize and return a ModuleImport. Returns null if we see an empty
      name field at the start of deserialization."
-     shared ModuleImport? getModuleImport(ModuleManager moduleManager) {
+    shared ModuleImport? getModuleImport(ModuleManager moduleManager) {
         value name = getStringList();
         if (name.empty) {
             return null;
@@ -220,7 +301,7 @@ shared class CSOBlob({Byte*} blobData = {}) {
 
     "Deserialize and return an Annotation. Returns null if we see an empty name
      field at the start of deserialization."
-     shared Annotation? getAnnotation() {
+    shared Annotation? getAnnotation() {
         value name = getString();
         if (name.empty) {
             return null;
@@ -235,6 +316,65 @@ shared class CSOBlob({Byte*} blobData = {}) {
 
         return annotation;
      }
+
+    "Deserialze and return data identifying a type declaration."
+    shared TypeDeclarationData? getTypeDeclarationData() {
+        value typeKind = get();
+
+        if (typeKind == 0.byte) {
+            return null;
+        }
+
+        if (typeKind == typeKinds.unknown) {
+            return unknownTypeDeclarationData;
+        }
+
+        if (typeKind == typeKinds.union ||
+            typeKind == typeKinds.intersection) {
+            value types = ArrayList<TypeData>();
+
+            while (exists t = getTypeData()) {
+                types.add(t);
+            }
+
+            "Composite type should contain at least one type."
+            assert(nonempty typeSequence = types.sequence());
+
+            if (typeKind == typeKinds.union) {
+                return UnionTypeDeclarationData(typeSequence);
+            } else {
+                return IntersectionTypeDeclarationData(typeSequence);
+            }
+        }
+
+        if (typeKind == typeKinds.parameter) {
+            return TypeParameterDeclarationData(getString());
+        }
+
+        "Byte should be a valid type kind indicatior."
+        assert(typeKind == typeKinds.plain);
+
+        value pkg = getStringList().sequence();
+        value name = getStringList().sequence();
+
+        "Package name should have at least one term."
+        assert(nonempty pkg);
+
+        "Type name should have at least one term."
+        assert(nonempty name);
+
+        return PlainTypeDeclarationData(pkg, name);
+    }
+
+    "Deserialize and return data identifying a type."
+    shared TypeData? getTypeData() {
+        if (exists t = getTypeDeclarationData()) {
+            /* TODO: Type parameters */
+            return TypeData(t);
+        }
+
+        return null;
+    }
 
     "Reset the read positiion."
     shared void rewind() {

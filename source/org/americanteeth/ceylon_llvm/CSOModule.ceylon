@@ -34,7 +34,7 @@ import org.americanteeth.ceylon_llvm.blob {
 "ABI version number"
 Byte abiVersion = 0.byte;
 
-class CSOModule(ModuleManager moduleManager) extends Module() {
+shared class CSOModule(ModuleManager moduleManager) extends Module() {
     "Package data from the loaded module."
     value packageData = HashMap<String, CSOBlob>();
 

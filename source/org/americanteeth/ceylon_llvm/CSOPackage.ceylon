@@ -1,19 +1,14 @@
 import com.redhat.ceylon.model.typechecker.model {
-    Package,
     Scope,
     Module,
     Declaration,
     Function,
     FunctionOrValue,
     Type,
-    TypeDeclaration,
-    UnionType,
-    IntersectionType,
     ParameterList,
     Parameter,
     Setter,
     Value,
-    UnknownType,
     Unit
 }
 
@@ -21,38 +16,11 @@ import ceylon.interop.java {
     CeylonList
 }
 
-import ceylon.collection {
-    ArrayList,
-    HashMap
-}
-
-import ceylon.promise {
-    Deferred,
-    Promise
-}
-
 import org.americanteeth.ceylon_llvm.blob {
     CSOBlob,
     blobKeys,
     loadAnnotations,
     storeAnnotations
-}
-
-"Create an already-fulfilled promise."
-Promise<T> promiseLift<T>(T val) {
-    value def = Deferred<T>();
-    def.fulfill(val);
-    return def.promise;
-}
-
-"Turn a sequence of promises into a promise of a sequence."
-Promise<[T*]> promiseAggregate<T>([Promise<T>*] val) {
-    if (! nonempty val) {
-        return promiseLift<[T*]>([]);
-    }
-
-    return val.collect((x) => x.map((y) => [y]))
-        .reduce<Promise<[T*]>>((x,y) => x.and(y).map((a,b) => a.append(b)));
 }
 
 "Byte markers for standard types."
@@ -118,37 +86,17 @@ object valueFlags {
 "Byte marking the start of a parameter list."
 Byte startOfParameters = #ff.byte;
 
-class CSOPackage() extends LazyPackage() {
+shared class CSOPackage() extends LazyPackage() {
     "Blob of binary data extracted from the module."
     variable CSOBlob? blobData = null;
 
     "A compilation unit for things that don't have one."
     value defaultUnit = Unit();
 
-    "Promises of values to be delivered later."
-    value deferreds = HashMap<String,Deferred<Declaration>>();
-
-    "Get a promise if we aren't done loading."
-    shared Promise<Declaration> expectDirectMember(String name) {
-        if (exists e = deferreds[name]) {
-            return e.promise;
-        }
-
-        if (exists d = getDirectMember(name, null, false)) {
-            return promiseLift(d);
-        }
-
-        return (deferreds[name] = Deferred<Declaration>()).promise;
-    }
-
     "Add a direct member we just loaded."
     void addLoadedMember(Declaration member) {
         defaultUnit.addDeclaration(member);
         addMember(member);
-
-        if (exists d = deferreds[member.name]) {
-            d.fulfill(member);
-        }
     }
 
     shared actual Module? \imodule => super.\imodule;
@@ -236,11 +184,7 @@ class CSOPackage() extends LazyPackage() {
             then parent
             else null;
 
-        value gottenType = loadType(data, parentDeclaration);
-
-        if (exists gottenType) {
-            gottenType.completed((x) => f.type = x);
-        }
+        f.type = loadType(data, parentDeclaration);
 
         value flags = data.get();
 
@@ -272,10 +216,7 @@ class CSOPackage() extends LazyPackage() {
                 f.setter.container = parent;
                 f.setter.unit = defaultUnit;
                 f.setter.getter = f;
-
-                if (exists gottenType) {
-                    gottenType.completed((x) => f.setter.type = x);
-                }
+                f.setter.type = f.type;
 
                 if (parent == this) {
                     addLoadedMember(f.setter);
@@ -367,113 +308,17 @@ class CSOPackage() extends LazyPackage() {
 
         "Parameter should have a type."
         assert(exists type = loadType(data, owner));
-        type.completed((x) => m.type = x);
+        m.type = type;
 
         loadAnnotations(data, m);
 
         return param;
     }
 
-    "Load a type declaration from the blob."
-    Promise<TypeDeclaration>? loadTypeDeclaration(CSOBlob data,
-            Declaration? container) {
-        value typeKind = data.get();
-
-        if (typeKind == 0.byte) {
-            return null;
-        }
-
-        if (typeKind == typeKinds.unknown) {
-            return promiseLift(UnknownType(defaultUnit));
-        }
-
-        if (typeKind == typeKinds.union || typeKind == typeKinds.intersection) {
-            value types = ArrayList<Promise<Type>>();
-
-            while (exists t = loadType(data, container)) {
-                types.add(t);
-            }
-
-            return promiseAggregate(types.sequence()).map{
-                (x) {
-                    value ret = if (typeKind == typeKinds.union)
-                        then UnionType(defaultUnit)
-                        else IntersectionType(defaultUnit);
-
-                    value typeList = if (is UnionType ret)
-                        then ret.caseTypes
-                        else ret.satisfiedTypes;
-
-                    for (y in typeList) {
-                        typeList.add(y);
-                    }
-
-                    return ret;
-                };
-            };
-        }
-
-        /* TODO */
-        "Type parameters aren't yet supported."
-        assert(typeKind != typeKinds.parameter);
-
-        "Should have found a valid type kind indicatior."
-        assert(typeKind == typeKinds.plain);
-
-        value packageName = ".".join(data.getStringList());
-
-        "Package should be found, and from the baremetal backend."
-        assert(is CSOPackage pkg = \imodule?.getPackage(packageName));
-
-        if (pkg != this) { pkg.load(); }
-
-        value name = data.getStringList();
-
-        "Package name should have at least one term."
-        assert(exists level1 = name.first);
-
-        if (name.size == 1) {
-            return expectDirectMember(level1).map {
-                (x) {
-                    "Fetched member should map to a type."
-                    assert(is TypeDeclaration|FunctionOrValue x);
-
-                    if (is TypeDeclaration x) {
-                        return x;
-                    } else {
-                        return x.typeDeclaration;
-                    }
-                };
-            };
-        }
-
-        return expectDirectMember(level1).map {
-            (x) {
-                variable value ret = x;
-
-                for (item in name[1...]) {
-                    "Type member should be present."
-                    assert(exists r = ret.getMember(item, null, false));
-                    ret = r;
-                }
-
-                assert(is TypeDeclaration r = ret);
-                return r;
-            };
-        };
-    }
-
     "Load a Type object from the blob."
-    Promise<Type>? loadType(CSOBlob data, Declaration? parent) {
-        value typeDeclaration = loadTypeDeclaration(data, parent);
-
-        if (! exists typeDeclaration) {
-            return null;
-        }
-
-        /* TODO: Type parameters. */
-
-        return typeDeclaration.map((x) => x.type);
+    Type? loadType(CSOBlob data, Declaration? parent) {
+        assert(is CSOModule m = \imodule);
+        return data.getTypeData()?.toType(m, defaultUnit, parent);
     }
 
     "Write one member to the blob."
@@ -495,7 +340,7 @@ class CSOPackage() extends LazyPackage() {
 
         storeAnnotations(buf, f);
 
-        storeType(buf, f.type);
+        buf.putType(f.type);
 
         variable value flags = 0.byte;
 
@@ -548,12 +393,6 @@ class CSOPackage() extends LazyPackage() {
         buf.put(0.byte);
     }
 
-    "Write one type to the blob."
-    void storeType(CSOBlob buf, Type t) {
-        storeTypeDeclaration(buf, t.declaration);
-        /* TODO: Type parameters. */
-    }
-
     "Write a parameter list to the blob."
     void storeParameterList(CSOBlob buf, ParameterList p) {
         buf.put(startOfParameters);
@@ -602,59 +441,9 @@ class CSOPackage() extends LazyPackage() {
             buf.put(flags);
         }
 
-        storeType(buf, model.type);
+        buf.putType(model.type);
 
         storeAnnotations(buf, model);
-    }
-
-    "Store a type declaration to the blob."
-    void storeTypeDeclaration(CSOBlob buf, TypeDeclaration t) {
-        if (is UnknownType t) {
-            buf.put(typeKinds.unknown);
-            return;
-        }
-
-        if (is UnionType t) {
-            buf.put(typeKinds.union);
-
-            for (sub in t.caseTypes) {
-                storeType(buf, sub);
-            }
-
-            buf.put(0.byte);
-            return;
-        }
-
-        if (is IntersectionType t) {
-            buf.put(typeKinds.intersection);
-
-            for (sub in t.satisfiedTypes) {
-                storeType(buf, sub);
-            }
-
-            buf.put(0.byte);
-            return;
-        }
-
-        buf.put(typeKinds.plain);
-
-        value name = ArrayList<String>();
-        variable value pkg = t.container;
-
-        while (! is Package p = pkg) {
-            if (is Declaration p) {
-                name.insert(0, p.name);
-            }
-
-            pkg = p.container;
-        }
-
-        "Loop should halt at a package."
-        assert(is Package p = pkg);
-
-        buf.putStringList(p.name);
-        name.add(t.name);
-        buf.putStringList(name);
     }
 
     "Blob data serializing the metamodel for this package."
