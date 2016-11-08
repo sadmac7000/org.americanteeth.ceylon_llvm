@@ -1,6 +1,5 @@
 import com.redhat.ceylon.model.typechecker.model {
     Declaration,
-    FunctionOrValue,
     IntersectionType,
     Scope,
     Type,
@@ -8,7 +7,8 @@ import com.redhat.ceylon.model.typechecker.model {
     TypeParameter,
     UnionType,
     Unit,
-    UnknownType
+    UnknownType,
+    Value
 }
 
 import org.americanteeth.ceylon_llvm {
@@ -78,10 +78,10 @@ class PlainTypeDeclarationData(pkg, name) extends TypeDeclarationData() {
 
         if (name.size == 1) {
             "Referenced type should be defined."
-            assert(is TypeDeclaration|FunctionOrValue t =
+            assert(is TypeDeclaration|Value t =
                     pkg.getDirectMember(name.first, null, false));
 
-            return if (is FunctionOrValue t)
+            return if (is Value t)
                 then t.typeDeclaration
                 else t;
         }

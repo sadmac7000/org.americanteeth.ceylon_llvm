@@ -1,13 +1,20 @@
 import com.redhat.ceylon.model.typechecker.model {
-    Declaration,
-    Package,
-    ModuleImport,
     Annotation,
-    TypeDeclaration,
+    Class,
+    Constructor,
+    Declaration,
+    Function,
+    FunctionOrValue,
+    IntersectionType,
+    ModuleImport,
+    Package,
+    Parameter,
+    ParameterList,
     Type,
-    UnknownType,
+    TypeDeclaration,
     UnionType,
-    IntersectionType
+    UnknownType,
+    Value
 }
 
 import com.redhat.ceylon.model.typechecker.util {
@@ -34,6 +41,90 @@ import ceylon.interop.java {
     CeylonList,
     JavaList,
     javaString
+}
+
+"Byte marking the start of a parameter list."
+Byte startOfParameters = #ff.byte;
+
+"Flags for parameters."
+object parameterFlags {
+    "Flag bit indicating a parameter is sequenced."
+    shared Byte sequenced = 1.byte;
+
+    "Flag bit indicating a parameter is defaulted."
+    shared Byte defaulted = 2.byte;
+
+    "Flag bit indicating a parameter needs at least one argument."
+    shared Byte atLeastOne = 4.byte;
+
+    "Flag bit indicating a parameter is hidden."
+    shared Byte hidden = 8.byte;
+
+    "Flag bit indicating a parameter has parameter lists of its own."
+    shared Byte functionParameter = 16.byte;
+}
+
+"Flags for functions."
+object functionFlags {
+    "Flag indicating a function was declared void."
+    shared Byte \ivoid = 1.byte;
+
+    "Flag indicating a function was deferred."
+    shared Byte deferred = 2.byte;
+}
+
+"Flags for values."
+object valueFlags {
+    "Flag indicating a value is transient."
+    shared Byte transient = 1.byte;
+
+    "Flag indicating a value is static."
+    shared Byte static = 2.byte;
+
+    "Flag indicating a value has a setter."
+    shared Byte hasSetter = 4.byte;
+
+    "Flag indicating a value is variable."
+    shared Byte \ivariable = 8.byte;
+}
+
+"First byte of packed annotation flags."
+object packedAnnotations1 {
+    "Flag for the shared annotation."
+    shared Byte \ishared = 1.byte;
+
+    "Flag for the actual annotation."
+    shared Byte \iactual = 2.byte;
+
+    "Flag for the formal annotation."
+    shared Byte \iformal = 4.byte;
+
+    "Flag for the default annotation."
+    shared Byte \idefault = 8.byte;
+
+    "Flag for the native annotation."
+    shared Byte \inative = 16.byte;
+
+    "Flag for the annotation annotation."
+    shared Byte \iannotation = 32.byte;
+
+    "Flag for the sealed annotation."
+    shared Byte \isealed = 64.byte;
+
+    "Flag for the final annotation."
+    shared Byte \ifinal = 128.byte;
+}
+
+"Second byte of packed annotation flags."
+object packedAnnotations2 {
+    "Flag for the abstract annotation."
+    shared Byte \iabstract = 1.byte;
+
+    "Flag for the late annotation."
+    shared Byte \ilate = 2.byte;
+
+    "Flag for the variable annotation."
+    shared Byte \ivariable = 4.byte;
 }
 
 "Marking bytes for differend serialized declarations."
@@ -208,6 +299,171 @@ shared class CSOBlob({Byte*} blobData = {}) {
         /* TODO: Type parameters. */
     }
 
+    "Put the annotations for a declaration to the blob."
+    shared void putAnnotations(Declaration d) {
+        variable value packed1 = 0.byte;
+        variable value packed2 = 0.byte;
+
+        if (d.\ishared) {
+            packed1 = packed1.or(packedAnnotations1.\ishared);
+        }
+
+        if (d.\iactual) {
+            packed1 = packed1.or(packedAnnotations1.\iactual);
+        }
+
+        if (d.\iformal) {
+            packed1 = packed1.or(packedAnnotations1.\iformal);
+        }
+
+        if (d.\idefault) {
+            packed1 = packed1.or(packedAnnotations1.\idefault);
+        }
+
+        /* TODO: Native? */
+
+        if (d.\iannotation) {
+            packed1 = packed1.or(packedAnnotations1.\iannotation);
+        }
+
+        if (is Class d, d.\ifinal) {
+            packed1 = packed1.or(packedAnnotations1.\ifinal);
+        }
+
+        if (is Class|Constructor d, d.\iabstract) {
+            packed2 = packed2.or(packedAnnotations2.\iabstract);
+        }
+
+        if (is Value d, d.\ilate) {
+            packed2 = packed2.or(packedAnnotations2.\ilate);
+        }
+
+        if (is Value d, d.\ivariable) {
+            packed2 = packed2.or(packedAnnotations2.\ivariable);
+        }
+
+        put(packed1);
+        put(packed2);
+
+        for (ann in d.annotations) {
+            putAnnotation(ann);
+        }
+
+        put(0.byte);
+    }
+
+    "Serialize and write a Function or Value."
+    shared void putFunctionOrValue(FunctionOrValue f) {
+        putString(f.name);
+
+        putAnnotations(f);
+
+        putType(f.type);
+
+        variable value flags = 0.byte;
+
+        if (is Function f) {
+            if (f.declaredVoid) {
+                flags = flags.or(functionFlags.\ivoid);
+            }
+
+            if (f.deferred) {
+                flags = flags.or(functionFlags.deferred);
+            }
+        } else {
+            assert(is Value f);
+
+            if (f.transient) {
+                flags = flags.or(valueFlags.transient);
+            }
+
+            if (f.\ivariable) {
+                flags = flags.or(valueFlags.\ivariable);
+            }
+
+            if (f.staticallyImportable) {
+                flags = flags.or(valueFlags.static);
+            }
+
+            if (f.setter exists) {
+                flags = flags.or(valueFlags.hasSetter);
+            }
+        }
+
+        put(flags);
+
+        if (is Value f, exists s = f.setter) {
+            putAnnotations(s);
+        }
+
+        /* TODO: Type parameters. */
+
+        if (is Value f) {
+            return;
+        }
+
+        assert(is Function f);
+
+        for (p in f.parameterLists) {
+            putParameterList(p);
+        }
+
+        put(0.byte);
+    }
+
+    "Serialize and write a parameter list."
+    shared void putParameterList(ParameterList p) {
+        put(startOfParameters);
+
+        for (param in p.parameters) {
+            putParameter(param);
+        }
+
+        put(0.byte);
+    }
+
+    "Serialize and write a parameter."
+    shared void putParameter(Parameter param) {
+        putString(param.name);
+
+        variable value flags = 0.byte;
+
+        if (param.hidden) {
+            flags = flags.or(parameterFlags.hidden);
+        }
+
+        if (param.defaulted) {
+            flags = flags.or(parameterFlags.defaulted);
+        }
+
+        if (param.sequenced) {
+            flags = flags.or(parameterFlags.sequenced);
+        }
+
+        if (param.atLeastOne) {
+            flags = flags.or(parameterFlags.atLeastOne);
+        }
+
+        value model = param.model;
+
+        if (is Function model) {
+            flags = flags.or(parameterFlags.functionParameter);
+            put(flags);
+
+            for (plist in model.parameterLists) {
+                putParameterList(plist);
+            }
+
+            put(0.byte);
+        } else {
+            put(flags);
+        }
+
+        putType(model.type);
+
+        putAnnotations(model);
+    }
+
     "Consume a single byte."
     shared Byte get() {
         "Must have a byte to get."
@@ -299,6 +555,33 @@ shared class CSOBlob({Byte*} blobData = {}) {
         return ModuleImport(null, mod, optional, export, backends);
      }
 
+    "Read the annotations for a declaration from a blob."
+    shared AnnotationData getAnnotationData() {
+        variable value packed1 = get();
+        variable value packed2 = get();
+
+        value \ishared = packed1.and(packedAnnotations1.\ishared) != 0.byte;
+        value \iactual = packed1.and(packedAnnotations1.\iactual) != 0.byte;
+        value \iformal = packed1.and(packedAnnotations1.\iformal) != 0.byte;
+        value \idefault = packed1.and(packedAnnotations1.\idefault) != 0.byte;
+        value \inative = packed1.and(packedAnnotations1.\inative) != 0.byte;
+        value \iannotation = packed1.and(packedAnnotations1.\iannotation)
+            != 0.byte;
+        value \ifinal = packed1.and(packedAnnotations1.\ifinal) != 0.byte;
+        value \iabstract = packed2.and(packedAnnotations2.\iabstract) != 0.byte;
+        value \ilate = packed2.and(packedAnnotations2.\ilate) != 0.byte;
+        value \ivariable = packed2.and(packedAnnotations2.\ivariable) != 0.byte;
+
+        value annotations = ArrayList<Annotation>();
+        while (exists ann = getAnnotation()) {
+            annotations.add(ann);
+        }
+
+        return AnnotationData(\ishared, \iactual, \iformal, \idefault,
+                \inative, \ifinal, \iabstract, \iannotation, \ilate,
+                \ivariable, annotations.sequence());
+    }
+
     "Deserialize and return an Annotation. Returns null if we see an empty name
      field at the start of deserialization."
     shared Annotation? getAnnotation() {
@@ -374,6 +657,100 @@ shared class CSOBlob({Byte*} blobData = {}) {
         }
 
         return null;
+    }
+
+    "Deserialize and return data indicating a parameter list."
+    ParameterListData? getParameterListData() {
+        if (get() != startOfParameters) {
+            return null;
+        }
+
+        value params = ArrayList<ParameterData>();
+        while (exists param = getParameterData()) {
+            params.add(param);
+        }
+
+        return ParameterListData(params.sequence());
+    }
+
+    "Load a parameter from the blob."
+    ParameterData? getParameterData() {
+        value name = getString();
+
+        if (name.empty) {
+            return null;
+        }
+
+        value flags = get();
+
+        value hidden = flags.and(parameterFlags.hidden) != 0.byte;
+        value defaulted = flags.and(parameterFlags.defaulted) != 0.byte;
+        value sequenced = flags.and(parameterFlags.sequenced) != 0.byte;
+        value atLeastOne = flags.and(parameterFlags.atLeastOne) != 0.byte;
+
+        value parameterType = if (! sequenced)
+            then ParameterType.normal
+            else if (atLeastOne)
+            then ParameterType.oneOrMore
+            else ParameterType.zeroOrMore;
+
+        value parameterLists = ArrayList<ParameterListData>();
+
+        if (flags.and(parameterFlags.functionParameter) != 0.byte) {
+            while (exists p = getParameterListData()) {
+                parameterLists.add(p);
+            }
+        }
+
+        "Parameter should have a type."
+        assert(exists type = getTypeData ());
+        value annotations  = getAnnotationData();
+
+        return ParameterData(name, hidden, defaulted, parameterType,
+                parameterLists.sequence(), type, annotations);
+    }
+
+
+    "Deserialize return data identifying a function."
+    shared FunctionData getFunctionData() {
+        value name = getString();
+        value annotations = getAnnotationData();
+        value type = getTypeData();
+        value flags = get();
+        value declaredVoid = flags.and(functionFlags.\ivoid) != 0.byte;
+        value deferred = flags.and(functionFlags.deferred) != 0.byte;
+
+        value parameterLists = ArrayList<ParameterListData>();
+        while (exists p = getParameterListData()) {
+            parameterLists.add(p);
+        }
+
+        "Function should have at least one parameter list."
+        assert(nonempty parameterSequence = parameterLists.sequence());
+
+        return FunctionData(name, type, annotations, declaredVoid, deferred,
+                parameterSequence);
+    }
+
+    "Deserialize return data identifying a value."
+    shared ValueData getValueData() {
+        value name = getString();
+        value annotations = getAnnotationData();
+
+        "Value must have a type."
+        assert(exists type = getTypeData());
+        value flags = get();
+        value transient = flags.and(valueFlags.transient) != 0.byte;
+        value staticallyImportable = flags.and(valueFlags.static) != 0.byte;
+        value \ivariable = flags.and(valueFlags.\ivariable) != 0.byte;
+
+        value setterAnnotations =
+            if (flags.and(valueFlags.hasSetter) != 0.byte)
+            then getAnnotationData()
+            else null;
+
+        return ValueData(name, type, annotations, transient,
+                staticallyImportable, \ivariable, setterAnnotations);
     }
 
     "Reset the read positiion."
