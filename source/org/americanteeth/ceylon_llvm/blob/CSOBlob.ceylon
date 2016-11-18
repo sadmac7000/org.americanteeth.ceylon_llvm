@@ -10,6 +10,7 @@ import com.redhat.ceylon.model.typechecker.model {
     Package,
     Parameter,
     ParameterList,
+    SiteVariance,
     Type,
     TypeDeclaration,
     UnionType,
@@ -22,7 +23,8 @@ import com.redhat.ceylon.model.typechecker.util {
 }
 
 import ceylon.collection {
-    ArrayList
+    ArrayList,
+    HashMap
 }
 
 import ceylon.buffer.charset {
@@ -39,6 +41,7 @@ import java.lang {
 
 import ceylon.interop.java {
     CeylonList,
+    CeylonMap,
     JavaList,
     javaString
 }
@@ -161,14 +164,17 @@ Byte exportFlag = 1.byte;
 "Flag bit indicating an import is optional."
 Byte optionalFlag = 2.byte;
 
-"Byte marker for invariant type parameters."
-Byte invariant = 0.byte;
+"Byte marker for variances."
+object variances {
+    "Byte marker for invariant type parameters."
+    shared Byte invariant = 0.byte;
 
-"Byte marker for contravariant type parameters."
-Byte contravariant = 1.byte;
+    "Byte marker for contravariant type parameters."
+    shared Byte contravariant = 1.byte;
 
-"Byte marker for covariant type parameters."
-Byte covariant = 2.byte;
+    "Byte marker for covariant type parameters."
+    shared Byte covariant = 2.byte;
+}
 
 "A consumable byte blob with some parsing helpers."
 shared class CSOBlob({Byte*} blobData = {}) {
@@ -296,7 +302,20 @@ shared class CSOBlob({Byte*} blobData = {}) {
     "Serialize and write a type."
     shared void putType(Type t) {
         putTypeDeclaration(t.declaration);
-        /* TODO: Type parameters. */
+
+        for (parameter -> type in CeylonMap(t.typeArguments)) {
+            value variance = switch(t.varianceOverrides?.get(parameter))
+                case (SiteVariance.\iIN) variances.contravariant
+                case (SiteVariance.\iOUT) variances.covariant
+                else variances.invariant;
+            value name =
+                "``partiallyQualifiedName(t.declaration)``.``parameter.name``";
+            putType(type);
+            putString(name);
+            put(variance);
+        }
+
+        put(0.byte);
     }
 
     "Put the annotations for a declaration to the blob."
@@ -651,12 +670,33 @@ shared class CSOBlob({Byte*} blobData = {}) {
 
     "Deserialize and return data identifying a type."
     shared TypeData? getTypeData() {
-        if (exists t = getTypeDeclarationData()) {
-            /* TODO: Type parameters */
-            return TypeData(t);
+        value t = getTypeDeclarationData();
+
+        if (! exists t) {
+            return null;
         }
 
-        return null;
+        value arguments = HashMap<String,TypeArgumentData>();
+
+        while (exists type = getTypeData()) {
+            value name = getString();
+            value varianceByte = get();
+
+            value variance = if (varianceByte == variances.contravariant)
+                then Variance.contravariant
+                else if (varianceByte == variances.covariant)
+                then Variance.covariant
+                else Variance.invariant;
+
+            if (variance == Variance.invariant) {
+                "Should fint a valid variance byte."
+                assert(varianceByte == variances.invariant);
+            }
+
+            arguments[name] = TypeArgumentData(variance, type);
+        }
+
+        return TypeData(t, if (arguments.empty) then null else arguments);
     }
 
     "Deserialize and return data indicating a parameter list."

@@ -1,7 +1,10 @@
 import com.redhat.ceylon.model.typechecker.model {
     Declaration,
+    Generic,
     IntersectionType,
+    ModelUtil,
     Scope,
+    SiteVariance,
     Type,
     TypeDeclaration,
     TypeParameter,
@@ -14,6 +17,10 @@ import com.redhat.ceylon.model.typechecker.model {
 import org.americanteeth.ceylon_llvm {
     CSOModule,
     CSOPackage
+}
+
+import java.util {
+    JHashMap = HashMap
 }
 
 shared abstract class TypeDeclarationData() {
@@ -102,7 +109,66 @@ class PlainTypeDeclarationData(pkg, name) extends TypeDeclarationData() {
     }
 }
 
-shared class TypeData(shared TypeDeclarationData declaration) {
-    shared Type toType(CSOModule mod, Unit unit, Declaration? container)
-        => declaration.toTypeDeclaration(mod, unit, container).type;
+shared class TypeData(shared TypeDeclarationData declaration,
+        Map<String,TypeArgumentData>? arguments) {
+    shared Type toType(CSOModule mod, Unit unit, Declaration? container) {
+        value baseDecl = declaration.toTypeDeclaration(mod, unit, container);
+        value base = baseDecl.type;
+
+        if (! exists arguments) {
+            return base;
+        }
+
+        variable Declaration? current = baseDecl;
+
+        value concretes = JHashMap<TypeParameter,Type>();
+        variable JHashMap<TypeParameter,SiteVariance>? variances_ = null;
+        value variances
+            => variances_
+            else (variances_ = JHashMap<TypeParameter,SiteVariance>());
+
+        while (exists d = current) {
+            if (! is Generic d) {
+                continue;
+            }
+
+            for (parameter in d.typeParameters) {
+                "Container's parameters should be satisfied."
+                assert(exists argument =
+                    arguments["``partiallyQualifiedName(d)``.``parameter.name``"]);
+
+                concretes.put(parameter, argument.type.toType(mod, unit,
+                            container));
+
+                if (exists v = argument.useSiteVariance.siteVariance) {
+                    variances.put(parameter, v);
+                }
+            }
+
+            current = ModelUtil.getContainingDeclaration(d);
+        }
+
+        return base.substitute(concretes, variances);
+    }
+}
+
+shared class Variance {
+    shared SiteVariance? siteVariance;
+
+    shared new covariant {
+        this.siteVariance = SiteVariance.\iOUT;
+    }
+
+    shared new contravariant {
+        this.siteVariance = SiteVariance.\iIN;
+    }
+
+    shared new invariant {
+        this.siteVariance = null;
+    }
+}
+
+shared class TypeArgumentData(useSiteVariance, type) {
+    shared Variance useSiteVariance;
+    shared TypeData type;
 }
