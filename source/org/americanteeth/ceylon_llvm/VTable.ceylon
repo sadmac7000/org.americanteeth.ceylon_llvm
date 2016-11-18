@@ -176,9 +176,8 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
         }
 
         value original = member.refinedDeclaration;
-        value container = original.container;
-        value position = ret.loadGlobal(i64,
-                vtPositionName(original));
+        value container = containingDeclaration(original);
+        value position = ret.loadGlobal(i64, vtPositionName(original));
 
         if (is ClassModel container) {
             return position;
@@ -237,7 +236,7 @@ void vtDispatch(FunctionOrValueModel model, LLVMFunction func, Integer selector)
     value context = func.register(ptr(i64), ".context");
     value vtable = func.toPtr(func.load(context, I64Lit(1)), i64);
     value vtPosition = func.loadGlobal(i64, vtPositionName(model.refinedDeclaration));
-    value container = model.refinedDeclaration.container;
+    value container = containingDeclaration(model.refinedDeclaration);
     I64 correctedPosition;
     I64 offsetPosition;
 

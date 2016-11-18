@@ -40,4 +40,3 @@ DeclarationModel? containingDeclaration(DeclarationModel d) {
 
     return ret;
 }
-
