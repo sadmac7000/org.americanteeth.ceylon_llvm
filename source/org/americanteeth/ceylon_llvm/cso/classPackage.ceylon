@@ -1,6 +1,6 @@
 import com.redhat.ceylon.model.typechecker.model {
     Scope,
-    Module,
+    BaseModule=Module,
     Declaration,
     Function,
     Value,
@@ -11,14 +11,9 @@ import ceylon.interop.java {
     CeylonList
 }
 
-import org.americanteeth.ceylon_llvm.blob {
-    CSOBlob,
-    blobKeys
-}
-
-shared class CSOPackage() extends LazyPackage() {
+class Package() extends LazyPackage() {
     "Blob of binary data extracted from the module."
-    variable CSOBlob? blobData = null;
+    variable Blob? blobData = null;
 
     "A compilation unit for things that don't have one."
     value defaultUnit = Unit();
@@ -29,9 +24,9 @@ shared class CSOPackage() extends LazyPackage() {
         addMember(member);
     }
 
-    shared actual Module? \imodule => super.\imodule;
+    shared actual BaseModule? \imodule => super.\imodule;
     assign \imodule {
-        if (is CSOModule \imodule,
+        if (is Module \imodule,
             exists p = \imodule.getPackageData(nameAsString)) {
             blobData = p;
         }
@@ -45,9 +40,9 @@ shared class CSOPackage() extends LazyPackage() {
         super.\imodule = \imodule;
     }
 
-    "Load the data from CSOBlob into the package's fields."
+    "Load the data from Blob into the package's fields."
     shared actual void load() {
-        CSOBlob data;
+        Blob data;
 
         if (exists d = blobData) {
             data = d;
@@ -67,9 +62,9 @@ shared class CSOPackage() extends LazyPackage() {
     }
 
     "Load a declaration from the blob."
-    Boolean loadDeclaration(CSOBlob data, Scope parent) {
+    Boolean loadDeclaration(Blob data, Scope parent) {
         value blobKey = data.get();
-        assert(is CSOModule mod = \imodule);
+        assert(is Module mod = \imodule);
 
         if (blobKey == 0.byte) {
             return false;
@@ -98,7 +93,7 @@ shared class CSOPackage() extends LazyPackage() {
     }
 
     "Write one member to the blob."
-    void storeMember(CSOBlob buf, Declaration d) {
+    void storeMember(Blob buf, Declaration d) {
         if (is Function d) {
             buf.put(blobKeys.\ifunction);
             buf.putFunctionOrValue(d);
@@ -111,8 +106,8 @@ shared class CSOPackage() extends LazyPackage() {
     }
 
     "Blob data serializing the metamodel for this package."
-    shared CSOBlob blob {
-        value buf = CSOBlob();
+    shared Blob blob {
+        value buf = Blob();
         buf.putStringList(name);
         buf.put(\ishared then 1.byte else 0.byte);
 

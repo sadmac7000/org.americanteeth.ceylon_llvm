@@ -7,6 +7,7 @@ import ceylon.ast.redhat {
     RedHatTransformer,
     SimpleTokenFactory
 }
+
 import ceylon.interop.java {
     CeylonIterable,
     javaString
@@ -20,24 +21,14 @@ import ceylon.file {
     Nil
 }
 
-import com.redhat.ceylon.compiler.typechecker.analyzer {
-    ModuleSourceMapper
-}
 import com.redhat.ceylon.compiler.typechecker {
     TypeCheckerBuilder
 }
-import com.redhat.ceylon.compiler.typechecker.context {
-    Context
-}
-import com.redhat.ceylon.compiler.typechecker.util {
-    ModuleManagerFactory
-}
+
 import com.redhat.ceylon.model.typechecker.model {
     Module
 }
-import com.redhat.ceylon.model.typechecker.util {
-    ModuleManager
-}
+
 import com.redhat.ceylon.common.tool {
     argument,
     optionArgument,
@@ -49,6 +40,7 @@ import com.redhat.ceylon.common.tools {
     OutputRepoUsingTool,
     SourceArgumentsResolver
 }
+
 import com.redhat.ceylon.common.config {
     DefaultToolOptions
 }
@@ -68,6 +60,7 @@ import java.util {
     List,
     JArrayList=ArrayList
 }
+
 import java.lang {
     JString=String
 }
@@ -85,6 +78,11 @@ import ceylon.collection {
 
 import java.io {
     JFile=File
+}
+
+import org.americanteeth.ceylon_llvm.cso {
+    moduleManagerFactory,
+    serializeModule
 }
 
 "Recover the source from the AST"
@@ -138,14 +136,7 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
 
         builder.setSourceFiles(resolver.sourceFiles);
         builder.setRepositoryManager(repositoryManager);
-        builder.moduleManagerFactory(object satisfies ModuleManagerFactory {
-                shared actual ModuleManager createModuleManager(Context c) =>
-                    CSOModuleManager();
-                shared actual ModuleSourceMapper createModuleManagerUtil(
-                    Context c,
-                    ModuleManager m)
-                        => CSOModuleSourceMapper(c, m);
-            });
+        builder.moduleManagerFactory(moduleManagerFactory);
 
         if (!resolver.sourceModules.empty) {
             builder.setModuleFilters(resolver.sourceModules);
@@ -198,8 +189,7 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
 
             assert (is File|Nil metaFile = parsePath(metaPath).resource);
             try (w = createFileIfNil(metaFile).Overwriter()) {
-                assert(is CSOModule mod);
-                value bytes = mod.binData;
+                assert(exists bytes = serializeModule(mod));
                 value data = ", ".join(bytes.map((x) => "i8 ``x``"));
                 w.write("target triple = \"``triple_``\"
 

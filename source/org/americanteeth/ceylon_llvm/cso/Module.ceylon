@@ -3,8 +3,8 @@ import com.redhat.ceylon.common {
 }
 
 import com.redhat.ceylon.model.typechecker.model {
-    Package,
-    Module
+    BasePackage=Package,
+    BaseModule=Module
 }
 
 import ceylon.file {
@@ -23,23 +23,22 @@ import ceylon.interop.java {
 }
 
 import com.redhat.ceylon.model.typechecker.util {
-    ModuleManager
+    BaseModuleManager=ModuleManager
 }
 
-import org.americanteeth.ceylon_llvm.blob {
-    CSOBlob,
-    loadModuleAnnotations,
-    storeModuleAnnotations
+import org.americanteeth.ceylon_llvm {
+    baremetalBackend
 }
+
 "ABI version number"
 Byte abiVersion = 0.byte;
 
-shared class CSOModule(ModuleManager moduleManager) extends Module() {
+class Module(BaseModuleManager moduleManager) extends BaseModule() {
     "Package data from the loaded module."
-    value packageData = HashMap<String, CSOBlob>();
+    value packageData = HashMap<String, Blob>();
 
     "Get package data for a given package."
-    shared CSOBlob? getPackageData(String name) => packageData[name];
+    shared Blob? getPackageData(String name) => packageData[name];
 
     "Given a .cso file object, fetch our metamodel data."
     shared void loadFile(File file) {
@@ -52,7 +51,7 @@ shared class CSOModule(ModuleManager moduleManager) extends Module() {
         "Read should yield entire blob."
         assert(blobData.size == file.size);
 
-        value blob = CSOBlob(blobData);
+        value blob = Blob(blobData);
 
         "ABI version must match."
         assert(blob.get() == abiVersion);
@@ -86,7 +85,7 @@ shared class CSOModule(ModuleManager moduleManager) extends Module() {
             value nameString = ".".join(name);
             data.rewind();
             packageData.put(nameString, data);
-            value pkg = CSOPackage();
+            value pkg = Package();
             pkg.name = JavaList(name.collect(javaString));
             pkg.\imodule = this;
             packages.add(pkg);
@@ -95,7 +94,7 @@ shared class CSOModule(ModuleManager moduleManager) extends Module() {
 
     "Binary encoding of module meta-data"
     shared {Byte*} binData {
-        value buf = CSOBlob();
+        value buf = Blob();
 
         buf.put(abiVersion);
         buf.putString(version);
@@ -108,8 +107,8 @@ shared class CSOModule(ModuleManager moduleManager) extends Module() {
         storeModuleAnnotations(buf, this);
 
         for (pkg in packages) {
-            "CSOModule should have only CSOPackage children."
-            assert(is CSOPackage pkg);
+            "Module should have only Package children."
+            assert(is Package pkg);
             buf.putSizedBlob(pkg.blob);
         }
 
@@ -117,10 +116,10 @@ shared class CSOModule(ModuleManager moduleManager) extends Module() {
     }
 
     "The default implementation doesn't check exported modules."
-    shared actual Package? getPackage(String name) {
-        value visited = HashSet<Module>();
+    shared actual BasePackage? getPackage(String name) {
+        value visited = HashSet<BaseModule>();
 
-        Package? visit(Module m) {
+        BasePackage? visit(BaseModule m) {
             if (visited.contains(m)) {
                 return null;
             }
@@ -144,3 +143,8 @@ shared class CSOModule(ModuleManager moduleManager) extends Module() {
         return visit(this);
     }
 }
+
+shared {Byte*}? serializeModule(BaseModule m)
+    => if (is Module m)
+       then m.binData
+       else null;

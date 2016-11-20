@@ -15,7 +15,7 @@ import org.americanteeth.ceylon_llvm {
     baremetalBackend
 }
 
-shared class AnnotationData(\ishared, \iactual, \iformal, \idefault, \inative,
+class AnnotationData(\ishared, \iactual, \iformal, \idefault, \inative,
         \ifinal, \iabstract, \iannotation, \ilate, \ivariable, annotations) {
 
     shared Boolean \ishared;

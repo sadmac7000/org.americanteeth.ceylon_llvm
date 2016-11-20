@@ -3,9 +3,9 @@ import com.redhat.ceylon.common {
 }
 
 import com.redhat.ceylon.model.typechecker.model {
-    Package,
+    BasePackage=Package,
     Scope,
-    Module,
+    BaseModule=Module,
     Cancellable,
     Declaration,
     DeclarationWithProximity,
@@ -25,7 +25,7 @@ import java.util {
     JMap=Map
 }
 
-shared abstract class LazyPackage() extends Package() {
+abstract class LazyPackage() extends BasePackage() {
     "Load this package's data."
     shared formal void load();
 
@@ -34,7 +34,7 @@ shared abstract class LazyPackage() extends Package() {
         return super.toplevel;
     }
 
-    shared actual default Module? \imodule {
+    shared actual default BaseModule? \imodule {
         load();
         return super.\imodule;
     }

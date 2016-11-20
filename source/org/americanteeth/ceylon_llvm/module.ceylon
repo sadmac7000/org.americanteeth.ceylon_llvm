@@ -1,5 +1,5 @@
 native ("jvm") module org.americanteeth.ceylon_llvm "1.3.0" {
-    import com.redhat.ceylon.typechecker "1.3.0";
+    shared import com.redhat.ceylon.typechecker "1.3.0";
     import ceylon.buffer "1.3.0";
     shared import ceylon.file "1.3.0";
     import ceylon.process "1.3.0";

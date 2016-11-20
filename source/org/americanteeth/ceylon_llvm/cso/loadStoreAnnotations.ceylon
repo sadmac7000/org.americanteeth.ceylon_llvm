@@ -11,7 +11,7 @@ import org.americanteeth.ceylon_llvm {
 }
 
 "Write the annotations for a module to the blob."
-shared void storeModuleAnnotations(CSOBlob buf, Module m) {
+void storeModuleAnnotations(Blob buf, Module m) {
     variable value packed1 = 0.byte;
 
     /* TODO: Native? */
@@ -27,7 +27,7 @@ shared void storeModuleAnnotations(CSOBlob buf, Module m) {
 }
 
 "Read annotations for a module from a blob."
-shared void loadModuleAnnotations(CSOBlob data, Module target) {
+void loadModuleAnnotations(Blob data, Module target) {
     variable value packed1 = data.get();
     data.get(); // Throw away always-empty byte.
 

@@ -131,7 +131,7 @@ object packedAnnotations2 {
 }
 
 "Marking bytes for differend serialized declarations."
-shared object blobKeys {
+object blobKeys {
     shared Byte \iclass = 1.byte;
     shared Byte \iinterface = 2.byte;
     shared Byte \ival = 3.byte;
@@ -177,7 +177,7 @@ object variances {
 }
 
 "A consumable byte blob with some parsing helpers."
-shared class CSOBlob({Byte*} blobData = {}) {
+class Blob({Byte*} blobData = {}) {
     value blob_ = ArrayList<Byte>{*blobData};
 
     "Our resulting blob data."
@@ -221,7 +221,7 @@ shared class CSOBlob({Byte*} blobData = {}) {
     }
 
     "Write another blob into this blob, preceded by its size."
-    shared void putSizedBlob(CSOBlob other) {
+    shared void putSizedBlob(Blob other) {
         putUnsignedBigEndian64(other.size);
         blob_.addAll(other.blob);
     }
@@ -508,14 +508,14 @@ shared class CSOBlob({Byte*} blobData = {}) {
 
     "Get a sub-blob of this blob. Next read quantity is presumed to be its size
      as a 64-bit big-endian integer. If we read a zero we return null."
-    shared CSOBlob? getSizedBlob() {
+    shared Blob? getSizedBlob() {
         value size = getUnsignedBigEndian64();
 
         if (size == 0) {
             return null;
         }
 
-        value ret = CSOBlob(blob_.spanFrom(readPosition).spanTo(size-1));
+        value ret = Blob(blob_.spanFrom(readPosition).spanTo(size-1));
         readPosition += size;
         return ret;
     }

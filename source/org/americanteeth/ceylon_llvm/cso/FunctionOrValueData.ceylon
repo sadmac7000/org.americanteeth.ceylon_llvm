@@ -10,11 +10,7 @@ import com.redhat.ceylon.model.typechecker.model {
     Unit
 }
 
-import org.americanteeth.ceylon_llvm {
-    CSOModule
-}
-
-shared abstract class FunctionOrValueData(name, type, annotations)
+abstract class FunctionOrValueData(name, type, annotations)
         extends DeclarationData() {
     shared actual formal FunctionOrValue declaration;
 
@@ -22,7 +18,7 @@ shared abstract class FunctionOrValueData(name, type, annotations)
     shared TypeData? type;
     shared AnnotationData annotations;
 
-    shared actual default void complete(CSOModule mod, Unit unit,
+    shared actual default void complete(Module mod, Unit unit,
             Scope container) {
         value parentDeclaration =
             if (is Declaration container)
@@ -33,7 +29,7 @@ shared abstract class FunctionOrValueData(name, type, annotations)
     }
 }
 
-void applyParametersToFunction(CSOModule mod, Unit unit, Function func,
+void applyParametersToFunction(Module mod, Unit unit, Function func,
         [ParameterListData+] parameterLists) {
     variable value first = true;
 
@@ -45,7 +41,7 @@ void applyParametersToFunction(CSOModule mod, Unit unit, Function func,
     }
 }
 
-shared class FunctionData(n, t, a, declaredVoid, deferred, parameterLists)
+class FunctionData(n, t, a, declaredVoid, deferred, parameterLists)
         extends FunctionOrValueData(n, t, a) {
     String n;
     TypeData? t;
@@ -63,13 +59,13 @@ shared class FunctionData(n, t, a, declaredVoid, deferred, parameterLists)
 
     shared actual Function declaration = func;
 
-    shared actual void complete(CSOModule mod, Unit unit, Scope container) {
+    shared actual void complete(Module mod, Unit unit, Scope container) {
         super.complete(mod, unit, container);
         applyParametersToFunction(mod, unit, func, parameterLists);
     }
 }
 
-shared class ValueData(n, t, a, transient, staticallyImportable, \ivariable,
+class ValueData(n, t, a, transient, staticallyImportable, \ivariable,
         setterAnnotations) extends FunctionOrValueData(n, t, a) {
     String n;
     TypeData t;
@@ -97,7 +93,7 @@ shared class ValueData(n, t, a, transient, staticallyImportable, \ivariable,
 
     shared actual Value declaration = val;
 
-    shared actual void complete(CSOModule mod, Unit unit, Scope container) {
+    shared actual void complete(Module mod, Unit unit, Scope container) {
         super.complete(mod, unit, container);
 
         if (exists setterAnnotations) {
@@ -106,8 +102,8 @@ shared class ValueData(n, t, a, transient, staticallyImportable, \ivariable,
     }
 }
 
-shared class ParameterListData([ParameterData*] parameters) {
-    shared ParameterList toParameterList(CSOModule mod, Unit unit,
+class ParameterListData([ParameterData*] parameters) {
+    shared ParameterList toParameterList(Module mod, Unit unit,
             Declaration container) {
         value ret = ParameterList();
 
@@ -119,13 +115,13 @@ shared class ParameterListData([ParameterData*] parameters) {
     }
 }
 
-shared class ParameterType {
+class ParameterType {
     shared new normal {}
     shared new zeroOrMore {}
     shared new oneOrMore {}
 }
 
-shared class ParameterData(name, hidden, defaulted, parameterType, parameters,
+class ParameterData(name, hidden, defaulted, parameterType, parameters,
         type, annotations) {
     shared String name;
     shared Boolean hidden;
@@ -135,7 +131,7 @@ shared class ParameterData(name, hidden, defaulted, parameterType, parameters,
     shared TypeData type;
     shared AnnotationData annotations;
 
-    shared Parameter toParameter(CSOModule mod, Unit unit, Declaration container) {
+    shared Parameter toParameter(Module mod, Unit unit, Declaration container) {
         value ret = Parameter();
 
         ret.name = name;

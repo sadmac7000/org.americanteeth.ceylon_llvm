@@ -14,22 +14,17 @@ import com.redhat.ceylon.model.typechecker.model {
     Value
 }
 
-import org.americanteeth.ceylon_llvm {
-    CSOModule,
-    CSOPackage
-}
-
 import java.util {
     JHashMap = HashMap
 }
 
-shared abstract class TypeDeclarationData() {
-    shared formal TypeDeclaration toTypeDeclaration(CSOModule mod,
+abstract class TypeDeclarationData() {
+    shared formal TypeDeclaration toTypeDeclaration(Module mod,
             Unit unit, Declaration? container);
 }
 
 object unknownTypeDeclarationData extends TypeDeclarationData() {
-    shared actual UnknownType toTypeDeclaration(CSOModule mod, Unit unit,
+    shared actual UnknownType toTypeDeclaration(Module mod, Unit unit,
             Declaration? container)
         => UnknownType(unit);
 }
@@ -37,7 +32,7 @@ object unknownTypeDeclarationData extends TypeDeclarationData() {
 class UnionTypeDeclarationData(cases) extends TypeDeclarationData() {
     shared [<TypeData>+] cases;
 
-    shared actual UnionType toTypeDeclaration(CSOModule mod, Unit unit,
+    shared actual UnionType toTypeDeclaration(Module mod, Unit unit,
             Declaration? container) {
         value ret = UnionType(unit);
 
@@ -52,7 +47,7 @@ class UnionTypeDeclarationData(cases) extends TypeDeclarationData() {
 class IntersectionTypeDeclarationData(satisfied) extends TypeDeclarationData() {
     shared [<TypeData>+] satisfied;
 
-    shared actual IntersectionType toTypeDeclaration(CSOModule mod, Unit unit,
+    shared actual IntersectionType toTypeDeclaration(Module mod, Unit unit,
             Declaration? container) {
         value ret = IntersectionType(unit);
 
@@ -67,7 +62,7 @@ class IntersectionTypeDeclarationData(satisfied) extends TypeDeclarationData() {
 class TypeParameterDeclarationData(name) extends TypeDeclarationData() {
     shared String name;
 
-    shared actual TypeParameter toTypeDeclaration(CSOModule mod, Unit unit,
+    shared actual TypeParameter toTypeDeclaration(Module mod, Unit unit,
             Declaration? container) {
         "Type parameters aren't supported yet."
         assert(false);
@@ -78,10 +73,10 @@ class PlainTypeDeclarationData(pkg, name) extends TypeDeclarationData() {
     shared [String+] pkg;
     shared [String+] name;
 
-    shared actual TypeDeclaration toTypeDeclaration(CSOModule mod, Unit unit,
+    shared actual TypeDeclaration toTypeDeclaration(Module mod, Unit unit,
             Declaration? container) {
         "Type should be in an imported package."
-        assert(is CSOPackage pkg = mod.getPackage(".".join(this.pkg)));
+        assert(is Package pkg = mod.getPackage(".".join(this.pkg)));
 
         if (name.size == 1) {
             "Referenced type should be defined."
@@ -109,9 +104,9 @@ class PlainTypeDeclarationData(pkg, name) extends TypeDeclarationData() {
     }
 }
 
-shared class TypeData(shared TypeDeclarationData declaration,
+class TypeData(shared TypeDeclarationData declaration,
         Map<String,TypeArgumentData>? arguments) {
-    shared Type toType(CSOModule mod, Unit unit, Declaration? container) {
+    shared Type toType(Module mod, Unit unit, Declaration? container) {
         value baseDecl = declaration.toTypeDeclaration(mod, unit, container);
         value base = baseDecl.type;
 
@@ -152,7 +147,7 @@ shared class TypeData(shared TypeDeclarationData declaration,
     }
 }
 
-shared class Variance {
+class Variance {
     shared SiteVariance? siteVariance;
 
     shared new covariant {
@@ -168,7 +163,7 @@ shared class Variance {
     }
 }
 
-shared class TypeArgumentData(useSiteVariance, type) {
+class TypeArgumentData(useSiteVariance, type) {
     shared Variance useSiteVariance;
     shared TypeData type;
 }

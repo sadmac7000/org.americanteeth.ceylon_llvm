@@ -1,11 +1,15 @@
+import org.americanteeth.ceylon_llvm {
+    baremetalBackend
+}
+
 import com.redhat.ceylon.model.typechecker.model {
-    Module,
-    Package,
+    BaseModule=Module,
+    BasePackage=Package,
     ModuleImport
 }
 
 import com.redhat.ceylon.compiler.typechecker.analyzer {
-    ModuleSourceMapper
+    BaseModuleSourceMapper=ModuleSourceMapper
 }
 
 import com.redhat.ceylon.compiler.typechecker.context {
@@ -14,9 +18,12 @@ import com.redhat.ceylon.compiler.typechecker.context {
 }
 
 import com.redhat.ceylon.model.typechecker.util {
-    ModuleManager
+    BaseModuleManager=ModuleManager
 }
 
+import com.redhat.ceylon.compiler.typechecker.util {
+    ModuleManagerFactory
+}
 import com.redhat.ceylon.common {
     Backends
 }
@@ -51,10 +58,10 @@ import ceylon.file {
     File
 }
 
-class CSOModuleSourceMapper(Context c, ModuleManager m)
-        extends ModuleSourceMapper(c, m) {
-    shared actual void resolveModule(ArtifactResult artifact, Module m,
-            ModuleImport? moduleImport, JLinkedList<Module> dependencyTree,
+class ModuleSourceMapper(Context c, BaseModuleManager m)
+        extends BaseModuleSourceMapper(c, m) {
+    shared actual void resolveModule(ArtifactResult artifact, BaseModule m,
+            ModuleImport? moduleImport, JLinkedList<BaseModule> dependencyTree,
             JList<PhasedUnits> phasedUnitsOfDependencies,
             Boolean forCompiledModule) {
         value modFile = artifact.artifact().absolutePath;
@@ -65,8 +72,8 @@ class CSOModuleSourceMapper(Context c, ModuleManager m)
             return;
         }
 
-        "CSOModuleSourceMapper should always get a CSOModule."
-        assert(is CSOModule m);
+        "ModuleSourceMapper should always get a cso.Module."
+        assert(is Module m);
 
         createProcess {
             command = "/usr/bin/objcopy";
@@ -87,7 +94,7 @@ class CSOModuleSourceMapper(Context c, ModuleManager m)
     }
 }
 
-class CSOModuleManager() extends ModuleManager() {
+class ModuleManager() extends BaseModuleManager() {
     shared actual JIterable<JString> searchedArtifactExtensions
             => JavaIterable([ javaString("cso") ]);
 
@@ -95,20 +102,20 @@ class CSOModuleManager() extends ModuleManager() {
 
     shared actual Module createModule(JList<JString> modNameIn,
             String modVersion) {
-        value mod = CSOModule(this);
+        value mod = Module(this);
         mod.name = modNameIn;
         mod.version = modVersion;
 
-        if (mod.nameAsString == Module.\iDEFAULT_MODULE_NAME) {
+        if (mod.nameAsString == BaseModule.\iDEFAULT_MODULE_NAME) {
             return mod;
         }
 
-        if (mod.nameAsString == Module.\iLANGUAGE_MODULE_NAME) {
+        if (mod.nameAsString == BaseModule.\iLANGUAGE_MODULE_NAME) {
             return mod;
         }
 
         value languageModule =
-            findLoadedModule(Module.\iLANGUAGE_MODULE_NAME, null)
+            findLoadedModule(BaseModule.\iLANGUAGE_MODULE_NAME, null)
                     else modules.languageModule;
 
         value moduleImport = ModuleImport(null, languageModule, false, false);
@@ -119,13 +126,13 @@ class CSOModuleManager() extends ModuleManager() {
         return mod;
     }
 
-    shared actual Package createPackage(String pkgName, Module? mod) {
+    shared actual BasePackage createPackage(String pkgName, BaseModule? mod) {
         if (exists mod, exists p = mod.getPackage(pkgName)) {
             return p;
         }
 
-        value p = CSOPackage();
-        p.name = ModuleManager.splitModuleName(pkgName);
+        value p = Package();
+        p.name = BaseModuleManager.splitModuleName(pkgName);
 
         if (exists mod) {
             mod.packages.add(p);
@@ -134,4 +141,12 @@ class CSOModuleManager() extends ModuleManager() {
 
         return p;
     }
+}
+
+shared object moduleManagerFactory satisfies ModuleManagerFactory {
+    shared actual BaseModuleManager createModuleManager(Context c)
+        => ModuleManager();
+    shared actual BaseModuleSourceMapper createModuleManagerUtil(Context c,
+            BaseModuleManager m)
+        => ModuleSourceMapper(c, m);
 }
