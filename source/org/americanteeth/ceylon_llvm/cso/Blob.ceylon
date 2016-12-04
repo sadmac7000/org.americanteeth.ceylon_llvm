@@ -13,6 +13,7 @@ import com.redhat.ceylon.model.typechecker.model {
     SiteVariance,
     Type,
     TypeDeclaration,
+    TypeParameter,
     UnionType,
     UnknownType,
     Value
@@ -45,6 +46,11 @@ import ceylon.interop.java {
     JavaList,
     javaString
 }
+
+"Get a Ceylon iterable from a Java list, or an empty iterable if given null."
+{T*} iterableUnlessNull<T>(JList<T>? l)
+        given T satisfies Object
+    => if (exists l) then CeylonList(l) else [];
 
 "Byte marking the start of a parameter list."
 Byte startOfParameters = #ff.byte;
@@ -166,14 +172,14 @@ Byte optionalFlag = 2.byte;
 
 "Byte marker for variances."
 object variances {
-    "Byte marker for invariant type parameters."
-    shared Byte invariant = 0.byte;
-
     "Byte marker for contravariant type parameters."
     shared Byte contravariant = 1.byte;
 
     "Byte marker for covariant type parameters."
     shared Byte covariant = 2.byte;
+
+    "Byte marker for invariant type parameters."
+    shared Byte invariant = 3.byte;
 }
 
 "A consumable byte blob with some parsing helpers."
@@ -371,6 +377,41 @@ class Blob({Byte*} blobData = {}) {
         put(0.byte);
     }
 
+    "Serialize and write a type parameter."
+    shared void putTypeParameter(TypeParameter p) {
+        if (p.covariant) {
+            put(variances.covariant);
+        } else if (p.contravariant) {
+            put(variances.contravariant);
+        } else {
+            put(variances.invariant);
+        }
+
+        putString(p.name);
+
+        if (exists d = p.defaultTypeArgument) {
+            putType(d);
+        } else {
+            put(0.byte);
+        }
+
+        if (exists d = p.extendedType) {
+            putType(d);
+        } else {
+            put(0.byte);
+        }
+
+        for (satisfiedType in iterableUnlessNull(p.satisfiedTypes)) {
+            putType(satisfiedType);
+        }
+        put(0.byte);
+
+        for (caseType in iterableUnlessNull(p.caseTypes)) {
+            putType(caseType);
+        }
+        put(0.byte);
+    }
+
     "Serialize and write a Function or Value."
     shared void putFunctionOrValue(FunctionOrValue f) {
         putString(f.name);
@@ -415,13 +456,17 @@ class Blob({Byte*} blobData = {}) {
             putAnnotations(s);
         }
 
-        /* TODO: Type parameters. */
-
         if (is Value f) {
             return;
         }
 
         assert(is Function f);
+
+        for (p in iterableUnlessNull(f.typeParameters)) {
+            putTypeParameter(p);
+        }
+
+        put(0.byte);
 
         for (p in f.parameterLists) {
             putParameterList(p);
@@ -680,18 +725,9 @@ class Blob({Byte*} blobData = {}) {
 
         while (exists type = getTypeData()) {
             value name = getString();
-            value varianceByte = get();
 
-            value variance = if (varianceByte == variances.contravariant)
-                then Variance.contravariant
-                else if (varianceByte == variances.covariant)
-                then Variance.covariant
-                else Variance.invariant;
-
-            if (variance == Variance.invariant) {
-                "Should fint a valid variance byte."
-                assert(varianceByte == variances.invariant);
-            }
+            "Type parameter should have a variance."
+            assert(exists variance = getVariance());
 
             arguments[name] = TypeArgumentData(variance, type);
         }
@@ -750,6 +786,53 @@ class Blob({Byte*} blobData = {}) {
                 parameterLists.sequence(), type, annotations);
     }
 
+    shared Variance? getVariance() {
+        value varianceByte = get();
+
+        return if (varianceByte == variances.contravariant)
+                then Variance.contravariant
+            else if (varianceByte == variances.covariant)
+                then Variance.covariant
+            else if (varianceByte == variances.invariant)
+                then Variance.invariant
+            else null;
+    }
+
+    shared TypeParameterData? getTypeParameter() {
+        value variance = getVariance();
+
+        if (! exists variance) {
+            return null;
+        }
+
+        value name = getString();
+        value defaultType = getTypeData();
+        value extendedType = getTypeData();
+
+        value satisfiedTypes = ArrayList<TypeData>();
+        value caseTypes = ArrayList<TypeData>();
+
+        while (exists t = getTypeData()) {
+            satisfiedTypes.add(t);
+        }
+
+        while (exists t = getTypeData()) {
+            caseTypes.add(t);
+        }
+
+        return TypeParameterData(name, variance, defaultType, extendedType,
+            satisfiedTypes, caseTypes);
+    }
+
+    shared [TypeParameterData*] getTypeParameters() {
+        value accum = ArrayList<TypeParameterData>();
+
+        while (exists p = getTypeParameter()) {
+            accum.add(p);
+        }
+
+        return accum.sequence();
+    }
 
     "Deserialize return data identifying a function."
     shared FunctionData getFunctionData() {
@@ -759,6 +842,7 @@ class Blob({Byte*} blobData = {}) {
         value flags = get();
         value declaredVoid = flags.and(functionFlags.\ivoid) != 0.byte;
         value deferred = flags.and(functionFlags.deferred) != 0.byte;
+        value typeParameters = getTypeParameters();
 
         value parameterLists = ArrayList<ParameterListData>();
         while (exists p = getParameterListData()) {
@@ -768,8 +852,8 @@ class Blob({Byte*} blobData = {}) {
         "Function should have at least one parameter list."
         assert(nonempty parameterSequence = parameterLists.sequence());
 
-        return FunctionData(name, type, annotations, declaredVoid, deferred,
-                parameterSequence);
+        return FunctionData(name, type, annotations, typeParameters,
+                declaredVoid, deferred, parameterSequence);
     }
 
     "Deserialize return data identifying a value."

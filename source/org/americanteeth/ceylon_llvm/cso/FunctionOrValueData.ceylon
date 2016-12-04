@@ -10,6 +10,10 @@ import com.redhat.ceylon.model.typechecker.model {
     Unit
 }
 
+import ceylon.interop.java {
+    JavaList
+}
+
 abstract class FunctionOrValueData(name, type, annotations)
         extends DeclarationData() {
     shared actual formal FunctionOrValue declaration;
@@ -41,11 +45,12 @@ void applyParametersToFunction(Module mod, Unit unit, Function func,
     }
 }
 
-class FunctionData(n, t, a, declaredVoid, deferred, parameterLists)
+class FunctionData(n, t, a, typeParameters, declaredVoid, deferred, parameterLists)
         extends FunctionOrValueData(n, t, a) {
     String n;
     TypeData? t;
     AnnotationData a;
+    [TypeParameterData*] typeParameters;
     shared Boolean declaredVoid;
     shared Boolean deferred;
     shared [ParameterListData+] parameterLists;
@@ -57,11 +62,24 @@ class FunctionData(n, t, a, declaredVoid, deferred, parameterLists)
     func.deferred = deferred;
     a.apply(func);
 
+    value reifiedTypeParameters =
+        typeParameters.collect((x) => x.typeParameter);
+
+    for (p in reifiedTypeParameters) {
+        func.members.add(p);
+    }
+
+    func.typeParameters = JavaList(reifiedTypeParameters);
+
     shared actual Function declaration = func;
 
     shared actual void complete(Module mod, Unit unit, Scope container) {
         super.complete(mod, unit, container);
         applyParametersToFunction(mod, unit, func, parameterLists);
+
+        for (t in typeParameters) {
+            t.complete(mod, unit, func);
+        }
     }
 }
 

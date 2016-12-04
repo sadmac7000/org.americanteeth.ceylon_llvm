@@ -64,6 +64,7 @@ class TypeParameterDeclarationData(name) extends TypeDeclarationData() {
 
     shared actual TypeParameter toTypeDeclaration(Module mod, Unit unit,
             Declaration? container) {
+        /* TODO: */
         "Type parameters aren't supported yet."
         assert(false);
     }
@@ -144,22 +145,6 @@ class TypeData(shared TypeDeclarationData declaration,
         }
 
         return base.substitute(concretes, variances);
-    }
-}
-
-class Variance {
-    shared SiteVariance? siteVariance;
-
-    shared new covariant {
-        this.siteVariance = SiteVariance.\iOUT;
-    }
-
-    shared new contravariant {
-        this.siteVariance = SiteVariance.\iIN;
-    }
-
-    shared new invariant {
-        this.siteVariance = null;
     }
 }
 
