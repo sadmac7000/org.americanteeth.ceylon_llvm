@@ -64,8 +64,21 @@ class TypeParameterDeclarationData(name) extends TypeDeclarationData() {
 
     shared actual TypeParameter toTypeDeclaration(Module mod, Unit unit,
             Declaration? container) {
-        /* TODO: */
-        "Type parameters aren't supported yet."
+        variable Declaration? d = container;
+
+        while (exists current = d) {
+            if (is Generic current) {
+                for (t in current.typeParameters) {
+                    if (t.name == name) {
+                        return t;
+                    }
+                }
+            }
+
+            d = ModelUtil.getContainingDeclaration(current);
+        }
+
+        "Type parameters should be declared in a container."
         assert(false);
     }
 }
