@@ -1,9 +1,5 @@
 import com.redhat.ceylon.model.typechecker.model {
-    Scope,
     BaseModule=Module,
-    Declaration,
-    Function,
-    Value,
     Unit
 }
 
@@ -11,24 +7,45 @@ import ceylon.interop.java {
     CeylonList
 }
 
-class Package() extends LazyPackage() {
-    "Blob of binary data extracted from the module."
-    variable Blob? blobData = null;
+import ceylon.collection {
+    ArrayList
+}
 
+class Package() extends LazyPackage() {
     "A compilation unit for things that don't have one."
     value defaultUnit = Unit();
 
-    "Add a direct member we just loaded."
-    void addLoadedMember(Declaration member) {
-        defaultUnit.addDeclaration(member);
-        addMember(member);
+    "DeclarationData we've been given from the blob."
+    value unpackedData = ArrayList<DeclarationData>();
+
+    "Module that we will load our data from."
+    variable Module? sourceModule = null;
+
+    "Unpack data from a blob into this package."
+    shared void unpack(Blob data) {
+        for ([a,b] in zipPairs(CeylonList(name), data.getStringList())) {
+            "Package name must match blob data."
+            assert(a.string == b.string);
+        }
+
+        \ishared = data.get() == 1.byte;
+
+        while (exists d = data.getDeclarationData()) {
+            unpackedData.add(d);
+            defaultUnit.addDeclaration(d.declaration);
+            addMember(d.declaration);
+        }
     }
 
     shared actual BaseModule? \imodule => super.\imodule;
     assign \imodule {
+        "Package should be assigned a source module only once."
+        assert(! sourceModule exists);
+
         if (is Module \imodule,
             exists p = \imodule.getPackageData(nameAsString)) {
-            blobData = p;
+            sourceModule = \imodule;
+            unpack(p);
         }
 
         defaultUnit.\ipackage = this;
@@ -42,67 +59,17 @@ class Package() extends LazyPackage() {
 
     "Load the data from Blob into the package's fields."
     shared actual void load() {
-        Blob data;
+        value mod = sourceModule;
 
-        if (exists d = blobData) {
-            data = d;
-            blobData = null;
-        } else {
+        if (! exists mod) {
             return;
         }
 
-        for ([a,b] in zipPairs(CeylonList(name), data.getStringList())) {
-            "Package name must match blob data."
-            assert(a.string == b.string);
+        for (d in unpackedData) {
+            d.complete(mod, defaultUnit, this);
         }
 
-        \ishared = data.get() == 1.byte;
-
-        while (loadDeclaration(data, this)) {}
-    }
-
-    "Load a declaration from the blob."
-    Boolean loadDeclaration(Blob data, Scope parent) {
-        value blobKey = data.get();
-        assert(is Module mod = \imodule);
-
-        if (blobKey == 0.byte) {
-            return false;
-        } else if (blobKey == blobKeys.\ifunction) {
-            value f = data.getFunctionData();
-            addLoadedMember(f.declaration);
-            f.complete(mod, defaultUnit, this);
-        } else if (blobKey == blobKeys.\ival) {
-            value f = data.getValueData();
-            addLoadedMember(f.declaration);
-            f.complete(mod, defaultUnit, this);
-        } else if (blobKey == blobKeys.\iinterface) {
-            //loadInterface(data, parent);
-        } else if (blobKey == blobKeys.\iclass) {
-            //loadClass(data, parent);
-        } else if (blobKey == blobKeys.\iobject) {
-            //loadObject(data, parent);
-        } else if (blobKey == blobKeys.\ialias) {
-            //loadAlias(data, parent);
-        } else {
-            "Key byte should be a recognized value."
-            assert(false);
-        }
-
-        return true;
-    }
-
-    "Write one member to the blob."
-    void storeMember(Blob buf, Declaration d) {
-        if (is Function d) {
-            buf.put(blobKeys.\ifunction);
-            buf.putFunctionOrValue(d);
-        } else if (is Value d) {
-            buf.put(blobKeys.\ival);
-            buf.putFunctionOrValue(d);
-        }
-
-        /* TODO: Other declaration types */
+        unpackedData.clear();
     }
 
     "Blob data serializing the metamodel for this package."
@@ -113,7 +80,7 @@ class Package() extends LazyPackage() {
 
         if (exists mem = members) {
             for (m in mem) {
-                storeMember(buf, m);
+                buf.putDeclaration(m);
             }
         }
 

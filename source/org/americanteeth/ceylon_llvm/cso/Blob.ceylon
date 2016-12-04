@@ -5,6 +5,7 @@ import com.redhat.ceylon.model.typechecker.model {
     Declaration,
     Function,
     FunctionOrValue,
+    Interface,
     IntersectionType,
     ModuleImport,
     Package,
@@ -12,6 +13,7 @@ import com.redhat.ceylon.model.typechecker.model {
     ParameterList,
     SiteVariance,
     Type,
+    TypeAlias,
     TypeDeclaration,
     TypeParameter,
     UnionType,
@@ -475,6 +477,35 @@ class Blob({Byte*} blobData = {}) {
         put(0.byte);
     }
 
+    "Write one member to the blob."
+    shared void putDeclaration(Declaration d) {
+        if (is Function d) {
+            put(blobKeys.\ifunction);
+            putFunctionOrValue(d);
+        } else if (is Value d) {
+            if (is Class c = d.type?.declaration, c.anonymous) {
+                put(blobKeys.\iobject);
+                /* TODO: Class data */
+            } else {
+                put(blobKeys.\ival);
+            }
+
+            putFunctionOrValue(d);
+        } else if (is Class d) {
+            put(blobKeys.\iclass);
+            /* TODO: Class data */
+        } else if (is Interface d) {
+            put(blobKeys.\iinterface);
+            /* TODO: Interface data */
+        } else if (is TypeAlias d) {
+            put(blobKeys.\ialias);
+            /* TODO: TypeAlias data */
+        } else {
+            "Declaration should be of a known type."
+            assert(false);
+        }
+    }
+
     "Serialize and write a parameter list."
     shared void putParameterList(ParameterList p) {
         put(startOfParameters);
@@ -875,6 +906,34 @@ class Blob({Byte*} blobData = {}) {
 
         return ValueData(name, type, annotations, transient,
                 staticallyImportable, \ivariable, setterAnnotations);
+    }
+
+    "Load a declaration from the blob."
+    shared DeclarationData? getDeclarationData() {
+        value blobKey = get();
+
+        if (blobKey == 0.byte) {
+            return null;
+        } else if (blobKey == blobKeys.\ifunction) {
+            return getFunctionData();
+        } else if (blobKey == blobKeys.\ival) {
+            return getValueData();
+        } else if (blobKey == blobKeys.\iinterface) {
+            /* TODO: Interface data */
+            return null;
+        } else if (blobKey == blobKeys.\iclass) {
+            /* TODO: Class data */
+            return null;
+        } else if (blobKey == blobKeys.\iobject) {
+            /* TODO: Object data */
+            return null;
+        } else if (blobKey == blobKeys.\ialias) {
+            /* TODO: Alias data */
+            return null;
+        } else {
+            "Key byte should be a recognized value."
+            assert(false);
+        }
     }
 
     "Reset the read positiion."
