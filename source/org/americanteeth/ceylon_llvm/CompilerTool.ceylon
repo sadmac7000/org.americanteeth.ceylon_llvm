@@ -143,7 +143,7 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
         }
 
         value typeChecker = builder.typeChecker;
-        typeChecker.process();
+        typeChecker.process(true);
 
         value phasedUnits = CeylonIterable(
             typeChecker.phasedUnits.phasedUnits);

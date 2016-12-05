@@ -4,7 +4,7 @@ import ceylon.buffer.charset {
 
 "Get a hex string for a byte"
 String byteHex(Byte b)
-        => formatInteger(b.unsigned, 16).padLeading(2, '0').uppercased;
+        => Integer.format(b.unsigned, 16).padLeading(2, '0').uppercased;
 
 "Turn Ceylon escape sequences in to LLVM escape sequences"
 [String, Integer] processEscapes(String input) {

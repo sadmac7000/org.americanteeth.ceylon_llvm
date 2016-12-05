@@ -83,13 +83,13 @@ class FunctionData(n, t, a, typeParameters, declaredVoid, deferred, parameterLis
     }
 }
 
-class ValueData(n, t, a, transient, staticallyImportable, \ivariable,
+class ValueData(n, t, a, transient, static, \ivariable,
         setterAnnotations) extends FunctionOrValueData(n, t, a) {
     String n;
     TypeData t;
     AnnotationData a;
     shared Boolean transient;
-    shared Boolean staticallyImportable;
+    shared Boolean static;
     shared Boolean \ivariable;
     shared AnnotationData? setterAnnotations;
 
@@ -98,7 +98,7 @@ class ValueData(n, t, a, transient, staticallyImportable, \ivariable,
     value val = Value();
     val.name = n;
     val.transient = transient;
-    val.staticallyImportable = staticallyImportable;
+    val.static = static;
     val.\ivariable = \ivariable;
     a.apply(val);
 

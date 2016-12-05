@@ -443,7 +443,7 @@ class Blob({Byte*} blobData = {}) {
                 flags = flags.or(valueFlags.\ivariable);
             }
 
-            if (f.staticallyImportable) {
+            if (f.static) {
                 flags = flags.or(valueFlags.static);
             }
 
@@ -896,7 +896,7 @@ class Blob({Byte*} blobData = {}) {
         assert(exists type = getTypeData());
         value flags = get();
         value transient = flags.and(valueFlags.transient) != 0.byte;
-        value staticallyImportable = flags.and(valueFlags.static) != 0.byte;
+        value static = flags.and(valueFlags.static) != 0.byte;
         value \ivariable = flags.and(valueFlags.\ivariable) != 0.byte;
 
         value setterAnnotations =
@@ -904,8 +904,8 @@ class Blob({Byte*} blobData = {}) {
             then getAnnotationData()
             else null;
 
-        return ValueData(name, type, annotations, transient,
-                staticallyImportable, \ivariable, setterAnnotations);
+        return ValueData(name, type, annotations, transient, static,
+                \ivariable, setterAnnotations);
     }
 
     "Load a declaration from the blob."
