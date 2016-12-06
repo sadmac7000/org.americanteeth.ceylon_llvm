@@ -1,6 +1,7 @@
 import com.redhat.ceylon.model.typechecker.model {
     Annotation,
     Class,
+    ClassAlias,
     Constructor,
     Declaration,
     Function,
@@ -11,6 +12,7 @@ import com.redhat.ceylon.model.typechecker.model {
     Package,
     Parameter,
     ParameterList,
+    Setter,
     SiteVariance,
     Type,
     TypeAlias,
@@ -27,7 +29,8 @@ import com.redhat.ceylon.model.typechecker.util {
 
 import ceylon.collection {
     ArrayList,
-    HashMap
+    HashMap,
+    HashSet
 }
 
 import ceylon.buffer.charset {
@@ -97,6 +100,27 @@ object valueFlags {
 
     "Flag indicating a value is variable."
     shared Byte \ivariable = 8.byte;
+
+    "Flag indicating a value is anonymous."
+    shared Byte anonymous = 16.byte;
+}
+
+"Flags for classes."
+object classFlags {
+    "Whether this class is an alias for another class."
+    shared Byte \ialias = 1.byte;
+
+    "Whether this class is an alias that specifies a named constructor."
+    shared Byte constructedAlias = 2.byte;
+
+    "Whether this class is abstract."
+    shared Byte \iabstract = 4.byte;
+
+    "Whether this is an anonymous class."
+    shared Byte anonymous = 8.byte;
+
+    "Whether this class is static."
+    shared Byte static = 16.byte;
 }
 
 "First byte of packed annotation flags."
@@ -144,8 +168,8 @@ object blobKeys {
     shared Byte \iinterface = 2.byte;
     shared Byte \ival = 3.byte;
     shared Byte \ifunction = 4.byte;
-    shared Byte \iobject = 5.byte;
-    shared Byte \ialias = 6.byte;
+    shared Byte \ialias = 5.byte;
+    shared Byte constructor = 6.byte;
 }
 
 "Byte markers for standard types."
@@ -379,6 +403,19 @@ class Blob({Byte*} blobData = {}) {
         put(0.byte);
     }
 
+    "Serialize and write case and satisfied types for a generic."
+    shared void putSatisfiedAndCaseTypes(TypeDeclaration g) {
+        for (satisfiedType in iterableUnlessNull(g.satisfiedTypes)) {
+            putType(satisfiedType);
+        }
+        put(0.byte);
+
+        for (caseType in iterableUnlessNull(g.caseTypes)) {
+            putType(caseType);
+        }
+        put(0.byte);
+    }
+
     "Serialize and write a type parameter."
     shared void putTypeParameter(TypeParameter p) {
         if (p.covariant) {
@@ -403,15 +440,7 @@ class Blob({Byte*} blobData = {}) {
             put(0.byte);
         }
 
-        for (satisfiedType in iterableUnlessNull(p.satisfiedTypes)) {
-            putType(satisfiedType);
-        }
-        put(0.byte);
-
-        for (caseType in iterableUnlessNull(p.caseTypes)) {
-            putType(caseType);
-        }
-        put(0.byte);
+        putSatisfiedAndCaseTypes(p);
     }
 
     "Serialize and write a Function or Value."
@@ -420,11 +449,12 @@ class Blob({Byte*} blobData = {}) {
 
         putAnnotations(f);
 
-        putType(f.type);
-
         variable value flags = 0.byte;
+        Class? anonymousClass;
 
         if (is Function f) {
+            anonymousClass = null;
+
             if (f.declaredVoid) {
                 flags = flags.or(functionFlags.\ivoid);
             }
@@ -450,9 +480,23 @@ class Blob({Byte*} blobData = {}) {
             if (f.setter exists) {
                 flags = flags.or(valueFlags.hasSetter);
             }
+
+            if (is Class c = f.type?.declaration, c.anonymous) {
+                flags = flags.or(valueFlags.anonymous);
+                anonymousClass = c;
+            } else {
+                anonymousClass = null;
+            }
         }
 
         put(flags);
+        if (exists anonymousClass) {
+            putClass(anonymousClass);
+        } else if (exists t = f.type){
+            putType(t);
+        } else {
+            put(0.byte);
+        }
 
         if (is Value f, exists s = f.setter) {
             putAnnotations(s);
@@ -477,29 +521,120 @@ class Blob({Byte*} blobData = {}) {
         put(0.byte);
     }
 
+    shared void putClass(Class cls) {
+        putString(cls.name);
+        putAnnotations(cls);
+
+        String? aliasName;
+
+        variable value flags = 0.byte;
+
+        if (cls.\iabstract) {
+            flags = flags.or(classFlags.\iabstract);
+        }
+
+        if (cls.anonymous) {
+            flags = flags.or(classFlags.anonymous);
+        }
+
+        if (cls.static) {
+            flags = flags.or(classFlags.static);
+        }
+
+        if (is ClassAlias cls) {
+            flags = flags.or(classFlags.\ialias);
+
+            if (cls.constructor != cls.extendedType.declaration) {
+                flags = flags.or(classFlags.constructedAlias);
+                aliasName = cls.constructor.name;
+            } else {
+                aliasName = null;
+            }
+        } else {
+            aliasName = null;
+        }
+
+        put(flags);
+
+        if (exists aliasName) {
+            putString(aliasName);
+        }
+
+        for (p in iterableUnlessNull(cls.typeParameters)) {
+            putTypeParameter(p);
+        }
+
+        put(0.byte);
+
+        if (exists parameterList = cls.parameterList) {
+            putParameterList(parameterList);
+        } else {
+            put(0.byte);
+        }
+
+        if (exists t = cls.extendedType) {
+            putType(t);
+        } else {
+            put(0.byte);
+        }
+
+        putSatisfiedAndCaseTypes(cls);
+
+        value constructorNames = HashSet<String>();
+
+        for (member in cls.members) {
+            if (is Constructor member, exists n = member.name) {
+                constructorNames.add(n);
+            }
+        }
+
+        for (member in cls.members) {
+            if (is TypeParameter|Setter member) {
+                continue;
+            }
+
+            if (is Constructor member) {
+                putDeclaration(member);
+                continue;
+            }
+
+            value n = member.name;
+
+            if (! exists n) {
+                continue;
+            }
+
+            if (n in constructorNames) {
+                continue;
+            }
+
+            putDeclaration(member);
+        }
+        put(0.byte);
+    }
+
     "Write one member to the blob."
     shared void putDeclaration(Declaration d) {
         if (is Function d) {
             put(blobKeys.\ifunction);
             putFunctionOrValue(d);
         } else if (is Value d) {
-            if (is Class c = d.type?.declaration, c.anonymous) {
-                put(blobKeys.\iobject);
-                /* TODO: Class data */
-            } else {
-                put(blobKeys.\ival);
-            }
-
+            put(blobKeys.\ival);
             putFunctionOrValue(d);
         } else if (is Class d) {
-            put(blobKeys.\iclass);
-            /* TODO: Class data */
+            if (! d.anonymous) {
+                put(blobKeys.\iclass);
+                putClass(d);
+            }
         } else if (is Interface d) {
             put(blobKeys.\iinterface);
             /* TODO: Interface data */
         } else if (is TypeAlias d) {
             put(blobKeys.\ialias);
             /* TODO: TypeAlias data */
+        } else if (is Constructor d) {
+            put(blobKeys.constructor);
+            /* TODO: Constructor data */
         } else {
             "Declaration should be of a known type."
             assert(false);
@@ -829,17 +964,7 @@ class Blob({Byte*} blobData = {}) {
             else null;
     }
 
-    shared TypeParameterData? getTypeParameter() {
-        value variance = getVariance();
-
-        if (! exists variance) {
-            return null;
-        }
-
-        value name = getString();
-        value defaultType = getTypeData();
-        value extendedType = getTypeData();
-
+    shared [{TypeData*}, {TypeData*}] getCaseAndSatisfiedTypes() {
         value satisfiedTypes = ArrayList<TypeData>();
         value caseTypes = ArrayList<TypeData>();
 
@@ -851,14 +976,30 @@ class Blob({Byte*} blobData = {}) {
             caseTypes.add(t);
         }
 
+        return [satisfiedTypes, caseTypes];
+    }
+
+    shared TypeParameterData? getTypeParameterData() {
+        value variance = getVariance();
+
+        if (! exists variance) {
+            return null;
+        }
+
+        value name = getString();
+        value defaultType = getTypeData();
+        value extendedType = getTypeData();
+
+        value [satisfiedTypes, caseTypes] = getCaseAndSatisfiedTypes();
+
         return TypeParameterData(name, variance, defaultType, extendedType,
             satisfiedTypes, caseTypes);
     }
 
-    shared [TypeParameterData*] getTypeParameters() {
+    shared [TypeParameterData*] getTypeParametersData() {
         value accum = ArrayList<TypeParameterData>();
 
-        while (exists p = getTypeParameter()) {
+        while (exists p = getTypeParameterData()) {
             accum.add(p);
         }
 
@@ -869,11 +1010,11 @@ class Blob({Byte*} blobData = {}) {
     shared FunctionData getFunctionData() {
         value name = getString();
         value annotations = getAnnotationData();
-        value type = getTypeData();
         value flags = get();
+        value type = getTypeData();
         value declaredVoid = flags.and(functionFlags.\ivoid) != 0.byte;
         value deferred = flags.and(functionFlags.deferred) != 0.byte;
-        value typeParameters = getTypeParameters();
+        value typeParameters = getTypeParametersData();
 
         value parameterLists = ArrayList<ParameterListData>();
         while (exists p = getParameterListData()) {
@@ -892,12 +1033,16 @@ class Blob({Byte*} blobData = {}) {
         value name = getString();
         value annotations = getAnnotationData();
 
-        "Value must have a type."
-        assert(exists type = getTypeData());
         value flags = get();
         value transient = flags.and(valueFlags.transient) != 0.byte;
         value static = flags.and(valueFlags.static) != 0.byte;
         value \ivariable = flags.and(valueFlags.\ivariable) != 0.byte;
+        value anonymous = flags.and(valueFlags.anonymous) != 0.byte;
+
+        "Value must have a type."
+        assert(exists type = if (anonymous)
+                then getClassData()
+                else getTypeData());
 
         value setterAnnotations =
             if (flags.and(valueFlags.hasSetter) != 0.byte)
@@ -906,6 +1051,40 @@ class Blob({Byte*} blobData = {}) {
 
         return ValueData(name, type, annotations, transient, static,
                 \ivariable, setterAnnotations);
+    }
+
+    shared ClassData getClassData() {
+        value name = getString();
+        value annotations = getAnnotationData();
+
+        value flags = get();
+        value \iabstract = flags.and(classFlags.\iabstract) != 0.byte;
+        value anonymous = flags.and(classFlags.anonymous) != 0.byte;
+        value static = flags.and(classFlags.static) != 0.byte;
+        value isAlias = flags.and(classFlags.\ialias) != 0.byte;
+        value constructedAlias =
+            flags.and(classFlags.constructedAlias) != 0.byte;
+
+        value \ialias = if (constructedAlias)
+            then getString()
+            else isAlias;
+
+        value typeParameters = getTypeParametersData();
+
+        value parameters = getParameterListData();
+
+        value extendedType = getTypeData();
+        value [satisfiedTypes, caseTypes] = getCaseAndSatisfiedTypes();
+
+        value members = ArrayList<DeclarationData>();
+
+        while (exists d = getDeclarationData()) {
+            members.add(d);
+        }
+
+        return ClassData(name, annotations, \ialias, \iabstract, anonymous,
+                static, typeParameters, parameters, extendedType, caseTypes,
+                satisfiedTypes, members);
     }
 
     "Load a declaration from the blob."
@@ -922,13 +1101,12 @@ class Blob({Byte*} blobData = {}) {
             /* TODO: Interface data */
             return null;
         } else if (blobKey == blobKeys.\iclass) {
-            /* TODO: Class data */
-            return null;
-        } else if (blobKey == blobKeys.\iobject) {
-            /* TODO: Object data */
-            return null;
+            return getClassData();
         } else if (blobKey == blobKeys.\ialias) {
             /* TODO: Alias data */
+            return null;
+        } else if (blobKey == blobKeys.constructor) {
+            /* TODO: Constructor data */
             return null;
         } else {
             "Key byte should be a recognized value."
