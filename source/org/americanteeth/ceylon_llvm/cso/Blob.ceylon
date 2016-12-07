@@ -754,23 +754,13 @@ class Blob({Byte*} blobData = {}) {
         return ret;
     }
 
-    "Consume bytes up to but not including a byte where the given predicate
-     returns true."
-    List<Byte> getTo(Boolean(Byte) predicate) {
-        value considered = blob_.spanFrom(readPosition);
-        "Terminator not found."
-        assert(exists split = considered.firstIndexWhere(predicate));
-
-        value ret = considered.spanTo(split - 1);
-        readPosition += split;
-        return ret;
-    }
-
     "Consume a string terminated by a low byte assumed to contain flag bits."
     shared String getString() {
-        value ret = getTo((x) => x == 0.byte);
-        get();
-        return utf8.decode(ret);
+        variable value length = 0;
+        value start = readPosition;
+        while (exists b = blob_[readPosition + length++], b != 0.byte) {}
+        readPosition += length;
+        return utf8.decode(blob_[start:length-1]);
     }
 
     "Consume a series of zero-terminated utf8 strings, ending with an empty
