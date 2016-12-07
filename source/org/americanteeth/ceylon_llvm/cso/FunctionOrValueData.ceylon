@@ -9,6 +9,7 @@ import com.redhat.ceylon.model.typechecker.model {
 }
 
 abstract class FunctionOrValueData(name, type, annotations)
+        of FunctionData|ValueData
         extends DeclarationData() {
     shared actual formal FunctionOrValue declaration;
 

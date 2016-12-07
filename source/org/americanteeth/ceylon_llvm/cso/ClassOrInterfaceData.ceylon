@@ -3,45 +3,86 @@ import com.redhat.ceylon.model.typechecker.model {
     ClassAlias,
     ClassOrInterface,
     Function,
+    Interface,
+    InterfaceAlias,
     Scope,
     TypeDeclaration,
     Unit
 }
 
-abstract class ClassOrInterfaceData()
-        extends DeclarationData() {
-    shared actual formal ClassOrInterface declaration;
-}
-
-class ClassData(name, annotations, \ialias, \iabstract, anonymous,
-        static, typeParameters, parameters,
+abstract class ClassOrInterfaceData(name, annotations, \ialias, typeParameters,
         extendedType, caseTypes, satisfiedTypes, members)
-        extends ClassOrInterfaceData() {
+        of ClassData|InterfaceData
+        extends DeclarationData() {
     shared String name;
     shared AnnotationData annotations;
-    shared String|Boolean \ialias;
-    shared Boolean \iabstract;
-    shared Boolean anonymous;
-    shared Boolean static;
+    shared Boolean \ialias;
     shared [TypeParameterData*] typeParameters;
-    shared ParameterListData? parameters;
-    shared {DeclarationData*} members;
     shared TypeData? extendedType;
     shared {TypeData*} caseTypes;
     shared {TypeData*} satisfiedTypes;
+    shared {DeclarationData*} members;
 
-    Class cls = if (\ialias == false)
+    shared actual formal ClassOrInterface declaration;
+
+    shared default void completeClass(Module mod, Unit unit,
+            Scope container) {}
+
+    shared actual void complete(Module mod, Unit unit, Scope container) {
+        declaration.container = container;
+        declaration.unit = unit;
+        declaration.extendedType = extendedType?.toType(mod, unit, declaration);
+
+        for (type in caseTypes) {
+            declaration.caseTypes.add(type.toType(mod, unit, declaration));
+        }
+
+        for (type in satisfiedTypes) {
+            declaration.satisfiedTypes.add(type.toType(mod, unit, declaration));
+        }
+
+        completeClass(mod, unit, container);
+
+        for (t in typeParameters) {
+            t.complete(mod, unit, declaration);
+        }
+
+        for (m in members) {
+            m.complete(mod, unit, declaration);
+        }
+    }
+}
+
+class ClassData(n, a, als, \iabstract, anonymous, static, parameters, tp, et,
+        ct, st, m)
+        extends ClassOrInterfaceData(n, a, als != false, tp, et, ct, st, m) {
+    String n;
+    AnnotationData a;
+    String|Boolean als;
+    shared Boolean \iabstract;
+    shared Boolean anonymous;
+    shared Boolean static;
+    shared ParameterListData? parameters;
+    [TypeParameterData*] tp;
+    TypeData? et;
+    {TypeData*} ct;
+    {TypeData*} st;
+    {DeclarationData*} m;
+
+    shared String? aliasName = if (is String als) then als else null;
+
+    Class cls = if (als == false)
         then Class()
         else ClassAlias();
 
-    cls.name = name;
+    cls.name = n;
     cls.\iabstract = \iabstract;
     cls.anonymous = anonymous;
     cls.static = static;
-    applyTypeParameters(cls, typeParameters);
-    annotations.apply(cls);
+    applyTypeParameters(cls, tp);
+    a.apply(cls);
 
-    for (d in members) {
+    for (d in m) {
         cls.addMember(d.declaration);
 
         if (is ConstructorData d) {
@@ -57,40 +98,46 @@ class ClassData(name, annotations, \ialias, \iabstract, anonymous,
 
     shared actual Class declaration = cls;
 
-    shared actual void complete(Module mod, Unit unit, Scope container) {
-        cls.container = container;
-        cls.unit = unit;
-        cls.extendedType = extendedType?.toType(mod, unit, cls);
-
-        for (type in caseTypes) {
-            cls.caseTypes.add(type.toType(mod, unit, cls));
-        }
-
-        for (type in satisfiedTypes) {
-            cls.satisfiedTypes.add(type.toType(mod, unit, cls));
-        }
-
+    shared actual void completeClass(Module mod, Unit unit, Scope container) {
         cls.parameterList = parameters?.toParameterList(mod, unit,
                 cls);
         cls.parameterList.namedParametersSupported = true;
 
         if (is ClassAlias cls) {
-            if (is String \ialias) {
+            if (is String als) {
                 assert(is TypeDeclaration constructor =
-                    cls.extendedType.declaration.getDirectMember(\ialias, null,
+                    cls.extendedType.declaration.getDirectMember(als, null,
                             false));
                 cls.constructor = constructor;
             } else {
                 cls.constructor = cls.extendedType.declaration;
             }
         }
-
-        for (t in typeParameters) {
-            t.complete(mod, unit, cls);
-        }
-
-        for (m in members) {
-            m.complete(mod, unit, cls);
-        }
     }
+}
+
+class InterfaceData(n, a, als, tp, et, ct, st, m)
+        extends ClassOrInterfaceData(n, a, als, tp, et, ct, st, m) {
+    String n;
+    AnnotationData a;
+    Boolean als;
+    [TypeParameterData*] tp;
+    TypeData? et;
+    {TypeData*} ct;
+    {TypeData*} st;
+    {DeclarationData*} m;
+
+    value int = if (als)
+        then InterfaceAlias()
+        else Interface();
+
+    int.name = n;
+    applyTypeParameters(int, tp);
+    a.apply(int);
+
+    for (d in m) {
+        int.addMember(d.declaration);
+    }
+
+    shared actual Interface declaration = int;
 }

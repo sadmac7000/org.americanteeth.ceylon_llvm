@@ -2,11 +2,13 @@ import com.redhat.ceylon.model.typechecker.model {
     Annotation,
     Class,
     ClassAlias,
+    ClassOrInterface,
     Constructor,
     Declaration,
     Function,
     FunctionOrValue,
     Interface,
+    InterfaceAlias,
     IntersectionType,
     ModuleImport,
     Package,
@@ -493,7 +495,7 @@ class Blob({Byte*} blobData = {}) {
 
         put(flags);
         if (exists anonymousClass) {
-            putClass(anonymousClass);
+            putClassOrInterface(anonymousClass);
         } else if (exists t = f.type){
             putType(t);
         } else {
@@ -524,7 +526,7 @@ class Blob({Byte*} blobData = {}) {
     }
 
     "Serialize and write a class."
-    shared void putClass(Class cls) {
+    shared void putClassOrInterface(ClassOrInterface cls) {
         putString(cls.name);
         putAnnotations(cls);
 
@@ -532,16 +534,20 @@ class Blob({Byte*} blobData = {}) {
 
         variable value flags = 0.byte;
 
-        if (cls.\iabstract) {
-            flags = flags.or(classFlags.\iabstract);
-        }
+        if (is Class cls) {
+            if (cls.\iabstract) {
+                flags = flags.or(classFlags.\iabstract);
+            }
 
-        if (cls.anonymous) {
-            flags = flags.or(classFlags.anonymous);
-        }
+            if (cls.anonymous) {
+                flags = flags.or(classFlags.anonymous);
+            }
 
-        if (cls.static) {
-            flags = flags.or(classFlags.static);
+            if (cls.static) {
+                flags = flags.or(classFlags.static);
+            }
+        } else if (is InterfaceAlias cls){
+            flags = 1.byte;
         }
 
         if (is ClassAlias cls) {
@@ -569,10 +575,12 @@ class Blob({Byte*} blobData = {}) {
 
         put(0.byte);
 
-        if (exists parameterList = cls.parameterList) {
-            putParameterList(parameterList);
-        } else {
-            put(0.byte);
+        if (is Class cls) {
+            if (exists parameterList = cls.parameterList) {
+                putParameterList(parameterList);
+            } else {
+                put(0.byte);
+            }
         }
 
         if (exists t = cls.extendedType) {
@@ -639,11 +647,11 @@ class Blob({Byte*} blobData = {}) {
         } else if (is Class d) {
             if (! d.anonymous) {
                 put(blobKeys.\iclass);
-                putClass(d);
+                putClassOrInterface(d);
             }
         } else if (is Interface d) {
             put(blobKeys.\iinterface);
-            /* TODO: Interface data */
+            putClassOrInterface(d);
         } else if (is TypeAlias d) {
             put(blobKeys.\ialias);
             /* TODO: TypeAlias data */
@@ -1099,8 +1107,31 @@ class Blob({Byte*} blobData = {}) {
         }
 
         return ClassData(name, annotations, \ialias, \iabstract, anonymous,
-                static, typeParameters, parameters, extendedType, caseTypes,
+                static, parameters, typeParameters, extendedType, caseTypes,
                 satisfiedTypes, members);
+    }
+
+    "Deserialize and return data identifying an interface."
+    shared InterfaceData getInterfaceData() {
+        value name = getString();
+
+        value annotations = getAnnotationData();
+
+        value \ialias = get() != 0.byte;
+
+        value typeParameters = getTypeParametersData();
+
+        value extendedType = getTypeData();
+        value [satisfiedTypes, caseTypes] = getCaseAndSatisfiedTypes();
+
+        value members = ArrayList<DeclarationData>();
+
+        while (exists d = getDeclarationData()) {
+            members.add(d);
+        }
+
+        return InterfaceData(name, annotations, \ialias, typeParameters,
+                extendedType, caseTypes, satisfiedTypes, members);
     }
 
     "Get a string, return null if we would return an empty string."
@@ -1126,8 +1157,7 @@ class Blob({Byte*} blobData = {}) {
         } else if (blobKey == blobKeys.\ival) {
             return getValueData();
         } else if (blobKey == blobKeys.\iinterface) {
-            /* TODO: Interface data */
-            return null;
+            return getInterfaceData();
         } else if (blobKey == blobKeys.\iclass) {
             return getClassData();
         } else if (blobKey == blobKeys.\ialias) {
