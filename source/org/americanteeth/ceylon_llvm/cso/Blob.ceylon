@@ -371,7 +371,9 @@ class Blob({Byte*} blobData = {}) {
             packed1 = packed1.or(packedAnnotations1.\idefault);
         }
 
-        /* TODO: Native? */
+        if (d.\inative) {
+            packed1 = packed1.or(packedAnnotations1.\inative);
+        }
 
         if (d.\iannotation) {
             packed1 = packed1.or(packedAnnotations1.\iannotation);
