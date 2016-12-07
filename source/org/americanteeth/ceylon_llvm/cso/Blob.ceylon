@@ -521,6 +521,7 @@ class Blob({Byte*} blobData = {}) {
         put(0.byte);
     }
 
+    "Serialize and write a class."
     shared void putClass(Class cls) {
         putString(cls.name);
         putAnnotations(cls);
@@ -613,6 +614,18 @@ class Blob({Byte*} blobData = {}) {
         put(0.byte);
     }
 
+    "Serialize and write a constructor."
+    shared void putConstructor(Constructor c) {
+        putString(c.name else "");
+        putAnnotations(c);
+
+        if (exists p = c.parameterList) {
+            putParameterList(p);
+        } else {
+            put(0.byte);
+        }
+    }
+
     "Write one member to the blob."
     shared void putDeclaration(Declaration d) {
         if (is Function d) {
@@ -634,7 +647,7 @@ class Blob({Byte*} blobData = {}) {
             /* TODO: TypeAlias data */
         } else if (is Constructor d) {
             put(blobKeys.constructor);
-            /* TODO: Constructor data */
+            putConstructor(d);
         } else {
             "Declaration should be of a known type."
             assert(false);
@@ -1028,7 +1041,7 @@ class Blob({Byte*} blobData = {}) {
                 declaredVoid, deferred, parameterSequence);
     }
 
-    "Deserialize return data identifying a value."
+    "Deserialize and return data identifying a value."
     shared ValueData getValueData() {
         value name = getString();
         value annotations = getAnnotationData();
@@ -1053,6 +1066,7 @@ class Blob({Byte*} blobData = {}) {
                 \ivariable, setterAnnotations);
     }
 
+    "Deserialize and return data identifying a class."
     shared ClassData getClassData() {
         value name = getString();
         value annotations = getAnnotationData();
@@ -1087,6 +1101,18 @@ class Blob({Byte*} blobData = {}) {
                 satisfiedTypes, members);
     }
 
+    "Get a string, return null if we would return an empty string."
+    String? getNonemptyString()
+        => let (s = getString())
+           if (!s.empty)
+           then s
+           else null;
+
+    "Deserialize and return data identifying a constructor."
+    shared ConstructorData getConstructorData()
+        => ConstructorData(getNonemptyString(), getAnnotationData(),
+                getParameterListData());
+
     "Load a declaration from the blob."
     shared DeclarationData? getDeclarationData() {
         value blobKey = get();
@@ -1106,8 +1132,7 @@ class Blob({Byte*} blobData = {}) {
             /* TODO: Alias data */
             return null;
         } else if (blobKey == blobKeys.constructor) {
-            /* TODO: Constructor data */
-            return null;
+            return getConstructorData();
         } else {
             "Key byte should be a recognized value."
             assert(false);

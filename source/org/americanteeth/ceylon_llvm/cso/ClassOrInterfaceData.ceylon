@@ -2,6 +2,7 @@ import com.redhat.ceylon.model.typechecker.model {
     Class,
     ClassAlias,
     ClassOrInterface,
+    Function,
     Scope,
     TypeDeclaration,
     Unit
@@ -38,9 +39,20 @@ class ClassData(name, annotations, \ialias, \iabstract, anonymous,
     cls.anonymous = anonymous;
     cls.static = static;
     applyTypeParameters(cls, typeParameters);
+    annotations.apply(cls);
 
     for (d in members) {
         cls.addMember(d.declaration);
+
+        if (is ConstructorData d) {
+            cls.addMember(d.functionOrValue);
+
+            if (d.functionOrValue is Function) {
+                cls.setConstructors(true);
+            } else {
+                cls.setEnumerated(true);
+            }
+        }
     }
 
     shared actual Class declaration = cls;
@@ -48,7 +60,6 @@ class ClassData(name, annotations, \ialias, \iabstract, anonymous,
     shared actual void complete(Module mod, Unit unit, Scope container) {
         cls.container = container;
         cls.unit = unit;
-        annotations.apply(cls);
         cls.extendedType = extendedType?.toType(mod, unit, cls);
 
         for (type in caseTypes) {
