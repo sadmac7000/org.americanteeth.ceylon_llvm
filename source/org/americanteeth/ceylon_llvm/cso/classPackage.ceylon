@@ -23,6 +23,9 @@ class Package() extends LazyPackage() {
     "DeclarationData we've been given from the blob."
     value unpackedData = ArrayList<DeclarationData>();
 
+    "Whether we've been loaded already."
+    variable value loaded = false;
+
     "Module that we will load our data from."
     variable Module? sourceModule = null;
 
@@ -69,6 +72,12 @@ class Package() extends LazyPackage() {
         if (! exists mod) {
             return;
         }
+
+        if (loaded) {
+            return;
+        }
+
+        loaded = true;
 
         for (d in unpackedData) {
             d.complete(mod, defaultUnit, this);
