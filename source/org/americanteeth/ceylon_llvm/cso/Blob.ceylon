@@ -1,3 +1,7 @@
+import org.americanteeth.ceylon_llvm {
+    baremetalSupports
+}
+
 import com.redhat.ceylon.model.typechecker.model {
     Annotation,
     Class,
@@ -496,10 +500,8 @@ class Blob({Byte*} blobData = {}) {
         put(flags);
         if (exists anonymousClass) {
             putClassOrInterface(anonymousClass);
-        } else if (exists t = f.type){
-            putType(t);
         } else {
-            put(0.byte);
+            putType(f.type);
         }
 
         if (is Value f, exists s = f.setter) {
@@ -600,6 +602,14 @@ class Blob({Byte*} blobData = {}) {
         }
 
         for (member in cls.members) {
+            if (! baremetalSupports(member)) {
+                continue;
+            }
+
+            if (is Class member, member.anonymous) {
+                continue;
+            }
+
             if (is TypeParameter|Setter member) {
                 continue;
             }
@@ -645,10 +655,8 @@ class Blob({Byte*} blobData = {}) {
             put(blobKeys.\ival);
             putFunctionOrValue(d);
         } else if (is Class d) {
-            if (! d.anonymous) {
-                put(blobKeys.\iclass);
-                putClassOrInterface(d);
-            }
+            put(blobKeys.\iclass);
+            putClassOrInterface(d);
         } else if (is Interface d) {
             put(blobKeys.\iinterface);
             putClassOrInterface(d);

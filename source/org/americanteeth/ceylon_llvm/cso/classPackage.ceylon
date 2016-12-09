@@ -1,5 +1,10 @@
+import org.americanteeth.ceylon_llvm {
+    baremetalSupports
+}
+
 import com.redhat.ceylon.model.typechecker.model {
     BaseModule=Module,
+    Class,
     Unit
 }
 
@@ -78,10 +83,16 @@ class Package() extends LazyPackage() {
         buf.putStringList(name);
         buf.put(\ishared then 1.byte else 0.byte);
 
-        if (exists mem = members) {
-            for (m in mem) {
-                buf.putDeclaration(m);
+        for (m in iterableUnlessNull(members)) {
+            if (is Class m, m.anonymous) {
+                continue;
             }
+
+            if (! baremetalSupports(m)) {
+                continue;
+            }
+
+            buf.putDeclaration(m);
         }
 
         buf.put(0.byte);

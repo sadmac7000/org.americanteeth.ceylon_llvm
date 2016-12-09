@@ -5,7 +5,7 @@ import com.redhat.ceylon.model.typechecker.model {
 
 shared Backend baremetalBackend = Backend.registerBackend("Bare Metal", "baremetal");
 
-Boolean baremetalSupports(DeclarationModel model) {
+shared Boolean baremetalSupports(DeclarationModel model) {
     if (model.nativeBackends == Backends.\iANY) {
         return true;
     }
