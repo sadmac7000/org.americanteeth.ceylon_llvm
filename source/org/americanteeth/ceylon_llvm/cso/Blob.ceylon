@@ -240,7 +240,6 @@ class Blob({Byte*} blobData = {}) {
         {String*} s;
 
         if (! is {String*} got) {
-            for (g in got) {}
             s = CeylonList(got).map(Object.string);
         } else {
             s = got;
