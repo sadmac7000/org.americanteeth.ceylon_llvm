@@ -29,6 +29,10 @@ import com.redhat.ceylon.model.typechecker.model {
     Module
 }
 
+import com.redhat.ceylon.common {
+    Backends
+}
+
 import com.redhat.ceylon.common.tool {
     argument,
     optionArgument,
@@ -158,6 +162,13 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
                 augmentNode);
             value mod = phasedUnit.\ipackage.\imodule;
             value file = "/tmp/tmp`` tmpIdx++ ``.ll";
+
+            if (mod.nativeBackends != Backends.\iANY,
+                ! mod.nativeBackends.supports(baremetalBackend)) {
+                print("Error: Module does not support this back end:
+                        ``mod.name``");
+                return;
+            }
 
             unit.visit(preprocessVisitor);
             value bld = LLVMBuilder(triple_, mod.languageModule.rootPackage);

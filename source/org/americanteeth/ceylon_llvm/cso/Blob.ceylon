@@ -1,7 +1,3 @@
-import org.americanteeth.ceylon_llvm {
-    baremetalSupports
-}
-
 import com.redhat.ceylon.model.typechecker.model {
     Annotation,
     Class,
@@ -56,6 +52,10 @@ import ceylon.interop.java {
     CeylonMap,
     JavaList,
     javaString
+}
+
+import org.americanteeth.ceylon_llvm {
+    baremetalSupports
 }
 
 "Get a Ceylon iterable from a Java list, or an empty iterable if given null."
@@ -196,11 +196,14 @@ object typeKinds {
     shared Byte parameter = 5.byte;
 }
 
-"Flag bit indicating an import has the export annotation."
-Byte exportFlag = 1.byte;
+"Flags for module imports"
+object importFlags {
+    "Flag bit indicating an import has the export annotation."
+    shared Byte exportFlag = 1.byte;
 
-"Flag bit indicating an import is optional."
-Byte optionalFlag = 2.byte;
+    "Flag bit indicating an import is optional."
+    shared Byte optionalFlag = 2.byte;
+}
 
 "Byte marker for variances."
 object variances {
@@ -269,11 +272,11 @@ class Blob({Byte*} blobData = {}) {
         variable Byte flag = 0.byte;
 
         if (imp.optional) {
-            flag = flag.or(optionalFlag);
+            flag = flag.or(importFlags.optionalFlag);
         }
 
         if (imp.export) {
-            flag = flag.or(exportFlag);
+            flag = flag.or(importFlags.exportFlag);
         }
 
         putStringList(imp.\imodule.name);
@@ -799,8 +802,8 @@ class Blob({Byte*} blobData = {}) {
 
         value version = getString();
         value flags = get();
-        value optional = flags.and(optionalFlag) != 0.byte;
-        value export = flags.and(exportFlag) != 0.byte;
+        value optional = flags.and(importFlags.optionalFlag) != 0.byte;
+        value export = flags.and(importFlags.exportFlag) != 0.byte;
         value mod = moduleManager.getOrCreateModule(jName, version);
         value backends = mod.nativeBackends;
         return ModuleImport(null, mod, optional, export, backends);

@@ -101,7 +101,12 @@ class Module(BaseModuleManager moduleManager) extends BaseModule() {
         buf.put(nativeBackends == Backends.\iANY then 1.byte else 0.byte);
         buf.putStringList(name);
 
-        CeylonList(imports).each(buf.putModuleImport);
+        for (imp in CeylonList(imports)) {
+            if (imp.nativeBackends == Backends.\iANY ||
+                imp.nativeBackends.supports(baremetalBackend)) {
+                buf.putModuleImport(imp);
+            }
+        }
         buf.putStringList([]);
 
         storeModuleAnnotations(buf, this);

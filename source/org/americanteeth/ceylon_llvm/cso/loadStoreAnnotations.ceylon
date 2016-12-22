@@ -12,12 +12,13 @@ import org.americanteeth.ceylon_llvm {
 
 "Write the annotations for a module to the blob."
 void storeModuleAnnotations(Blob buf, Module m) {
-    variable value packed1 = 0.byte;
+    if (m.nativeBackends != Backends.\iANY) {
+        buf.put(packedAnnotations1.\inative);
+    } else {
+        buf.put(0.byte);
+    }
 
-    /* TODO: Native? */
-
-    buf.put(packed1);
-    buf.put(0.byte);
+    buf.put(0.byte); // Second packed annotation byte.
 
     for (ann in m.annotations) {
         buf.putAnnotation(ann);
