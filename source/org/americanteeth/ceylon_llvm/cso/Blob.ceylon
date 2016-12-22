@@ -529,6 +529,21 @@ class Blob({Byte*} blobData = {}) {
         put(0.byte);
     }
 
+    "Serialize and write a type alias."
+    shared void putTypeAlias(TypeAlias ta) {
+        putString(ta.name);
+        putAnnotations(ta);
+
+        for (p in iterableUnlessNull(ta.typeParameters)) {
+            putTypeParameter(p);
+        }
+
+        put(0.byte);
+
+        putType(ta.extendedType);
+        putSatisfiedAndCaseTypes(ta);
+    }
+
     "Serialize and write a class."
     shared void putClassOrInterface(ClassOrInterface cls) {
         putString(cls.name);
@@ -664,7 +679,7 @@ class Blob({Byte*} blobData = {}) {
             putClassOrInterface(d);
         } else if (is TypeAlias d) {
             put(blobKeys.\ialias);
-            /* TODO: TypeAlias data */
+            putTypeAlias(d);
         } else if (is Constructor d) {
             put(blobKeys.constructor);
             putConstructor(d);
@@ -1076,6 +1091,18 @@ class Blob({Byte*} blobData = {}) {
                 \ivariable, setterAnnotations);
     }
 
+    "Deserialize and return data identifying a Type Alias."
+    shared TypeAliasData getTypeAliasData() {
+        value name = getString();
+        value annotations = getAnnotationData();
+        value typeParameters = getTypeParametersData();
+        assert(exists extendedType = getTypeData());
+        value [satisfiedTypes, caseTypes] = getCaseAndSatisfiedTypes();
+
+        return TypeAliasData(name, annotations, typeParameters, extendedType,
+                caseTypes, satisfiedTypes);
+    }
+
     "Deserialize and return data identifying a class."
     shared ClassData getClassData() {
         value name = getString();
@@ -1161,8 +1188,7 @@ class Blob({Byte*} blobData = {}) {
         } else if (blobKey == blobKeys.\iclass) {
             return getClassData();
         } else if (blobKey == blobKeys.\ialias) {
-            /* TODO: Alias data */
-            return null;
+            return getTypeAliasData();
         } else if (blobKey == blobKeys.constructor) {
             return getConstructorData();
         } else {
