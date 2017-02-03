@@ -32,14 +32,7 @@ abstract class ClassOrInterfaceData(name, annotations, \ialias, typeParameters,
         declaration.container = container;
         declaration.unit = unit;
         declaration.extendedType = extendedType?.toType(mod, unit, declaration);
-
-        for (type in caseTypes) {
-            declaration.caseTypes.add(type.toType(mod, unit, declaration));
-        }
-
-        for (type in satisfiedTypes) {
-            declaration.satisfiedTypes.add(type.toType(mod, unit, declaration));
-        }
+        setCaseAndSatisfiedTypes(mod, unit, declaration, caseTypes, satisfiedTypes);
 
         completeClass(mod, unit, container);
 

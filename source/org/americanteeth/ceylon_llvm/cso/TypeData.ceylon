@@ -36,9 +36,7 @@ class UnionTypeDeclarationData(cases) extends TypeDeclarationData() {
             Declaration? container) {
         value ret = UnionType(unit);
 
-        for (item in cases) {
-            ret.caseTypes.add(item.toType(mod, unit, container));
-        }
+        setCaseAndSatisfiedTypes(mod, unit, ret, cases, null);
 
         return ret;
     }

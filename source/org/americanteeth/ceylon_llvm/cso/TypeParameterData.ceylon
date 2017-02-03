@@ -35,14 +35,7 @@ class TypeParameterData(name, variance, defaultType, extendedType,
         typeParameter.defaultTypeArgument = defaultType?.toType(mod, unit,
                 container);
 
-        for (satisfiedType in satisfiedTypes) {
-            typeParameter.satisfiedTypes.add(satisfiedType.toType(mod, unit,
-                        container));
-        }
-
-        for (caseType in caseTypes) {
-            typeParameter.caseTypes.add(caseType.toType(mod, unit,
-                        container));
-        }
+        setCaseAndSatisfiedTypes(mod, unit, typeParameter, caseTypes,
+                satisfiedTypes);
     }
 }
