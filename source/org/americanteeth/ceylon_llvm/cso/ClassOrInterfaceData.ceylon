@@ -93,7 +93,9 @@ class ClassData(n, a, als, \iabstract, anonymous, static, parameters, tp, et,
     shared actual void completeClass(Module mod, Unit unit) {
         cls.parameterList = parameters?.toParameterList(mod, unit, cls);
 
-        cls.parameterList.namedParametersSupported = true;
+        if (exists c = cls.parameterList) {
+            c.namedParametersSupported = true;
+        }
 
         if (is ClassAlias cls) {
             if (is String als) {
