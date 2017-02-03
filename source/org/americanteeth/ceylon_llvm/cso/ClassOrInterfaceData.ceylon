@@ -25,8 +25,7 @@ abstract class ClassOrInterfaceData(name, annotations, \ialias, typeParameters,
 
     shared actual formal ClassOrInterface declaration;
 
-    shared default void completeClass(Module mod, Unit unit,
-            Scope container) {}
+    shared default void completeClass(Module mod, Unit unit) {}
 
     shared actual void complete(Module mod, Unit unit, Scope container) {
         declaration.container = container;
@@ -34,7 +33,7 @@ abstract class ClassOrInterfaceData(name, annotations, \ialias, typeParameters,
         declaration.extendedType = extendedType?.toType(mod, unit, declaration);
         setCaseAndSatisfiedTypes(mod, unit, declaration, caseTypes, satisfiedTypes);
 
-        completeClass(mod, unit, container);
+        completeClass(mod, unit);
 
         for (t in typeParameters) {
             t.complete(mod, unit, declaration);
@@ -91,9 +90,9 @@ class ClassData(n, a, als, \iabstract, anonymous, static, parameters, tp, et,
 
     shared actual Class declaration = cls;
 
-    shared actual void completeClass(Module mod, Unit unit, Scope container) {
-        cls.parameterList = parameters?.toParameterList(mod, unit,
-                cls);
+    shared actual void completeClass(Module mod, Unit unit) {
+        cls.parameterList = parameters?.toParameterList(mod, unit, cls);
+
         cls.parameterList.namedParametersSupported = true;
 
         if (is ClassAlias cls) {
