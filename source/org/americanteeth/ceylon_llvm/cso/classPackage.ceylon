@@ -5,6 +5,8 @@ import org.americanteeth.ceylon_llvm {
 import com.redhat.ceylon.model.typechecker.model {
     BaseModule=Module,
     Class,
+    NothingType,
+    UnknownType,
     Unit
 }
 
@@ -19,6 +21,9 @@ import ceylon.collection {
 class Package() extends LazyPackage() {
     "A compilation unit for things that don't have one."
     value defaultUnit = Unit();
+
+    "Type for unknown declarations."
+    value unknownType = UnknownType(defaultUnit);
 
     "DeclarationData we've been given from the blob."
     value unpackedData = ArrayList<DeclarationData>();
@@ -42,6 +47,18 @@ class Package() extends LazyPackage() {
             unpackedData.add(d);
             defaultUnit.addDeclaration(d.declaration);
             addMember(d.declaration);
+        }
+
+        addMember(unknownType);
+        unknownType.container = this;
+
+        if (languagePackage) {
+            value nothingType = object extends NothingType(defaultUnit) {
+                shared actual Package container => outer;
+            };
+
+            defaultUnit.addDeclaration(nothingType);
+            addMember(nothingType);
         }
     }
 
