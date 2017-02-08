@@ -85,23 +85,30 @@ class PlainTypeDeclarationData(pkg, name) extends TypeDeclarationData() {
 
     shared actual TypeDeclaration toTypeDeclaration(Module mod, Unit unit,
             Declaration? container) {
+        function extractType(TypeDeclaration|Value t)
+            => if (is Value t) then t.typeDeclaration else t;
+
         "Type should be in an imported package."
         assert(is Package pkg = mod.getPackage(".".join(this.pkg)));
 
         if (name.size == 1) {
             "Referenced type should be defined."
             assert(is TypeDeclaration|Value t =
-                    pkg.getDirectMember(name.first, null, false));
+                    pkg.getMember(name.first, null, false));
 
-            return if (is Value t)
-                then t.typeDeclaration
-                else t;
+            return extractType(t);
         }
 
         variable Scope current = pkg;
         
         for (term in name) {
-            value m = current.getMember(term, null, false);
+            value m = if (exists direct = current.getMember(term, null, false))
+                then direct
+                else if (is Value v = current,
+                         exists type = v.typeDeclaration.getMember(term,
+                             null, false))
+                then type
+                else null;
 
             "Name should reference a type."
             assert(is Scope m);
@@ -109,8 +116,8 @@ class PlainTypeDeclarationData(pkg, name) extends TypeDeclarationData() {
         }
 
         "Member should be a type."
-        assert(is TypeDeclaration ret = current);
-        return ret;
+        assert(is TypeDeclaration|Value ret = current);
+        return extractType(ret);
     }
 }
 
