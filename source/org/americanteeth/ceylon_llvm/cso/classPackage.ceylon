@@ -67,6 +67,11 @@ class Package() extends LazyPackage() {
         "Package should be assigned a source module only once."
         assert(! sourceModule exists);
 
+        // Internal lookups fail if the language package is unavailable.
+        if (exists m = \imodule, languagePackage) {
+            m.available = true;
+        }
+
         if (is Module \imodule,
             exists p = \imodule.getPackageData(nameAsString)) {
             sourceModule = \imodule;
