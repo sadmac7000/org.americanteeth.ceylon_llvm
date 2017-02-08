@@ -26,7 +26,6 @@ abstract class FunctionOrValueData(name, type, annotations)
 
         if (is ClassData type) {
             type.complete(mod, unit, container);
-            declaration.type = type.declaration.type;
         } else {
             declaration.type = type?.toType(mod, unit, parentDeclaration);
         }
@@ -93,6 +92,11 @@ class ValueData(n, t, a, transient, static, \ivariable,
     val.transient = transient;
     val.static = static;
     val.\ivariable = \ivariable;
+
+    if (is ClassData t) {
+        val.type = t.declaration.type;
+    }
+
     a.apply(val);
 
     if (exists setterAnnotations) {
