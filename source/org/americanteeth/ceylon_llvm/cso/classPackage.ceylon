@@ -83,6 +83,8 @@ class Package() extends LazyPackage() {
         defaultUnit.fullPath = "";
         defaultUnit.relativePath = "";
         addUnit(defaultUnit);
+        unit = defaultUnit;
+        defaultUnit.\ipackage = this;
 
         super.\imodule = \imodule;
     }
