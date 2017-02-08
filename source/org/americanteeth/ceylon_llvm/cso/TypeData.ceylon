@@ -49,9 +49,7 @@ class IntersectionTypeDeclarationData(satisfied) extends TypeDeclarationData() {
             Declaration? container) {
         value ret = IntersectionType(unit);
 
-        for (item in satisfied) {
-            ret.satisfiedTypes.add(item.toType(mod, unit, container));
-        }
+        setCaseAndSatisfiedTypes(mod, unit, ret, null, satisfied);
 
         return ret;
     }

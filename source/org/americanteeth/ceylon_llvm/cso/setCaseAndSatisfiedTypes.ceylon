@@ -8,15 +8,15 @@ import ceylon.interop.java {
 }
 
 void setCaseAndSatisfiedTypes(Module mod, Unit unit,
-        TypeDeclaration declaration, {TypeData*} caseTypes,
+        TypeDeclaration declaration, {TypeData*}? caseTypes,
         {TypeData*}? satisfiedTypes) {
-    declaration.caseTypes =
-        JavaList(caseTypes.collect((x) => x.toType(mod, unit, declaration)));
-
-    if (! exists satisfiedTypes) {
-        return;
+    if (exists caseTypes) {
+        declaration.caseTypes = JavaList(caseTypes.collect(
+                        (x) => x.toType(mod, unit, declaration)));
     }
 
-    declaration.satisfiedTypes =
-        JavaList(satisfiedTypes.collect((x) => x.toType(mod, unit, declaration)));
+    if (exists satisfiedTypes) {
+        declaration.satisfiedTypes = JavaList(satisfiedTypes.collect(
+                        (x) => x.toType(mod, unit, declaration)));
+    }
 }
