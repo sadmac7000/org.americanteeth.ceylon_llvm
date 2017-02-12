@@ -348,10 +348,9 @@ class Blob({Byte*} blobData = {}) {
                 case (SiteVariance.\iIN) variances.contravariant
                 case (SiteVariance.\iOUT) variances.covariant
                 else variances.invariant;
-            value name =
-                "``partiallyQualifiedName(t.declaration)``.``parameter.name``";
+
             putType(type);
-            putString(name);
+            putString(typeParameterName(parameter));
             put(variance);
         }
 

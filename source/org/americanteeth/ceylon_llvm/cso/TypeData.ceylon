@@ -145,9 +145,12 @@ class TypeData(shared TypeDeclarationData declaration,
             }
 
             for (parameter in d.typeParameters) {
+                "What in this type space isn't a Scope?!"
+                assert(is Scope d);
+                parameter.container = d; // Hack for initialization order.
+
                 "Container's parameters should be satisfied."
-                assert(exists argument =
-                    arguments["``partiallyQualifiedName(d)``.``parameter.name``"]);
+                assert(exists argument = arguments[typeParameterName(parameter)]);
 
                 concretes.put(parameter, argument.type.toType(mod, unit,
                             container));
