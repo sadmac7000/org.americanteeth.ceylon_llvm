@@ -47,6 +47,7 @@ class Package() extends LazyPackage() {
             unpackedData.add(d);
             defaultUnit.addDeclaration(d.declaration);
             addMember(d.declaration);
+            d.declaration.container = this; // Initialization order hack
         }
 
         addMember(unknownType);
