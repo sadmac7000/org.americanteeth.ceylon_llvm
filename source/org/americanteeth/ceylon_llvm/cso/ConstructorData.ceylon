@@ -24,7 +24,7 @@ class ConstructorData(name, annotations, parameterList) extends DeclarationData(
     annotations.apply(constructor);
 
     shared FunctionOrValue functionOrValue = if (exists parameterList)
-        then Value() else Function();
+        then Function() else Value();
 
     functionOrValue.name = name;
 
