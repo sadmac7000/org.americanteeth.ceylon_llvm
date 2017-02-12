@@ -1,4 +1,6 @@
 import com.redhat.ceylon.model.typechecker.model {
+    Class,
+    Constructor,
     Declaration,
     Generic,
     IntersectionType,
@@ -100,9 +102,25 @@ class PlainTypeDeclarationData(pkg, name) extends TypeDeclarationData() {
         }
 
         variable Scope current = pkg;
-        
+
+        Constructor? getConstructor(Scope cls, String name) {
+            if (! is Class cls) {
+                return null;
+            }
+
+            for (m in cls.members) {
+                if (is Constructor m, exists n = m.name, n == name) {
+                    return m;
+                }
+            }
+
+            return null;
+        }
+
         for (term in name) {
-            value m = if (exists direct = current.getMember(term, null, false))
+            value m = if (exists constructor = getConstructor(current, term))
+                then constructor
+                else if (exists direct = current.getMember(term, null, false))
                 then direct
                 else if (is Value v = current,
                          exists type = v.typeDeclaration.getMember(term,
