@@ -66,7 +66,7 @@ class TypeParameterDeclarationData(name) extends TypeDeclarationData() {
 
         while (exists current = d) {
             if (is Generic current) {
-                for (t in current.typeParameters) {
+                for (t in (current of Generic).typeParameters) {
                     if (t.name == name) {
                         return t;
                     }
@@ -162,7 +162,7 @@ class TypeData(shared TypeDeclarationData declaration,
                 continue;
             }
 
-            for (parameter in d.typeParameters) {
+            for (parameter in (d of Generic).typeParameters) {
                 "What in this type space isn't a Scope?!"
                 assert(is Scope d);
                 parameter.container = d; // Hack for initialization order.

@@ -131,7 +131,7 @@ class ExpressionTransformer(LLVMBuilder builder)
             value argValues = list.listedArguments.collect(
                     (x) => x.transform(this));
             value serialArguments = argValues.spanTo(parameterList.size);
-            value leftOverArguments = argValues.spanFrom(parameterList.size);
+            value leftOverArguments = argValues.spanFrom(parameterList.size).sequence();
             value leftOverParameters =
                 parameterList.spanFrom(serialArguments.size);
 

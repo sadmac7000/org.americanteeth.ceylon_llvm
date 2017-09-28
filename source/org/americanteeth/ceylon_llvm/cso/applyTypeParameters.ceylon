@@ -15,5 +15,5 @@ void applyTypeParameters(Declaration&Generic g, [TypeParameterData*] typeParamet
         g.members.add(p);
     }
 
-    g.typeParameters = JavaList(reifiedTypeParameters);
+    (g of Generic).typeParameters = JavaList(reifiedTypeParameters);
 }
