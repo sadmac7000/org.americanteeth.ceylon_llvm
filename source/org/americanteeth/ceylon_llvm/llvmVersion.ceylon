@@ -34,9 +34,6 @@ import ceylon.file {
     assert (exists major = nums[0],
         exists minor = nums[1]);
 
-    "LLVM version should be = 3.x"
-    assert (major == 3);
-
     return [major, minor];
 }
 
