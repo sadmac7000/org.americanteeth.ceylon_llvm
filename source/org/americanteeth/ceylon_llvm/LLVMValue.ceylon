@@ -2,8 +2,16 @@ import org.bytedeco.javacpp {
     LLVM { LLVMValueRef }
 }
 
+interface ValueInterface<out T>
+        given T satisfies LLVMType {
+    shared formal T type;
+    shared formal LLVMValueRef ref;
+}
+
 "An LLVM typed value"
-abstract class LLVMValue<out T>(shared T type, shared LLVMValueRef ref)
+abstract class LLVMValue<out T>(shared actual T type,
+                                shared actual LLVMValueRef ref)
+        satisfies ValueInterface<T>
         given T satisfies LLVMType {
     shared formal String identifier;
     shared String typeName = type.name;
@@ -76,3 +84,35 @@ LLVMValue<T> loc<T>(T t, String ident)
     => object extends LLVMValue<T>(t, llvm.undef(t.ref)) { /* FIXME: Undef */
         identifier = ident;
     };
+
+"Interface for global values"
+interface LLVMGlobalValue<T>
+        satisfies ValueInterface<T>
+        given T satisfies LLVMType {
+    "Whether this is a constant value"
+    shared Boolean constant => llvm.isGlobalConstant(ref);
+    assign constant {
+        llvm.setGlobalConstant(ref, constant);
+    }
+
+    "Initial value for this variable"
+    shared LLVMValue<T> initializer
+        => object extends LLVMValue<T>(outer.type, llvm.getInitializer(outer.ref)) {
+            identifier = "<constant>";
+        };
+    assign initializer {
+        llvm.setInitializer(ref, initializer.ref);
+    }
+
+    "What section this variable will be placed in"
+    shared String section => llvm.getSection(ref);
+    assign section {
+        llvm.setSection(ref, section);
+    }
+
+    "Alignment of this value"
+    shared Integer alignment => llvm.getAlignment(ref);
+    assign alignment {
+        llvm.setAlignment(ref, alignment);
+    }
+}

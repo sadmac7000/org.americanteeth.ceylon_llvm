@@ -27,6 +27,15 @@ import org.bytedeco.javacpp {
         llvmConstInt=\iLLVMConstInt,
         llvmConstNull=\iLLVMConstNull,
         llvmGetUndef=\iLLVMGetUndef,
+        llvmAddGlobal=\iLLVMAddGlobal,
+        llvmIsGlobalConstant=\iLLVMIsGlobalConstant,
+        llvmSetGlobalConstant=\iLLVMSetGlobalConstant,
+        llvmGetInitializer=\iLLVMGetInitializer,
+        llvmSetInitializer=\iLLVMSetInitializer,
+        llvmGetSection=\iLLVMGetSection,
+        llvmSetSection=\iLLVMSetSection,
+        llvmGetAlignment=\iLLVMGetAlignment,
+        llvmSetAlignment=\iLLVMSetAlignment,
 
         llvmWriteBitcodeToFile=\iLLVMWriteBitcodeToFile
     }
@@ -82,6 +91,24 @@ object llvmLibrary {
         => llvmConstInt(t, val, 1 /* sign extend: true */);
     shared LLVMValueRef constNull(LLVMTypeRef t) => llvmConstNull(t);
     shared LLVMValueRef undef(LLVMTypeRef t) => llvmGetUndef(t);
+    shared LLVMValueRef addGlobal(LLVMModuleRef ref, LLVMTypeRef t, String name)
+        => llvmAddGlobal(ref, t, name);
+    shared Boolean isGlobalConstant(LLVMValueRef ref)
+        => llvmIsGlobalConstant(ref) != 0;
+    shared void setGlobalConstant(LLVMValueRef ref, Boolean isit)
+        => llvmSetGlobalConstant(ref, isit then 1 else 0);
+    shared LLVMValueRef getInitializer(LLVMValueRef ref)
+        => llvmGetInitializer(ref);
+    shared void setInitializer(LLVMValueRef ref, LLVMValueRef other)
+        => llvmSetInitializer(ref, other);
+    shared String getSection(LLVMValueRef ref)
+        => llvmGetSection(ref).getString();
+    shared void setSection(LLVMValueRef ref, String section)
+        => llvmSetSection(ref, section);
+    shared Integer getAlignment(LLVMValueRef ref)
+        => llvmGetAlignment(ref);
+    shared void setAlignment(LLVMValueRef ref, Integer alignment)
+        => llvmSetAlignment(ref, alignment);
 
     shared void writeBitcodeToFile(LLVMModuleRef ref, String path)
         => llvmWriteBitcodeToFile(ref, path);
@@ -104,6 +131,13 @@ class LLVMModule satisfies Destroyable {
 
     shared void writeBitcodeFile(String path)
         => llvm.writeBitcodeToFile(ref, path);
+
+    shared LLVMGlobalValue<T> addGlobal<T>(T ty, String name)
+            given T satisfies LLVMType
+        => object extends LLVMValue<T>(ty, llvm.addGlobal(outer.ref, ty.ref, name))
+                satisfies LLVMGlobalValue<T> {
+            identifier = "@``name``";
+        };
 
     string => llvm.printModuleToString(ref);
 }
