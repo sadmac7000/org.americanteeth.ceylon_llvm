@@ -107,12 +107,13 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
     argument { argumentName = "moduleOrFile"; multiplicity = "*"; }
     assign moduleOrFile { moduleOrFile_ = moduleOrFile; }
 
-    variable String triple_ = "";
-    shared JString triple => javaString(triple_);
+    variable String? triple_ = null;
+    shared JString? triple => if (exists t = triple_)
+        then javaString(t) else null;
 
     optionArgument { longName = "triple"; argumentName = "target-triple"; }
     description ("Specify output target triple")
-    assign triple { triple_ = triple.string; }
+    assign triple { triple_ = triple?.string; }
 
     shared actual void initialize(CeylonTool mt) {}
 
@@ -120,20 +121,6 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
         value roots = DefaultToolOptions.compilerSourceDirs;
         value resources = DefaultToolOptions.compilerResourceDirs;
         value resolver = SourceArgumentsResolver(roots, resources, ".ceylon");
-
-        if (triple_ == "") {
-            value confProc = createProcess {
-                command = "/usr/bin/llvm-config";
-                arguments = ["--host-target"];
-                error = currentError;
-            };
-
-            confProc.waitForExit();
-
-            assert (is Reader r = confProc.output);
-            assert (exists result = r.readLine()?.trim(Character.whitespace));
-            triple_ = result;
-        }
 
         resolver.cwd(cwd).expandAndParse(moduleOrFile, baremetalBackend);
         value builder = TypeCheckerBuilder();
@@ -165,7 +152,7 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
                 phasedUnit.compilationUnit,
                 augmentNode);
             value mod = phasedUnit.\ipackage.\imodule;
-            value file = "/tmp/tmp`` tmpIdx++ ``.ll";
+            value file = "/tmp/tmp`` tmpIdx++ ``.bc";
 
             if (mod.nativeBackends != Backends.\iANY,
                 ! mod.nativeBackends.supports(baremetalBackend)) {
@@ -175,25 +162,24 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
             }
 
             unit.visit(preprocessVisitor);
-            value bld = LLVMBuilder(triple_, mod.languageModule.rootPackage);
-            unit.visit(bld);
-            value result = bld.string;
+
+            try (m = LLVMModule.withName(phasedUnit.unit.fullPath)) {
+                if (exists t = triple_) {
+                    m.target = t;
+                }
+                value bld = LLVMBuilder(m, mod.languageModule.rootPackage);
+                unit.visit(bld);
+                m.writeBitcodeFile(file);
+            }
 
             if (exists argList = argsMap[mod]) {
                 argList.add(file);
             } else {
                 argsMap.put(mod, ArrayList {
-                        "-target", triple_, "-shared", "-fPIC", "-g",
-                        "-lceylon",
+                        "-shared", "-fPIC", "-g", "-lceylon",
                         "-o/tmp/``mod.nameAsString``-``mod.version``.cso",
                         file
                     });
-            }
-
-            assert (is File|Nil f = parsePath(file).resource);
-
-            try (w = createFileIfNil(f).Overwriter()) {
-                w.write(result.string);
             }
         }
 
@@ -206,9 +192,7 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
             try (w = createFileIfNil(metaFile).Overwriter()) {
                 assert(exists bytes = serializeModule(mod));
                 value data = ", ".join(bytes.map((x) => "i8 ``x``"));
-                w.write("target triple = \"``triple_``\"
-
-                         @model = constant [``bytes.size`` x i8] [``data``], \
+                w.write("@model = constant [``bytes.size`` x i8] [``data``], \
                          section \"ceylon.module\", align 1");
             }
 

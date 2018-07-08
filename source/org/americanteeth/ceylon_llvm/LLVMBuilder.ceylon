@@ -23,20 +23,29 @@ import org.eclipse.ceylon.model.typechecker.model {
     PackageModel=Package
 }
 
-class LLVMBuilder(String triple, shared actual PackageModel languagePackage)
+class LLVMBuilder(LLVMModule llvmModule,
+                  shared actual PackageModel languagePackage)
         satisfies Visitor&CodeWriter {
-    "Prefix for all units"
-    String preamble = "%.constructor_type = type { i32, void ()* }
-                       target triple = \"``triple``\"\n\n";
-
     "The run() method"
-    variable FunctionModel? runSymbol = null;
+    variable FunctionModel? runSymbol_ = null;
 
-    "Emitted LLVM for the run() method alias"
+    "Accessor for runSymbol_"
+    FunctionModel? runSymbol => runSymbol_;
+
+    "Writer for runSymbol_"
+    assign runSymbol {
+        "Units should only have one run symbol."
+        assert(! runSymbol_ exists);
+
+        runSymbol_ = runSymbol;
+
+        //llvmModule.addAlias("__ceylon_run", declarationName(runSymbol));
+    }
+    /*"Emitted LLVM for the run() method alias"
     String runSymbolAlias
             => if (exists r = runSymbol)
             then "@__ceylon_run = alias i64*(),i64*()* @``declarationName(r)``\n"
-            else "";
+            else "";*/
 
     "The code we are outputting"
     value output = LLVMUnit();
@@ -81,8 +90,7 @@ class LLVMBuilder(String triple, shared actual PackageModel languagePackage)
             output.append(item);
         }
 
-        return preamble + expressionTransformer.stringTable() + output.string +
-                runSymbolAlias;
+        return expressionTransformer.stringTable() + output.string;
     }
 
     shared actual void visitNode(Node that) {
