@@ -66,11 +66,12 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
 }
 
 "Get the vtable setup function and interface resolver function for a given class."
-[LLVMFunction, LLVMFunction, LLVMGlobal<I64Type>*] vtSetupFunction(ClassModel model) {
+[LLVMFunction, LLVMFunction, LLVMGlobal<I64Type>*] vtSetupFunction(
+        LLVMModule mod, ClassModel model) {
     value parent = model.extendedType?.declaration;
-    value ret = LLVMFunction(setupName(model), null, "private", []);
+    value ret = LLVMFunction(mod, setupName(model), null, "private", []);
     value interfaceResolver =
-        LLVMFunction(resolverName(model), i64, "", [loc(ptr(i64), ".target")]);
+        LLVMFunction(mod, resolverName(model), i64, "", [loc(ptr(i64), ".target")]);
     value originalSatisfiers = getOriginalSatisfiers(model);
     value ifacePositions = HashMap<InterfaceModel,I64>();
     value ifacePositionStorage = ArrayList<LLVMGlobal<I64Type>>();
@@ -262,21 +263,21 @@ void vtDispatch(FunctionOrValueModel model, LLVMFunction func, Integer selector)
     func.tailCallPtr(target, *func.arguments);
 }
 
-LLVMFunction vtDispatchFunction(FunctionModel model) {
-    value func = llvmFunctionForCeylonFunction(model);
+LLVMFunction vtDispatchFunction(LLVMModule mod, FunctionModel model) {
+    value func = llvmFunctionForCeylonFunction(mod, model);
     vtDispatch(model, func, 0);
     return func;
 }
 
-LLVMFunction vtDispatchGetter(ValueModel model) {
-    value func = LLVMFunction(getterName(model), ptr(i64), "",
+LLVMFunction vtDispatchGetter(LLVMModule mod, ValueModel model) {
+    value func = LLVMFunction(mod, getterName(model), ptr(i64), "",
                 if (!model.toplevel) then [loc(ptr(i64), ".context")] else []);
     vtDispatch(model, func, 0);
     return func;
 }
 
-LLVMFunction vtDispatchSetter(ValueModel model) {
-    value func = LLVMFunction(setterName(model), ptr(i64), "",
+LLVMFunction vtDispatchSetter(LLVMModule mod, ValueModel model) {
+    value func = LLVMFunction(mod, setterName(model), ptr(i64), "",
                 if (!model.toplevel) then [loc(ptr(i64), ".context"),
                     loc(ptr(i64), ".value")] else [loc(ptr(i64), ".value")]);
     vtDispatch(model, func, 1);

@@ -11,8 +11,9 @@ import ceylon.interop.java {
 Integer constructorPriorityOffset = 65536;
 
 "Scope of a class body"
-class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
-        extends CallableScope(model, initializerName, destroyer) {
+class ConstructorScope(LLVMModule mod, ClassModel model,
+            Anything(Scope) destroyer)
+        extends CallableScope(mod, model, initializerName, destroyer) {
     value parent = model.extendedType?.declaration;
     shared actual void initFrame() {}
 
@@ -41,7 +42,7 @@ class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
     }
 
     shared actual LLVMFunction body
-            = LLVMFunction(initializerName(model), null, "", arguments);
+            = LLVMFunction(mod, initializerName(model), null, "", arguments);
 
     "The allocation offset for this item"
     shared actual I64 getAllocationOffset(Integer slot, LLVMFunction func) {
@@ -57,8 +58,8 @@ class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
         value fullParameters = if (model.toplevel)
             then basicParameters
             else [contextRegister].append(basicParameters);
-        value directConstructor = LLVMFunction(declarationName(model),
-                ptr(i64), "", fullParameters);
+        value directConstructor = LLVMFunction(llvmModule,
+                declarationName(model), ptr(i64), "", fullParameters);
         value size = directConstructor.load(directConstructor.global(i64,
                 sizeName(model)));
         value bytes = directConstructor.mul(size, 8);
@@ -80,7 +81,7 @@ class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
 
     shared actual default {LLVMDeclaration*} results {
         let ([setupFunction, interfaceResolver, *positions]
-                = vtSetupFunction(model));
+                = vtSetupFunction(llvmModule, model));
 
         assert (exists priority = declarationOrder[model]);
         setupFunction.makeConstructor(priority + constructorPriorityOffset);

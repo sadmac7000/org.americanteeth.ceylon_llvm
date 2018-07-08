@@ -28,7 +28,7 @@ class LLVMBuilder(String module_name,
                   shared actual PackageModel languagePackage)
         satisfies Visitor&CodeWriter&Destroyable {
     "The LLVM Module we will build our code in"
-    LLVMModule llvmModule = LLVMModule.withName(module_name);
+    shared actual LLVMModule llvmModule = LLVMModule.withName(module_name);
 
     if (exists target) {
         llvmModule.target = target;
@@ -67,7 +67,7 @@ class LLVMBuilder(String module_name,
     value output = LLVMUnit();
 
     "Top-level scope of the compilation unit"
-    shared Scope unitScope = UnitScope();
+    shared Scope unitScope = UnitScope(llvmModule);
 
     "Stack of declarations we are processing"
     value scopeStack = ArrayList<Scope>();
@@ -202,10 +202,10 @@ class LLVMBuilder(String module_name,
         }
 
         if (model.\iformal || model.\idefault) {
-            output.append(vtDispatchGetter(model));
+            output.append(vtDispatchGetter(llvmModule, model));
 
             if (model.\ivariable) {
-                output.append(vtDispatchSetter(model));
+                output.append(vtDispatchSetter(llvmModule, model));
             }
         }
     }
@@ -336,7 +336,7 @@ class LLVMBuilder(String module_name,
         value firstParameterList = tc.declarationModel.firstParameterList;
 
         if (tc.declarationModel.\iformal || tc.declarationModel.\idefault) {
-            output.append(vtDispatchFunction(tc.declarationModel));
+            output.append(vtDispatchFunction(llvmModule, tc.declarationModel));
         }
 
         if (tc.declarationModel.\iformal) {

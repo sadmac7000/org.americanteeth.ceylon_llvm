@@ -6,11 +6,11 @@ import org.eclipse.ceylon.model.typechecker.model {
     ClassOrInterfaceModel=ClassOrInterface
 }
 
-abstract class CallableScope(DeclarationModel model,
+abstract class CallableScope(LLVMModule mod, DeclarationModel model,
         String(DeclarationModel) namer, Anything(Scope) destroyer)
-        extends Scope(destroyer) {
+        extends Scope(mod, destroyer) {
     shared actual default LLVMFunction body
-            = LLVMFunction(namer(model), ptr(i64), "",
+            = LLVMFunction(mod, namer(model), ptr(i64), "",
                 if (!model.toplevel)
                 then [contextRegister]
                 else []);
@@ -95,14 +95,16 @@ abstract class CallableScope(DeclarationModel model,
 }
 
 "Scope of a getter method"
-class GetterScope(ValueModel model, Anything(Scope) destroyer)
-        extends CallableScope(model, getterDispatchName, destroyer) {}
+class GetterScope(LLVMModule mod, ValueModel model,
+            Anything(Scope) destroyer)
+        extends CallableScope(mod, model, getterDispatchName, destroyer) {}
 
 "Scope of a setter method"
-class SetterScope(SetterModel model, Anything(Scope) destroyer)
-        extends CallableScope(model, setterDispatchName, destroyer) {
+class SetterScope(LLVMModule mod, SetterModel model,
+            Anything(Scope) destroyer)
+        extends CallableScope(mod, model, setterDispatchName, destroyer) {
     shared actual LLVMFunction body
-            = LLVMFunction(setterDispatchName(model), ptr(i64), "",
+            = LLVMFunction(mod, setterDispatchName(model), ptr(i64), "",
                 if (!model.toplevel)
                 then [contextRegister, loc(ptr(i64), model.name)]
                 else [loc(ptr(i64), model.name)]);

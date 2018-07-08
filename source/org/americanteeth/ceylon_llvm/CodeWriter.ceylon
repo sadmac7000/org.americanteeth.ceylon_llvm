@@ -20,17 +20,18 @@ interface CodeWriter {
     shared formal void pop(Scope check);
     shared formal ExpressionTransformer expressionTransformer;
     shared formal PackageModel languagePackage;
+    shared formal LLVMModule llvmModule;
 
     shared GetterScope getterScope(ValueModel model)
-        => push(GetterScope(model, pop));
+        => push(GetterScope(llvmModule, model, pop));
     shared SetterScope setterScope(SetterModel model)
-        => push(SetterScope(model, pop));
+        => push(SetterScope(llvmModule, model, pop));
     shared ConstructorScope constructorScope(ClassModel model)
-        => push(ConstructorScope(model, pop));
+        => push(ConstructorScope(llvmModule, model, pop));
     shared FunctionScope functionScope(FunctionModel model)
-        => push(FunctionScope(model, pop));
+        => push(FunctionScope(llvmModule, model, pop));
     shared InterfaceScope interfaceScope(InterfaceModel model)
-        => push(InterfaceScope(model, pop));
+        => push(InterfaceScope(llvmModule, model, pop));
 
     "Get a declaration from the language package"
     shared DeclarationModel getLanguageDeclaration(String name)

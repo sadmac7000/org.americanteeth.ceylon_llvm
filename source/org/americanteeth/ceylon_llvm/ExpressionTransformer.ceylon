@@ -27,6 +27,7 @@ import org.eclipse.ceylon.model.typechecker.model {
 
 class ExpressionTransformer(LLVMBuilder builder)
         satisfies WideningTransformer<Ptr<I64Type>>&CodeWriter {
+    llvmModule = builder.llvmModule;
 
     "The next string literal ID available"
     variable value nextStringLiteral = 0;

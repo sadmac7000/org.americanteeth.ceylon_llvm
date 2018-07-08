@@ -15,24 +15,25 @@ import org.eclipse.ceylon.model.typechecker.model {
 Integer toplevelConstructorPriority = constructorPriorityOffset + 65535;
 
 "The outermost scope of the compilation unit"
-class UnitScope() extends Scope((Anything x) => null) {
+class UnitScope(LLVMModule mod) extends Scope(mod, (Anything x) => null) {
     value globalVariables = ArrayList<AnyLLVMGlobal>();
     value mutators = ArrayList<LLVMDeclaration>();
 
     shared actual LLVMFunction body
-            = LLVMFunction("__ceylon_constructor", null, "private", []);
+            = LLVMFunction(mod, "__ceylon_constructor", null, "private", []);
 
     shared actual Boolean owns(DeclarationModel d) => d.toplevel;
 
     LLVMFunction getterFor(ValueModel model) {
-        value getter = LLVMFunction(getterName(model), ptr(i64), "", []);
+        value getter = LLVMFunction(llvmModule, getterName(model), ptr(i64), "",
+                []);
         value ret = getter.loadGlobal(ptr(i64), declarationName(model));
         getter.ret(ret);
         return getter;
     }
 
     LLVMFunction setterFor(ValueModel model) {
-        value setter = LLVMFunction(setterName(model), ptr(i64), "",
+        value setter = LLVMFunction(llvmModule, setterName(model), ptr(i64), "",
                 [loc(ptr(i64), ".value")]);
         value valueReg = setter.register(ptr(i64), ".value");
         setter.storeGlobal(declarationName(model), valueReg);

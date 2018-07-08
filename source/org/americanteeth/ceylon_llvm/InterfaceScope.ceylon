@@ -10,8 +10,9 @@ import org.eclipse.ceylon.model.typechecker.model {
 }
 
 "Scope of an interface."
-class InterfaceScope(InterfaceModel model, Anything(Scope) destroyer)
-        extends Scope(destroyer) {
+class InterfaceScope(LLVMModule mod, InterfaceModel model,
+            Anything(Scope) destroyer)
+        extends Scope(mod, destroyer) {
     shared actual Nothing body {
         "Interfaces are not backed by a function body."
         assert(false);
@@ -21,8 +22,8 @@ class InterfaceScope(InterfaceModel model, Anything(Scope) destroyer)
         => if (exists c = d.container, c == model) then true else false;
 
     shared actual {LLVMDeclaration*} results {
-        value setup = LLVMFunction(setupName(model), null, "private",
-                [loc(ptr(i64), ".vtable")]);
+        value setup = LLVMFunction(llvmModule, setupName(model), null,
+                "private", [loc(ptr(i64), ".vtable")]);
         value vtable = setup.register(ptr(i64), ".vtable");
         value results = ArrayList<LLVMDeclaration>{setup};
         variable value offset = 0;

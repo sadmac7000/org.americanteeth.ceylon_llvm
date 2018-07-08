@@ -5,7 +5,10 @@ import ceylon.collection {
 }
 
 "An LLVM function declaration."
-class LLVMFunction(shared actual String name, shared LLVMType? returnType,
+class LLVMFunction(
+    shared LLVMModule llvmModule,
+    shared actual String name,
+    shared LLVMType? returnType,
     shared String modifiers,
     shared [AnyLLVMValue*] arguments)
         satisfies LLVMDeclaration {

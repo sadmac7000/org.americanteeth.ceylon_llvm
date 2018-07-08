@@ -9,7 +9,7 @@ import org.eclipse.ceylon.model.typechecker.model {
 }
 
 "A scope containing instructions"
-abstract class Scope(Anything(Scope) destroyer)
+abstract class Scope(shared LLVMModule llvmModule, Anything(Scope) destroyer)
     of CallableScope | UnitScope | InterfaceScope
         satisfies Obtainable {
     value mutators = ArrayList<LLVMDeclaration>();
@@ -64,8 +64,9 @@ abstract class Scope(Anything(Scope) destroyer)
     LLVMFunction setterFor(FunctionOrValueModel model) {
         assert (exists slot = allocations[model]);
 
-        value setter = LLVMFunction(setterDispatchName(model), ptr(i64), "",
-                [loc(ptr(i64), ".context"), loc(ptr(i64), ".value")]);
+        value setter = LLVMFunction(llvmModule, setterDispatchName(model),
+                ptr(i64), "", [loc(ptr(i64), ".context"), loc(ptr(i64),
+                    ".value")]);
 
         value offset = getAllocationOffset(slot, setter);
 
@@ -82,8 +83,8 @@ abstract class Scope(Anything(Scope) destroyer)
     LLVMFunction getterFor(FunctionOrValueModel model) {
         assert (exists slot = allocations[model]);
 
-        value getter = LLVMFunction(getterDispatchName(model), ptr(i64), "",
-                [loc(ptr(i64), ".context")]);
+        value getter = LLVMFunction(llvmModule, getterDispatchName(model),
+                ptr(i64), "", [loc(ptr(i64), ".context")]);
 
         value offset = getAllocationOffset(slot, getter);
         value contextReg = getter.register(ptr(i64), ".context");
