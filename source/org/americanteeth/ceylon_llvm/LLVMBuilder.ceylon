@@ -23,9 +23,23 @@ import org.eclipse.ceylon.model.typechecker.model {
     PackageModel=Package
 }
 
-class LLVMBuilder(LLVMModule llvmModule,
+class LLVMBuilder(String module_name,
+                  String? target,
                   shared actual PackageModel languagePackage)
-        satisfies Visitor&CodeWriter {
+        satisfies Visitor&CodeWriter&Destroyable {
+    "The LLVM Module we will build our code in"
+    LLVMModule llvmModule = LLVMModule.withName(module_name);
+
+    if (exists target) {
+        llvmModule.target = target;
+    }
+
+    "Write an LLVM bitcode file"
+    shared void writeBitcodeFile(String path)
+        => llvmModule.writeBitcodeFile(path);
+
+    shared actual void destroy(Throwable? error) => llvmModule.destroy(error);
+
     "The run() method"
     variable FunctionModel? runSymbol_ = null;
 

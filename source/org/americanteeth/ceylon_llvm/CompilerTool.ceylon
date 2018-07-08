@@ -163,13 +163,10 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
 
             unit.visit(preprocessVisitor);
 
-            try (m = LLVMModule.withName(phasedUnit.unit.fullPath)) {
-                if (exists t = triple_) {
-                    m.target = t;
-                }
-                value bld = LLVMBuilder(m, mod.languageModule.rootPackage);
+            try (bld = LLVMBuilder(phasedUnit.unit.fullPath, triple_,
+                        mod.languageModule.rootPackage)) {
                 unit.visit(bld);
-                m.writeBitcodeFile(file);
+                bld.writeBitcodeFile(file);
             }
 
             if (exists argList = argsMap[mod]) {
