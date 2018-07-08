@@ -38,6 +38,12 @@ class StructType<Items>(shared Items items)
                         llvm.structType(items.collect((x) => x.ref)))
         given Items satisfies [LLVMType*] {}
 
+"Array type"
+class ArrayType<Item>(shared Item item, shared Integer size)
+        extends LLVMType("[``size`` x ``item``]",
+                        llvm.arrayType(item.ref, size))
+        given Item satisfies LLVMType {}
+
 "LLVM Label type base class"
 abstract class LabelType() of label extends LLVMType("label", llvm.labelType) {}
 
@@ -63,6 +69,12 @@ abstract class I32Type() of i32 extends IntegerType(32, llvm.i32Type) {}
 
 "i32 LLVM type instance"
 object i32 extends I32Type() {}
+
+"i8 LLVM type base class"
+abstract class I8Type() of i8 extends IntegerType(8, llvm.i8Type) {}
+
+"i8 LLVM type instance"
+object i8 extends I8Type() {}
 
 "i1 LLVM type base class"
 abstract class I1Type() of i1 extends IntegerType(1) {}

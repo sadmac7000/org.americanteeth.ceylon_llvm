@@ -58,6 +58,16 @@ final class I32Lit(Integer val) extends I32(i32, llvm.constInt(i32.ref, val)) {
     identifier = val.string;
 }
 
+"An LLVM 8-bit integer value"
+abstract class I8(I8Type t, LLVMValueRef r)
+        => LLVMValue<I8Type>(t, r);
+
+"A literal LLVM i8"
+final class I8Lit(Integer|Byte val) extends I8(i8, llvm.constInt(i8.ref,
+            if (is Integer val) then val else val.unsigned)) {
+    identifier = val.string;
+}
+
 "An LLVM 1-bit integer value"
 abstract class I1(I1Type t, LLVMValueRef r)
         => LLVMValue<I1Type>(t, r);
@@ -83,6 +93,14 @@ LLVMValue<T> loc<T>(T t, String ident)
         given T satisfies LLVMType
     => object extends LLVMValue<T>(t, llvm.undef(t.ref)) { /* FIXME: Undef */
         identifier = ident;
+    };
+
+"Constructor for constant arrays"
+LLVMValue<ArrayType<T>> constArray<T>(T ty, [LLVMValue<T>*] elements)
+        given T satisfies LLVMType
+    => object extends LLVMValue<ArrayType<T>>(ArrayType<T>(ty, elements.size),
+            llvm.constArray(ty.ref, elements.collect((x) => x.ref))) {
+        identifier = "[``", ".join(elements)``]";
     };
 
 "Interface for global values"

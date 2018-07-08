@@ -1,5 +1,5 @@
 import org.bytedeco.javacpp {
-    LLVM {
+    X=LLVM {
         llvmInitializeNativeAsmPrinter=\iLLVMInitializeNativeAsmPrinter,
         llvmInitializeNativeAsmParser=\iLLVMInitializeNativeAsmParser,
         llvmInitializeNativeDisassembler=\iLLVMInitializeNativeDisassembler,
@@ -14,6 +14,7 @@ import org.bytedeco.javacpp {
         llvmDisposeModule=\iLLVMDisposeModule,
 
         LLVMTypeRef,
+        llvmInt8Type=\iLLVMInt8Type,
         llvmInt32Type=\iLLVMInt32Type,
         llvmInt64Type=\iLLVMInt64Type,
         llvmIntType=\iLLVMIntType,
@@ -22,6 +23,7 @@ import org.bytedeco.javacpp {
         llvmStructType=\iLLVMStructType,
         llvmVoidType=\iLLVMVoidType,
         llvmLabelType=\iLLVMLabelType,
+        llvmArrayType=\iLLVMArrayType,
 
         LLVMValueRef,
         llvmConstInt=\iLLVMConstInt,
@@ -41,6 +43,7 @@ import org.bytedeco.javacpp {
     }
 }
 import ceylon.interop.java { createJavaObjectArray }
+import java.lang { ObjectArray }
 
 object llvmLibrary {
     variable value initialized = false;
@@ -70,7 +73,10 @@ object llvmLibrary {
     shared LLVMTypeRef labelType => llvmLabelType();
     shared LLVMTypeRef i64Type => llvmInt64Type();
     shared LLVMTypeRef i32Type => llvmInt32Type();
+    shared LLVMTypeRef i8Type => llvmInt8Type();
     shared LLVMTypeRef intType(Integer bits) => llvmIntType(bits);
+    shared LLVMTypeRef arrayType(LLVMTypeRef element, Integer size)
+        => llvmArrayType(element, size);
 
     shared String printModuleToString(LLVMModuleRef ref)
         => llvmPrintModuleToString(ref).getString();
@@ -109,6 +115,8 @@ object llvmLibrary {
         => llvmGetAlignment(ref);
     shared void setAlignment(LLVMValueRef ref, Integer alignment)
         => llvmSetAlignment(ref, alignment);
+    shared LLVMValueRef constArray(LLVMTypeRef ty, [LLVMValueRef*] elements)
+        => LLVM.constArray(ty, createJavaObjectArray(elements));
 
     shared void writeBitcodeToFile(LLVMModuleRef ref, String path)
         => llvmWriteBitcodeToFile(ref, path);

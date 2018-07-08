@@ -183,14 +183,23 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
         if (tmpIdx == 0) { return; }
 
         for (mod->cmd in argsMap) {
-            value metaPath = "/tmp/tmp`` tmpIdx++ ``.ll";
+            value metaPath = "/tmp/tmp`` tmpIdx++ ``.bc";
 
-            assert (is File|Nil metaFile = parsePath(metaPath).resource);
-            try (w = createFileIfNil(metaFile).Overwriter()) {
+            try (m = LLVMModule.withName("@meta")) {
                 assert(exists bytes = serializeModule(mod));
-                value data = ", ".join(bytes.map((x) => "i8 ``x``"));
-                w.write("@model = constant [``bytes.size`` x i8] [``data``], \
-                         section \"ceylon.module\", align 1");
+                value byteValues = bytes.collect((x) => I8Lit(x));
+
+                if (exists t = triple_) {
+                    m.target = t;
+                }
+
+                value model = m.addGlobal(ArrayType(i8, byteValues.size), "model");
+                model.constant = true;
+                model.section = "ceylon.module";
+                model.alignment = 1;
+                model.initializer = constArray(i8, byteValues);
+
+                m.writeBitcodeFile(metaPath);
             }
 
             cmd.add(metaPath);
