@@ -52,7 +52,7 @@ class ExpressionTransformer(LLVMBuilder builder)
         value result = StringBuilder();
 
         for (id->raw in stringLiterals) {
-            value [str, sz] = processEscapes(raw);
+            let ([str, sz] = processEscapes(raw));
             result.append("@.str``id``.data = private unnamed_addr constant \
                            [``sz`` x i8] c\"``str``\"
                            @.str``id``.object = private unnamed_addr constant \
@@ -144,7 +144,7 @@ class ExpressionTransformer(LLVMBuilder builder)
             }
 
             if (list.sequenceArgument exists, !leftOverParameters.empty) {
-                value [spreadArg, type] = getSpreadArg(list);
+                let ([spreadArg, type] = getSpreadArg(list));
                 value finishedObject = getLanguageValue("finished");
                 value iteration = Iteration(spreadArg, type);
                 value defaulted = scope.body.loadGlobal(ptr(i64),
@@ -272,7 +272,7 @@ class ExpressionTransformer(LLVMBuilder builder)
 
         scope.body.mark(that, llvmNull);
         value comparison = scope.body.compareNE(receiver, llvmNull);
-        value [trueBlock, falseBlock] = scope.body.branch(comparison);
+        let ([trueBlock, falseBlock] = scope.body.branch(comparison));
 
         scope.body.block = trueBlock;
         scope.body.mark(that, getResult());
@@ -478,7 +478,7 @@ class ExpressionTransformer(LLVMBuilder builder)
 
         scope.body.mark(that, llvmNull);
 
-        value [trueBlock, falseBlock] = scope.body.branch(checkTrue(cond));
+        let ([trueBlock, falseBlock] = scope.body.branch(checkTrue(cond)));
 
         scope.body.block = trueBlock;
         scope.body.mark(that, that.rightOperand.transform(this));
@@ -511,7 +511,7 @@ class ExpressionTransformer(LLVMBuilder builder)
 
         value comp_a = doCompare(left, center, that.lowerBound, true);
         scope.body.mark(that, falseValue);
-        value [pass, fail] = scope.body.branch(comp_a);
+        let ([pass, fail] = scope.body.branch(comp_a));
 
         scope.body.block = pass;
 
@@ -533,7 +533,7 @@ class ExpressionTransformer(LLVMBuilder builder)
 
         value comparison = scope.body.compareEq(val, llvmNull);
 
-        value [trueBlock, falseBlock] = scope.body.branch(comparison);
+        let ([trueBlock, falseBlock] = scope.body.branch(comparison));
 
         scope.body.block = trueBlock;
         scope.body.mark(that, that.rightOperand.transform(this));
@@ -595,7 +595,7 @@ class ExpressionTransformer(LLVMBuilder builder)
 
         value first = that.leftOperand.transform(this);
         value firstSuccess = scope.body.compareEq(first, trueValue);
-        value [trueBlock, falseBlock] = scope.body.branch(firstSuccess);
+        let ([trueBlock, falseBlock] = scope.body.branch(firstSuccess));
 
         value returnLabel = if (isAnd) then falseBlock else trueBlock;
 
@@ -712,8 +712,9 @@ class ExpressionTransformer(LLVMBuilder builder)
             .getMember("plus", null, false);
         value stringCatName = declarationName(stringCat);
 
-        value flat = foldPairs(literals, expressions, {}, ({Ptr<I64Type>*} x, Ptr<I64Type> y, Ptr<I64Type> z)
-                => x.chain{y,z});
+        value flat = foldPairs(literals, expressions, {},
+                ({Ptr<I64Type>*} x, Ptr<I64Type> y, Ptr<I64Type> z)
+                    => x.chain{y,z});
         value complete = if (literals.size > expressions.size)
             then flat.chain{literals.last}
             else flat;
