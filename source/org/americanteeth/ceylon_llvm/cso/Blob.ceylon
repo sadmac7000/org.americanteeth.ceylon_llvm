@@ -1,4 +1,4 @@
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     Annotation,
     Class,
     ClassAlias,
@@ -25,7 +25,7 @@ import com.redhat.ceylon.model.typechecker.model {
     Value
 }
 
-import com.redhat.ceylon.model.typechecker.util {
+import org.eclipse.ceylon.model.typechecker.util {
     ModuleManager
 }
 
@@ -246,7 +246,7 @@ class Blob({Byte*} blobData = {}) {
         }
 
         blob_.addAll(s.map((x) => utf8.encode(x).chain{0.byte})
-            .fold({} of {Byte*})((x,y) => x.chain(y)).chain{0.byte});
+            .fold({} of {Byte*}, (x,y) => x.chain(y)).chain{0.byte});
     }
 
     "Write an unsigned 64-bit integer in big endian."
@@ -1027,7 +1027,7 @@ class Blob({Byte*} blobData = {}) {
         value defaultType = getTypeData();
         value extendedType = getTypeData();
 
-        value [satisfiedTypes, caseTypes] = getCaseAndSatisfiedTypes();
+        let ([satisfiedTypes, caseTypes] = getCaseAndSatisfiedTypes());
 
         return TypeParameterData(name, variance, defaultType, extendedType,
             satisfiedTypes, caseTypes);
@@ -1096,7 +1096,7 @@ class Blob({Byte*} blobData = {}) {
         value annotations = getAnnotationData();
         value typeParameters = getTypeParametersData();
         assert(exists extendedType = getTypeData());
-        value [satisfiedTypes, caseTypes] = getCaseAndSatisfiedTypes();
+        let ([satisfiedTypes, caseTypes] = getCaseAndSatisfiedTypes());
 
         return TypeAliasData(name, annotations, typeParameters, extendedType,
                 caseTypes, satisfiedTypes);
@@ -1124,7 +1124,7 @@ class Blob({Byte*} blobData = {}) {
         value parameters = getParameterListData();
 
         value extendedType = getTypeData();
-        value [satisfiedTypes, caseTypes] = getCaseAndSatisfiedTypes();
+        let ([satisfiedTypes, caseTypes] = getCaseAndSatisfiedTypes());
 
         value members = ArrayList<DeclarationData>();
 
@@ -1148,7 +1148,7 @@ class Blob({Byte*} blobData = {}) {
         value typeParameters = getTypeParametersData();
 
         value extendedType = getTypeData();
-        value [satisfiedTypes, caseTypes] = getCaseAndSatisfiedTypes();
+        let ([satisfiedTypes, caseTypes] = getCaseAndSatisfiedTypes());
 
         value members = ArrayList<DeclarationData>();
 

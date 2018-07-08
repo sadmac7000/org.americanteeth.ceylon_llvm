@@ -5,7 +5,7 @@ import ceylon.buffer.charset {
     utf8
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     DeclarationModel=Declaration,
     ClassOrInterfaceModel=ClassOrInterface,
     ClassModel=Class,

@@ -1,8 +1,8 @@
-import com.redhat.ceylon.common {
+import org.eclipse.ceylon.common {
     Backends
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     Module
 }
 

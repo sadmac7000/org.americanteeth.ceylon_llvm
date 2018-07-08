@@ -2,7 +2,7 @@ import ceylon.collection {
     ArrayList
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     FunctionModel=Function,
     ValueModel=Value,
     InterfaceModel=Interface,

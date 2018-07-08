@@ -23,7 +23,7 @@ String byteHex(Byte b)
         return utf.map((x) => "\\``byteHex(x)``");
     }
 
-    return [unescaped.flatMap(fixChar).fold("")((x, y) => x + y), len];
+    return [unescaped.flatMap(fixChar).fold("", (x, y) => x + y), len];
 }
 
 "Turn Ceylon escape sequences in to characters"
@@ -55,6 +55,6 @@ String removeEscapes(String input) {
         return leadingSlashes + (newChar?.string else "") + body[1...];
     }
 
-    return segments.rest.partition(2).map(doProcess).fold(leader)((x, y) => x +
-                    y);
+    return segments.rest.partition(2).map(doProcess).fold(leader,
+            (x, y) => x + y);
 }

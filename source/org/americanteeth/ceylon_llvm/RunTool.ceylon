@@ -1,16 +1,16 @@
-import com.redhat.ceylon.common.tools {
+import org.eclipse.ceylon.common.tools {
     RepoUsingTool
 }
 
-import com.redhat.ceylon.common {
+import org.eclipse.ceylon.common {
     ModuleUtil
 }
 
-/*import com.redhat.ceylon.cmr.api {
+/*import org.eclipse.ceylon.cmr.api {
     ModuleQuery
 }*/
 
-import com.redhat.ceylon.common.tool {
+import org.eclipse.ceylon.common.tool {
     argument=argument__SETTER
 }
 

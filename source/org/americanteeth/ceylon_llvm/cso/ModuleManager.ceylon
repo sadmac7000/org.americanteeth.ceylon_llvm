@@ -2,29 +2,29 @@ import org.americanteeth.ceylon_llvm {
     baremetalBackend
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     BaseModule=Module,
     BasePackage=Package,
     ModuleImport
 }
 
-import com.redhat.ceylon.compiler.typechecker.analyzer {
+import org.eclipse.ceylon.compiler.typechecker.analyzer {
     BaseModuleSourceMapper=ModuleSourceMapper
 }
 
-import com.redhat.ceylon.compiler.typechecker.context {
+import org.eclipse.ceylon.compiler.typechecker.context {
     Context,
     PhasedUnits
 }
 
-import com.redhat.ceylon.model.typechecker.util {
+import org.eclipse.ceylon.model.typechecker.util {
     BaseModuleManager=ModuleManager
 }
 
-import com.redhat.ceylon.compiler.typechecker.util {
+import org.eclipse.ceylon.compiler.typechecker.util {
     ModuleManagerFactory
 }
-import com.redhat.ceylon.common {
+import org.eclipse.ceylon.common {
     Backends
 }
 
@@ -43,7 +43,7 @@ import ceylon.interop.java {
     javaString
 }
 
-import com.redhat.ceylon.model.cmr {
+import org.eclipse.ceylon.model.cmr {
     ArtifactResult
 }
 

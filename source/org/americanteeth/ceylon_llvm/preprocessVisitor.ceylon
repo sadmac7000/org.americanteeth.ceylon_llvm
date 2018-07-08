@@ -13,11 +13,11 @@ import ceylon.ast.core {
     VariadicVariable
 }
 
-import com.redhat.ceylon.compiler.typechecker.tree {
+import org.eclipse.ceylon.compiler.typechecker.tree {
     Tree
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     ScopeModel=Scope,
     FunctionOrValueModel=FunctionOrValue,
     DeclarationModel=Declaration,

@@ -5,7 +5,7 @@ import ceylon.ast.core {
 }
 
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     Package
 }
 
@@ -36,8 +36,8 @@ void transformConditions(Conditions cs, Scope scope, Package languagePackage,
         Label? next = if (lastCondition == condition)
             then trueBlock else null;
 
-        value [nextBlock, _] = scope.body.branch(conditionValue, next,
-                falseBlock);
+        let ([nextBlock, _] = scope.body.branch(conditionValue, next,
+                falseBlock));
         scope.body.block = nextBlock;
     }
 }

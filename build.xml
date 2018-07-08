@@ -16,7 +16,7 @@
 		<pathelement location="${ceylon.ant.lib}"/>
     </path>
     
-    <typedef resource="com/redhat/ceylon/ant/antlib.xml" classpathref="ant-tasks"/>
+    <typedef resource="org/eclipse/ceylon/ant/antlib.xml" classpathref="ant-tasks"/>
     
     <reposet id="reposet.default">
         <repo url="${out.repo}"/>

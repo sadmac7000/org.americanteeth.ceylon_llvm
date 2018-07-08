@@ -1,4 +1,4 @@
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     ClassModel=Class
 }
 
@@ -79,7 +79,8 @@ class ConstructorScope(ClassModel model, Anything(Scope) destroyer)
     }
 
     shared actual default {LLVMDeclaration*} results {
-        value [setupFunction, interfaceResolver, *positions] = vtSetupFunction(model);
+        let ([setupFunction, interfaceResolver, *positions]
+                = vtSetupFunction(model));
 
         assert (exists priority = declarationOrder[model]);
         setupFunction.makeConstructor(priority + constructorPriorityOffset);

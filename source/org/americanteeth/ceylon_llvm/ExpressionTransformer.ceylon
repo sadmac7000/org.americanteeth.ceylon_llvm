@@ -11,11 +11,11 @@ import ceylon.interop.java {
     CeylonList
 }
 
-import com.redhat.ceylon.compiler.typechecker.tree {
+import org.eclipse.ceylon.compiler.typechecker.tree {
     Tree
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     FunctionOrValueModel=FunctionOrValue,
     FunctionalModel=Functional,
     PackageModel=Package,
@@ -712,8 +712,8 @@ class ExpressionTransformer(LLVMBuilder builder)
             .getMember("plus", null, false);
         value stringCatName = declarationName(stringCat);
 
-        value flat = foldPairs({}, ({Ptr<I64Type>*} x, Ptr<I64Type> y, Ptr<I64Type> z)
-                => x.chain{y,z}, literals, expressions);
+        value flat = foldPairs(literals, expressions, {}, ({Ptr<I64Type>*} x, Ptr<I64Type> y, Ptr<I64Type> z)
+                => x.chain{y,z});
         value complete = if (literals.size > expressions.size)
             then flat.chain{literals.last}
             else flat;

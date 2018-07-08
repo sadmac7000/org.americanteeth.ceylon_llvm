@@ -4,7 +4,7 @@ import ceylon.collection {
     ArrayList
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     ClassModel=Class,
     FunctionModel=Function,
     FunctionOrValueModel=FunctionOrValue,
@@ -115,7 +115,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
         value ifSizeGlobal = interfaceResolver.global(i64, vtSizeName(iface));
         value comp = interfaceResolver.compareEq(ifaceTarget, ifSizeGlobal);
 
-        value [trueBlock, falseBlock] = interfaceResolver.branch(comp);
+        let ([trueBlock, falseBlock] = interfaceResolver.branch(comp));
 
         interfaceResolver.block = trueBlock;
         value pos = interfaceResolver.loadGlobal(i64, positionName);

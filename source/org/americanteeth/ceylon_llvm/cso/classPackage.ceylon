@@ -2,7 +2,7 @@ import org.americanteeth.ceylon_llvm {
     baremetalSupports
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     BaseModule=Module,
     Class,
     NothingType,

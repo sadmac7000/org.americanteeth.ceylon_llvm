@@ -10,11 +10,11 @@ import ceylon.collection {
     ArrayList
 }
 
-import com.redhat.ceylon.compiler.typechecker.tree {
+import org.eclipse.ceylon.compiler.typechecker.tree {
     Tree
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     DeclarationModel=Declaration,
     FunctionModel=Function,
     FunctionOrValueModel=FunctionOrValue,
@@ -347,7 +347,7 @@ class LLVMBuilder(String triple, shared actual PackageModel languagePackage)
         value nextValue = iteration.getNext();
 
         value comparison = scope.body.compareEq(nextValue, finishedVal);
-        value [loopEnd, loopBody] = scope.body.branch(comparison);
+        let ([loopEnd, loopBody] = scope.body.branch(comparison));
 
         Label breakPosition;
 

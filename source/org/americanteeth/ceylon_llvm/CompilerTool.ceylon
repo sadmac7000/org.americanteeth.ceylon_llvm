@@ -21,43 +21,36 @@ import ceylon.file {
     Nil
 }
 
-import com.redhat.ceylon.compiler.typechecker {
+import org.eclipse.ceylon.compiler.typechecker {
     TypeCheckerBuilder
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     Module
 }
 
-import com.redhat.ceylon.common {
+import org.eclipse.ceylon.common {
     Backends
 }
 
-import com.redhat.ceylon.common.tool {
+import org.eclipse.ceylon.common.tool {
     argument,
     optionArgument,
     description
 }
 
-import com.redhat.ceylon.common.tools {
+import org.eclipse.ceylon.common.tools {
     CeylonTool,
     OutputRepoUsingTool,
     SourceArgumentsResolver
 }
 
-import com.redhat.ceylon.common.config {
+import org.eclipse.ceylon.common.config {
     DefaultToolOptions
 }
 
-import com.redhat.ceylon.cmr.api {
+import org.eclipse.ceylon.cmr.api {
     ArtifactContext
-}
-
-import ceylon.formatter {
-    format
-}
-import ceylon.formatter.options {
-    FormattingOptions
 }
 
 import java.util {
@@ -89,11 +82,20 @@ import org.americanteeth.ceylon_llvm.cso {
     serializeModule
 }
 
+/*
+import ceylon.formatter {
+    format
+}
+import ceylon.formatter.options {
+    FormattingOptions
+}
+
 "Recover the source from the AST"
 void printNodeAsCode(Node node)
     => format(node.transform(
         RedHatTransformer(SimpleTokenFactory())),
         FormattingOptions { maxLineLength = 80; });
+*/
 
 "Compiler utility for baremetal compilation"
 shared class CompilerTool() extends OutputRepoUsingTool(null) {

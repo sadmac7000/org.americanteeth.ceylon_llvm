@@ -20,7 +20,7 @@ class LLVMUnit() {
         declarations.removeAll(unnededDeclarations);
 
         function writeDeclaration(String->LLVMType declaration) {
-            value name->type = declaration;
+            let (name->type = declaration);
             if (is AnyLLVMFunctionType type) {
                 value ret = type.returnType else "void";
                 value args = ", ".join(type.argumentTypes);

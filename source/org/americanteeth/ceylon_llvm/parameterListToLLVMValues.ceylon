@@ -2,7 +2,7 @@ import ceylon.interop.java {
     CeylonList
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     ParameterList
 }
 

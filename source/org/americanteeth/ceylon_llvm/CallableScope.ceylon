@@ -1,4 +1,4 @@
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     ValueModel=Value,
     DeclarationModel=Declaration,
     InterfaceModel=Interface,

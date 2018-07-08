@@ -1,4 +1,4 @@
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     Class,
     Constructor,
     Function,

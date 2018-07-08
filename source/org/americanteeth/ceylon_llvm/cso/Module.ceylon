@@ -1,8 +1,8 @@
-import com.redhat.ceylon.common {
+import org.eclipse.ceylon.common {
     Backends
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     BasePackage=Package,
     BaseModule=Module
 }
@@ -22,7 +22,7 @@ import ceylon.interop.java {
     javaString
 }
 
-import com.redhat.ceylon.model.typechecker.util {
+import org.eclipse.ceylon.model.typechecker.util {
     BaseModuleManager=ModuleManager
 }
 

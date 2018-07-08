@@ -1,5 +1,5 @@
-import com.redhat.ceylon.common { Backend, Backends }
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.common { Backend, Backends }
+import org.eclipse.ceylon.model.typechecker.model {
     DeclarationModel=Declaration
 }
 

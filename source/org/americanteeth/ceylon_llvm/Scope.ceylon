@@ -3,7 +3,7 @@ import ceylon.collection {
     HashMap
 }
 
-import com.redhat.ceylon.model.typechecker.model {
+import org.eclipse.ceylon.model.typechecker.model {
     FunctionOrValueModel=FunctionOrValue,
     DeclarationModel=Declaration
 }

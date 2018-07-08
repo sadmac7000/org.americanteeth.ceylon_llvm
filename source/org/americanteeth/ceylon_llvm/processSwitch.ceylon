@@ -42,7 +42,7 @@ void processSwitch(SwitchCaseElse|SwitchCaseElseExpression sw,
         value caseItem = if (is CaseClause item)
             then item.caseItem
             else item.caseItem;
-        value [trueBlock, falseBlock] = processCaseItem(caseItem);
+        let ([trueBlock, falseBlock] = processCaseItem(caseItem));
         scope.body.block = trueBlock;
         if (is CaseClause item) {
             item.block.visit(builder);
