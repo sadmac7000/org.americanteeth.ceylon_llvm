@@ -10,6 +10,7 @@ import org.bytedeco.javacpp {
         llvmPrintModuleToString=\iLLVMPrintModuleToString,
         llvmGetTarget=\iLLVMGetTarget,
         llvmSetTarget=\iLLVMSetTarget,
+        llvmGetDefaultTargetTriple=\iLLVMGetDefaultTargetTriple,
         llvmDisposeModule=\iLLVMDisposeModule,
 
         LLVMTypeRef,
@@ -25,7 +26,9 @@ import org.bytedeco.javacpp {
         LLVMValueRef,
         llvmConstInt=\iLLVMConstInt,
         llvmConstNull=\iLLVMConstNull,
-        llvmGetUndef=\iLLVMGetUndef
+        llvmGetUndef=\iLLVMGetUndef,
+
+        llvmWriteBitcodeToFile=\iLLVMWriteBitcodeToFile
     }
 }
 import ceylon.interop.java { createJavaObjectArray }
@@ -67,6 +70,8 @@ object llvmLibrary {
         => llvmGetTarget(ref).getString();
     shared void setTarget(LLVMModuleRef ref, String target)
         => llvmSetTarget(ref, target);
+    shared String defaultTarget
+        => llvmGetDefaultTargetTriple().getString();
 
     shared LLVMModuleRef moduleCreateWithName(String name)
         => llvmModuleCreateWithName(name);
@@ -77,6 +82,9 @@ object llvmLibrary {
         => llvmConstInt(t, val, 1 /* sign extend: true */);
     shared LLVMValueRef constNull(LLVMTypeRef t) => llvmConstNull(t);
     shared LLVMValueRef undef(LLVMTypeRef t) => llvmGetUndef(t);
+
+    shared void writeBitcodeToFile(LLVMModuleRef ref, String path)
+        => llvmWriteBitcodeToFile(ref, path);
 }
 
 class LLVMModule satisfies Destroyable {
@@ -84,6 +92,7 @@ class LLVMModule satisfies Destroyable {
 
     shared new withName(String name) {
         ref = llvm.moduleCreateWithName(name);
+        llvm.setTarget(ref, llvm.defaultTarget);
     }
 
     shared actual void destroy(Throwable? error) {
@@ -92,6 +101,9 @@ class LLVMModule satisfies Destroyable {
 
     shared String target => llvm.getTarget(ref);
     assign target => llvm.setTarget(ref, target);
+
+    shared void writeBitcodeFile(String path)
+        => llvm.writeBitcodeToFile(ref, path);
 
     string => llvm.printModuleToString(ref);
 }
