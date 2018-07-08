@@ -7,6 +7,7 @@ import org.bytedeco.javacpp {
 
         LLVMModuleRef,
         llvmModuleCreateWithName=\iLLVMModuleCreateWithName,
+        llvmPrintModuleToString=\iLLVMPrintModuleToString,
         llvmDisposeModule=\iLLVMDisposeModule,
 
         LLVMTypeRef,
@@ -51,6 +52,9 @@ object llvmLibrary {
     shared LLVMTypeRef i64Type => llvmInt64Type();
     shared LLVMTypeRef i32Type => llvmInt32Type();
     shared LLVMTypeRef intType(Integer bits) => llvmIntType(bits);
+
+    shared String printModuleToString(LLVMModuleRef ref)
+        => llvmPrintModuleToString(ref).getString();
 }
 
 class LLVMModule satisfies Destroyable {
@@ -65,6 +69,8 @@ class LLVMModule satisfies Destroyable {
     shared actual void destroy(Throwable? error) {
         llvmDisposeModule(ref);
     }
+
+    string => llvm.printModuleToString(ref);
 }
 
 \IllvmLibrary llvm {
