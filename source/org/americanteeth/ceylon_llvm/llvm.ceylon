@@ -20,7 +20,12 @@ import org.bytedeco.javacpp {
         llvmFunctionType=\iLLVMFunctionType,
         llvmStructType=\iLLVMStructType,
         llvmVoidType=\iLLVMVoidType,
-        llvmLabelType=\iLLVMLabelType
+        llvmLabelType=\iLLVMLabelType,
+
+        LLVMValueRef,
+        llvmConstInt=\iLLVMConstInt,
+        llvmConstNull=\iLLVMConstNull,
+        llvmGetUndef=\iLLVMGetUndef
     }
 }
 import ceylon.interop.java { createJavaObjectArray }
@@ -62,19 +67,27 @@ object llvmLibrary {
         => llvmGetTarget(ref).getString();
     shared void setTarget(LLVMModuleRef ref, String target)
         => llvmSetTarget(ref, target);
+
+    shared LLVMModuleRef moduleCreateWithName(String name)
+        => llvmModuleCreateWithName(name);
+    shared void disposeModule(LLVMModuleRef ref)
+        => llvmDisposeModule(ref);
+
+    shared LLVMValueRef constInt(LLVMTypeRef t, Integer val)
+        => llvmConstInt(t, val, 1 /* sign extend: true */);
+    shared LLVMValueRef constNull(LLVMTypeRef t) => llvmConstNull(t);
+    shared LLVMValueRef undef(LLVMTypeRef t) => llvmGetUndef(t);
 }
 
 class LLVMModule satisfies Destroyable {
     LLVMModuleRef ref;
 
     shared new withName(String name) {
-        llvmLibrary.initialize();
-
-        ref = llvmModuleCreateWithName(name);
+        ref = llvm.moduleCreateWithName(name);
     }
 
     shared actual void destroy(Throwable? error) {
-        llvmDisposeModule(ref);
+        llvm.disposeModule(ref);
     }
 
     shared String target => llvm.getTarget(ref);

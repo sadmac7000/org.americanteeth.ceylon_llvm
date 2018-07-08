@@ -55,14 +55,14 @@ class LLVMFunction(String n, shared LLVMType? returnType,
     value marks = HashSet<Object>();
 
     "An LLVM label for this function."
-    class FuncLabel() extends Label(label) {
+    class FuncLabel() extends Label(label, llvm.undef(label.ref)) { /* FIXME: undef */
         shared String tag = ".l`` nextTemporaryLabel++ ``";
         identifier = "%``tag``";
     }
 
     "Register value objects for this function."
     class Register<T>(T type, String? regNameIn)
-            extends LLVMValue<T>(type)
+            extends LLVMValue<T>(type, llvm.undef(type.ref)) /* FIXME: undef */
             given T satisfies LLVMType {
         identifier =
             if (exists regNameIn)
@@ -303,7 +303,7 @@ class LLVMFunction(String n, shared LLVMType? returnType,
 
     "Access a global from this function"
     shared Ptr<T> global<T>(T t, String name) given T satisfies LLVMType {
-        value ret = object extends Ptr<T>(ptr(t)) {
+        value ret = object extends Ptr<T>(ptr(t), llvm.undef(ptr(t).ref)) { /* FIXME: undef */
             identifier = "@``name``";
         };
         if (name.startsWith(".str")) {
