@@ -1,8 +1,9 @@
 "An LLVM global variable declaration."
-class LLVMGlobal<out T>(String n, LLVMValue<T> startValue, String modifiers =
+class LLVMGlobal<out T>(shared actual String name, LLVMValue<T> startValue, String modifiers =
         "")
-        extends LLVMDeclaration(n)
+        satisfies LLVMDeclaration
         given T satisfies LLVMType {
+    declarationsNeeded = {};
     string => "@``name`` = ``modifiers`` global ``startValue``";
 }
 

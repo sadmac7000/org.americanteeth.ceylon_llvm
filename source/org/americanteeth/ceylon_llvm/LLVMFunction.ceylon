@@ -5,10 +5,10 @@ import ceylon.collection {
 }
 
 "An LLVM function declaration."
-class LLVMFunction(String n, shared LLVMType? returnType,
+class LLVMFunction(shared actual String name, shared LLVMType? returnType,
     shared String modifiers,
     shared [AnyLLVMValue*] arguments)
-        extends LLVMDeclaration(n) {
+        satisfies LLVMDeclaration {
     "Counter for auto-naming temporary registers."
     variable value nextTemporary = 0;
 
