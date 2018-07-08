@@ -4,6 +4,10 @@ import ceylon.collection {
     HashMap
 }
 
+"Type of entries in the constructor list."
+StructType<[I32Type,FuncType<Null,[]>]> constructorType
+    = StructType([i32,FuncType<Null,[]>(null,[])]);
+
 "An LLVM compilation unit."
 class LLVMUnit() {
     value items = ArrayList<LLVMDeclaration>();
