@@ -34,6 +34,8 @@ class LLVMBuilder(String module_name,
         llvmModule.target = target;
     }
 
+    string => llvmModule.string;
+
     "Write an LLVM bitcode file"
     shared void writeBitcodeFile(String path)
         => llvmModule.writeBitcodeFile(path);
@@ -98,14 +100,6 @@ class LLVMBuilder(String module_name,
     shared actual ExpressionTransformer expressionTransformer
         => expressionTransformer_ else (expressionTransformer_ =
             ExpressionTransformer(this));
-
-    shared actual String string {
-        for (item in unitScope.results) {
-            output.append(item);
-        }
-
-        return expressionTransformer.stringTable() + output.string;
-    }
 
     shared actual void visitNode(Node that) {
         throw UnsupportedNode(that);
