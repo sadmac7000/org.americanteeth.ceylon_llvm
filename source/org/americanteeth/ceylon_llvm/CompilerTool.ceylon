@@ -9,8 +9,7 @@ import ceylon.ast.redhat {
 }
 
 import ceylon.interop.java {
-    CeylonIterable,
-    javaString
+    CeylonIterable
 }
 
 import ceylon.file {
@@ -59,7 +58,10 @@ import java.util {
 }
 
 import java.lang {
-    JString=String
+    JString=String,
+    Types {
+            javaString=nativeString
+    }
 }
 
 import ceylon.process {

@@ -18,8 +18,13 @@ import ceylon.collection {
 
 import ceylon.interop.java {
     CeylonList,
-    JavaList,
-    javaString
+    JavaList
+}
+
+import java.lang {
+    Types {
+        javaString=nativeString
+    }
 }
 
 import org.eclipse.ceylon.model.typechecker.util {

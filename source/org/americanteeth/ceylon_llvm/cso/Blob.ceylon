@@ -44,14 +44,16 @@ import java.util {
 }
 
 import java.lang {
-    JString=String
+    JString=String,
+    Types {
+        javaString=nativeString
+    }
 }
 
 import ceylon.interop.java {
     CeylonList,
     CeylonMap,
-    JavaList,
-    javaString
+    JavaList
 }
 
 import org.americanteeth.ceylon_llvm {

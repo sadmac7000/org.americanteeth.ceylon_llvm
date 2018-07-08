@@ -30,7 +30,10 @@ import org.eclipse.ceylon.common {
 
 import java.lang {
     JIterable=Iterable,
-    JString=String
+    JString=String,
+    Types {
+        javaString=nativeString
+    }
 }
 
 import java.util {
@@ -39,8 +42,7 @@ import java.util {
 }
 
 import ceylon.interop.java {
-    JavaIterable,
-    javaString
+    JavaIterable
 }
 
 import org.eclipse.ceylon.model.cmr {
