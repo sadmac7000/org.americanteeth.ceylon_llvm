@@ -15,6 +15,7 @@ import org.bytedeco.javacpp {
         llvmIntType=\iLLVMIntType,
         llvmPointerType=\iLLVMPointerType,
         llvmFunctionType=\iLLVMFunctionType,
+        llvmStructType=\iLLVMStructType,
         llvmVoidType=\iLLVMVoidType,
         llvmLabelType=\iLLVMLabelType
     }
@@ -41,7 +42,10 @@ object llvmLibrary {
         => llvmPointerType(t, 0); // The 0 should be a constant value
     shared LLVMTypeRef functionType(LLVMTypeRef? ret, [LLVMTypeRef*] args)
         => llvmFunctionType(ret else llvmVoidType(),
-                createJavaObjectArray(args)[0], args.size, 0);
+                createJavaObjectArray(args)[0], args.size, 0 /* false */);
+    shared LLVMTypeRef structType([LLVMTypeRef*] items)
+        => llvmStructType(createJavaObjectArray(items)[0], items.size,
+                0 /* false */);
 
     shared LLVMTypeRef labelType => llvmLabelType();
     shared LLVMTypeRef i64Type => llvmInt64Type();

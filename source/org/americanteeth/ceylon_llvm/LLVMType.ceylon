@@ -32,6 +32,12 @@ class FuncType<out Ret, in Args>(shared Ret&LLVMType? returnType, Args args)
 "Alias supertype of all LLVM Function types"
 alias AnyLLVMFunctionType => FuncType<Anything,Nothing>;
 
+"Struct type"
+class StructType<Items>(shared Items items)
+        extends LLVMType("type {``",".join(items)``}",
+                        llvm.structType(items.collect((x) => x.ref)))
+        given Items satisfies [LLVMType*] {}
+
 "LLVM Label type base class"
 abstract class LabelType() of label extends LLVMType("label", llvm.labelType) {}
 
