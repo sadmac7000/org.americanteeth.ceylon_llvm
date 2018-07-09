@@ -12,6 +12,7 @@ import org.bytedeco.javacpp {
         llvmSetTarget=\iLLVMSetTarget,
         llvmGetDefaultTargetTriple=\iLLVMGetDefaultTargetTriple,
         llvmDisposeModule=\iLLVMDisposeModule,
+        llvmAddFunction=\iLLVMAddFunction,
 
         LLVMTypeRef,
         llvmInt8Type=\iLLVMInt8Type,
@@ -90,6 +91,10 @@ object llvmLibrary {
     shared void disposeModule(LLVMModuleRef ref)
         => llvmDisposeModule(ref);
 
+    shared LLVMValueRef addFunction(LLVMModuleRef ref, String name,
+            LLVMTypeRef type)
+        => llvmAddFunction(ref, name, type);
+
     shared LLVMValueRef constInt(LLVMTypeRef t, Integer val)
         => llvmConstInt(t, val, 1 /* sign extend: true */);
     shared LLVMValueRef constNull(LLVMTypeRef t) => llvmConstNull(t);
@@ -141,6 +146,13 @@ class LLVMModule satisfies Destroyable {
             given T satisfies LLVMType
         => object extends LLVMValue<T>(ty, llvm.addGlobal(outer.ref, ty.ref, name))
                 satisfies LLVMGlobalValue<T> {
+            identifier = "@``name``";
+        };
+
+    shared Func<R,A> addFunction<R,A>(String name, FuncType<R,A> t)
+            given A satisfies [LLVMType*]
+        => object extends Func<R,A>(t,
+                llvm.addFunction(outer.ref, name, t.ref)) {
             identifier = "@``name``";
         };
 

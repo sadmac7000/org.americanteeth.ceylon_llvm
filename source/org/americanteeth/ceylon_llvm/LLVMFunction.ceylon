@@ -19,13 +19,16 @@ class LLVMFunction(
     value declarationList = HashMap<String,LLVMType>();
 
     "Types of the arguments"
-    value argumentTypes = arguments.map((x) => x.type).sequence();
+    value argumentTypes = arguments.collect((x) => x.type);
 
     "Public list of declarations"
     shared actual {<String->LLVMType>*} declarationsNeeded => declarationList;
 
     "Full LLVM type of this function"
-    shared AnyLLVMFunctionType llvmType => FuncType(returnType, argumentTypes);
+    shared AnyLLVMFunctionType llvmType = FuncType(returnType, argumentTypes);
+
+    "Our LLVM library function"
+    value llvmFunction = llvmModule.addFunction(name, llvmType);
 
     "The argument list as a single code string."
     shared String argList => ", ".join(arguments.map(Object.string));
