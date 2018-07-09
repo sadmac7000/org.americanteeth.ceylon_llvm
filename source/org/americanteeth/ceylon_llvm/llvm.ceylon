@@ -13,6 +13,7 @@ import org.bytedeco.javacpp {
         llvmGetDefaultTargetTriple=\iLLVMGetDefaultTargetTriple,
         llvmDisposeModule=\iLLVMDisposeModule,
         llvmAddFunction=\iLLVMAddFunction,
+        llvmGetNamedFunction=\iLLVMGetNamedFunction,
 
         LLVMTypeRef,
         llvmInt8Type=\iLLVMInt8Type,
@@ -38,6 +39,7 @@ import org.bytedeco.javacpp {
         llvmGetAlignment=\iLLVMGetAlignment,
         llvmSetAlignment=\iLLVMSetAlignment,
         llvmGetParam=\iLLVMGetParam,
+        llvmTypeOf=\iLLVMTypeOf,
 
         llvmWriteBitcodeToFile=\iLLVMWriteBitcodeToFile
     }
@@ -95,6 +97,8 @@ object llvmLibrary {
     shared LLVMValueRef addFunction(LLVMModuleRef ref, String name,
             LLVMTypeRef type)
         => llvmAddFunction(ref, name, type);
+    shared LLVMValueRef? getNamedFunction(LLVMModuleRef ref, String name)
+        => llvmGetNamedFunction(ref, name);
 
     shared LLVMValueRef constInt(LLVMTypeRef t, Integer val)
         => llvmConstInt(t, val, 1 /* sign extend: true */);
@@ -122,6 +126,8 @@ object llvmLibrary {
         => LLVM.constArray(ty, createJavaObjectArray(elements));
     shared LLVMValueRef getParam(LLVMValueRef ref, Integer idx)
         => llvmGetParam(ref, idx);
+    shared LLVMTypeRef typeOf(LLVMValueRef ref)
+        => llvmTypeOf(ref);
 
     shared void writeBitcodeToFile(LLVMModuleRef ref, String path)
         => llvmWriteBitcodeToFile(ref, path);
@@ -152,8 +158,15 @@ class LLVMModule satisfies Destroyable {
             identifier = "@``name``";
         };
 
-    shared LLVMValueRef refForFunction(String name, AnyLLVMFunctionType t)
-        => llvm.addFunction(ref, name, t.ref);
+    shared LLVMValueRef refForFunction(String name, AnyLLVMFunctionType t) {
+        if (exists old = llvm.getNamedFunction(ref, name)) {
+            "Function should have the expected type"
+            assert(t.ref == llvm.typeOf(old));
+            return old;
+        }
+
+        return llvm.addFunction(ref, name, t.ref);
+    }
 
     string => llvm.printModuleToString(ref);
 }
