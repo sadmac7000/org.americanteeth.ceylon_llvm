@@ -9,7 +9,8 @@ import org.eclipse.ceylon.model.typechecker.model {
 abstract class CallableScope(LLVMModule mod, DeclarationModel model,
         String(DeclarationModel) namer, Anything(Scope) destroyer)
         extends Scope(mod, destroyer) {
-    shared actual default LLVMFunction body
+    shared actual
+        default LLVMFunction<PtrType<I64Type>?,[PtrType<I64Type>*]> body
             = LLVMFunction(mod, namer(model), ptr(i64), "",
                 if (!model.toplevel)
                 then [ptr(i64)]
@@ -106,7 +107,8 @@ class GetterScope(LLVMModule mod, ValueModel model,
 class SetterScope(LLVMModule mod, SetterModel model,
             Anything(Scope) destroyer)
         extends CallableScope(mod, model, setterDispatchName, destroyer) {
-    shared actual LLVMFunction body
+    shared actual LLVMFunction<PtrType<I64Type>,
+    [PtrType<I64Type>]|[PtrType<I64Type>*]> body
             = LLVMFunction(mod, setterDispatchName(model), ptr(i64), "",
                 if (!model.toplevel)
                 then [ptr(i64), ptr(i64)]

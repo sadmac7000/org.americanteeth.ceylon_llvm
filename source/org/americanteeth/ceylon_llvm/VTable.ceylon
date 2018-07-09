@@ -63,7 +63,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
 }
 
 "Get the vtable setup function and interface resolver function for a given class."
-[LLVMFunction, LLVMFunction, LLVMGlobal<I64Type>*] vtSetupFunction(
+[AnyLLVMFunction, AnyLLVMFunction, LLVMGlobal<I64Type>*] vtSetupFunction(
         LLVMModule mod, ClassModel model) {
     value parent = model.extendedType?.declaration;
     value ret = LLVMFunction(mod, setupName(model), null, "private", []);
@@ -230,7 +230,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
 }
 
 "Dispatch from a vtable."
-void vtDispatch(FunctionOrValueModel model, LLVMFunction func, Integer selector) {
+void vtDispatch(FunctionOrValueModel model, AnyLLVMFunction func, Integer selector) {
     value context = func.register(ptr(i64), ".context");
     value vtable = func.toPtr(func.load(context, I64Lit(1)), i64);
     value vtPosition = func.loadGlobal(i64, vtPositionName(model.refinedDeclaration));
@@ -260,20 +260,20 @@ void vtDispatch(FunctionOrValueModel model, LLVMFunction func, Integer selector)
     func.tailCallPtr(target, *func.arguments);
 }
 
-LLVMFunction vtDispatchFunction(LLVMModule mod, FunctionModel model) {
+AnyLLVMFunction vtDispatchFunction(LLVMModule mod, FunctionModel model) {
     value func = llvmFunctionForCeylonFunction(mod, model);
     vtDispatch(model, func, 0);
     return func;
 }
 
-LLVMFunction vtDispatchGetter(LLVMModule mod, ValueModel model) {
+AnyLLVMFunction vtDispatchGetter(LLVMModule mod, ValueModel model) {
     value func = LLVMFunction(mod, getterName(model), ptr(i64), "",
                 if (!model.toplevel) then [ptr(i64)] else []);
     vtDispatch(model, func, 0);
     return func;
 }
 
-LLVMFunction vtDispatchSetter(LLVMModule mod, ValueModel model) {
+AnyLLVMFunction vtDispatchSetter(LLVMModule mod, ValueModel model) {
     value func = LLVMFunction(mod, setterName(model), ptr(i64), "",
                 if (!model.toplevel)
                 then [ptr(i64), ptr(i64)]

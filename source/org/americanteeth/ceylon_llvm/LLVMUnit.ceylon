@@ -38,7 +38,7 @@ class LLVMUnit() {
 
     String constructorItem {
         String? constructorString(LLVMDeclaration dec) {
-            if (!is LLVMFunction dec) {
+            if (!is AnyLLVMFunction dec) {
                 return null;
             }
 

@@ -5,13 +5,14 @@ import ceylon.collection {
 }
 
 "An LLVM function declaration."
-class LLVMFunction(
+class LLVMFunction<out Ret, in Args>(
     shared LLVMModule llvmModule,
     shared actual String name,
-    shared LLVMType? returnType,
+    shared Ret&LLVMType? returnType,
     shared String modifiers,
-    [LLVMType*] argumentTypes)
-        satisfies LLVMDeclaration {
+    Args argumentTypes)
+        satisfies LLVMDeclaration
+        given Args satisfies [LLVMType*] {
     "Counter for auto-naming temporary registers."
     variable value nextTemporary = 0;
 
@@ -104,7 +105,7 @@ class LLVMFunction(
         value marks = HashMap<Object,AnyLLVMValue>();
 
         "Blocks that jump to this block."
-        value predecessors = HashSet<Block>();
+        value predecessors = HashSet<AnyLLVMFunction.Block>();
 
         "Phi node."
         class Phi<out T>(shared Object key, shared LLVMValue<T> val,
@@ -113,11 +114,11 @@ class LLVMFunction(
         {
             value results = ArrayList<String>();
 
-            void addResult(LLVMValue<T> val, Block predecessor)
+            void addResult(LLVMValue<T> val, AnyLLVMFunction.Block predecessor)
                 => results.add("[``val.identifier``, \
                                 ``predecessor.label.identifier``]");
 
-            shared void notePredecessor(Block predecessor) {
+            shared void notePredecessor(AnyLLVMFunction.Block predecessor) {
                 value val = predecessor.getMarked(this.val.type, key);
 
                 addResult(val, predecessor);
@@ -134,7 +135,7 @@ class LLVMFunction(
         value phis = HashMap<Object,Phi<LLVMType>>();
 
         "Mark that another block jumps to this block."
-        shared void addPredecessor(Block predecessor) {
+        shared void addPredecessor(AnyLLVMFunction.Block predecessor) {
             if (predecessor in predecessors) {
                 return;
             }
@@ -193,7 +194,7 @@ class LLVMFunction(
         }
 
         "Mark that we've had a terminating instruction."
-        shared void terminate({Block*} successors) {
+        shared void terminate({AnyLLVMFunction.Block*} successors) {
             "Block should not be terminated twice."
             assert (!terminated);
             terminated_ = true;
@@ -305,7 +306,7 @@ class LLVMFunction(
     }
 
     "Set the next register name to be assigned"
-    shared LLVMFunction assignTo(String regName) {
+    shared LLVMFunction<Ret,Args> assignTo(String regName) {
         regNames.add(regName);
         return this;
     }
@@ -548,3 +549,6 @@ class LLVMFunction(
         return result;
     }
 }
+
+"Any LLVM Function"
+alias AnyLLVMFunction => LLVMFunction<Anything,Nothing>;

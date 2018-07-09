@@ -41,12 +41,12 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
         return prepend.append(basicParameters);
     }
 
-    shared actual LLVMFunction body
+    shared actual LLVMFunction<PtrType<I64Type>?,[PtrType<I64Type>*]> body
             = LLVMFunction(mod, initializerName(model), null, "",
                     argumentTypes);
 
     "The allocation offset for this item"
-    shared actual I64 getAllocationOffset(Integer slot, LLVMFunction func) {
+    shared actual I64 getAllocationOffset(Integer slot, AnyLLVMFunction func) {
         value shift = if (exists parent)
             then func.load(func.global(i64, sizeName(parent)))
             else I64Lit(0);

@@ -19,12 +19,12 @@ class UnitScope(LLVMModule mod) extends Scope(mod, (Anything x) => null) {
     value globalVariables = ArrayList<AnyLLVMGlobal>();
     value mutators = ArrayList<LLVMDeclaration>();
 
-    shared actual LLVMFunction body
+    shared actual LLVMFunction<Null,[]> body
             = LLVMFunction(mod, "__ceylon_constructor", null, "private", []);
 
     shared actual Boolean owns(DeclarationModel d) => d.toplevel;
 
-    LLVMFunction getterFor(ValueModel model) {
+    LLVMFunction<PtrType<I64Type>,[]> getterFor(ValueModel model) {
         value getter = LLVMFunction(llvmModule, getterName(model), ptr(i64), "",
                 []);
         value ret = getter.loadGlobal(ptr(i64), declarationName(model));
@@ -32,7 +32,7 @@ class UnitScope(LLVMModule mod) extends Scope(mod, (Anything x) => null) {
         return getter;
     }
 
-    LLVMFunction setterFor(ValueModel model) {
+    LLVMFunction<PtrType<I64Type>,[PtrType<I64Type>]> setterFor(ValueModel model) {
         value setter = LLVMFunction(llvmModule, setterName(model), ptr(i64), "",
                 [ptr(i64)]);
         assert(exists arg = setter.arguments.first);
@@ -63,7 +63,7 @@ class UnitScope(LLVMModule mod) extends Scope(mod, (Anything x) => null) {
     shared actual {LLVMDeclaration*} results {
         value superResults = super.results;
 
-        assert (is LLVMFunction s = superResults.first);
+        assert (is AnyLLVMFunction s = superResults.first);
         s.makeConstructor(toplevelConstructorPriority);
 
         return globalVariables.chain(superResults).chain(mutators);

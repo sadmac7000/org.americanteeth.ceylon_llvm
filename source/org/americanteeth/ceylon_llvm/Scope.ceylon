@@ -57,11 +57,12 @@ abstract class Scope(shared LLVMModule llvmModule, Anything(Scope) destroyer)
             => null;
 
     "The allocation offset for this item"
-    shared default I64 getAllocationOffset(Integer slot, LLVMFunction func)
+    shared default I64 getAllocationOffset(Integer slot, AnyLLVMFunction func)
             => I64Lit(slot + 1);
 
     "Add instructions to store an allocated element"
-    LLVMFunction setterFor(FunctionOrValueModel model) {
+    LLVMFunction<PtrType<I64Type>, PtrType<I64Type>[2]>
+            setterFor(FunctionOrValueModel model) {
         assert (exists slot = allocations[model]);
 
         value setter = LLVMFunction(llvmModule, setterDispatchName(model),
@@ -79,7 +80,8 @@ abstract class Scope(shared LLVMModule llvmModule, Anything(Scope) destroyer)
     }
 
     "Add instructions to fetch an allocated element"
-    LLVMFunction getterFor(FunctionOrValueModel model) {
+    LLVMFunction<PtrType<I64Type>, [PtrType<I64Type>]>
+            getterFor(FunctionOrValueModel model) {
         assert (exists slot = allocations[model]);
 
         value getter = LLVMFunction(llvmModule, getterDispatchName(model),
@@ -170,7 +172,7 @@ abstract class Scope(shared LLVMModule llvmModule, Anything(Scope) destroyer)
         assert (false);
     }
 
-    shared formal LLVMFunction body;
+    shared formal AnyLLVMFunction body;
     shared default void initFrame() {}
 
     shared default {LLVMDeclaration*} results {
