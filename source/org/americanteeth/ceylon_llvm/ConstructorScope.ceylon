@@ -42,8 +42,7 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
     }
 
     shared actual LLVMFunction<PtrType<I64Type>?,[PtrType<I64Type>*]> body
-            = LLVMFunction(mod, initializerName(model), null, "",
-                    argumentTypes);
+            = LLVMFunction(mod, initializerName(model), null, argumentTypes);
 
     "The allocation offset for this item"
     shared actual I64 getAllocationOffset(Integer slot, AnyLLVMFunction func) {
@@ -60,7 +59,7 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
             then basicParameters
             else [ptr(i64)].append(basicParameters);
         value directConstructor = LLVMFunction(llvmModule,
-                declarationName(model), ptr(i64), "", fullParameters);
+                declarationName(model), ptr(i64), fullParameters);
         value size = directConstructor.load(directConstructor.global(i64,
                 sizeName(model)));
         value bytes = directConstructor.mul(size, 8);

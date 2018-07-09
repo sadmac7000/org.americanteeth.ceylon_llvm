@@ -7,7 +7,7 @@ import org.eclipse.ceylon.model.typechecker.model {
 LLVMFunction<PtrType<I64Type>,[PtrType<I64Type>*]>
     llvmFunctionForCeylonFunction(LLVMModule mod, FunctionModel model,
         String(FunctionModel) namer = declarationName)
-    => LLVMFunction(mod, namer(model), ptr(i64), "",
+    => LLVMFunction(mod, namer(model), ptr(i64),
                 if (!model.toplevel)
                 then parameterListToLLVMTypes(model.firstParameterList)
                          .withLeading(ptr(i64))

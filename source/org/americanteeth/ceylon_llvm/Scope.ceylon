@@ -66,7 +66,7 @@ abstract class Scope(shared LLVMModule llvmModule, Anything(Scope) destroyer)
         assert (exists slot = allocations[model]);
 
         value setter = LLVMFunction(llvmModule, setterDispatchName(model),
-                ptr(i64), "", [ptr(i64), ptr(i64)]);
+                ptr(i64), [ptr(i64), ptr(i64)]);
 
         value offset = getAllocationOffset(slot, setter);
 
@@ -85,7 +85,7 @@ abstract class Scope(shared LLVMModule llvmModule, Anything(Scope) destroyer)
         assert (exists slot = allocations[model]);
 
         value getter = LLVMFunction(llvmModule, getterDispatchName(model),
-                ptr(i64), "", [ptr(i64)]);
+                ptr(i64), [ptr(i64)]);
 
         value offset = getAllocationOffset(slot, getter);
         assert(is Ptr<I64Type> contextReg = getter.arguments.first);

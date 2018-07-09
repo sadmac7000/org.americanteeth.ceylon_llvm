@@ -23,10 +23,12 @@ class InterfaceScope(LLVMModule mod, InterfaceModel model,
 
     shared actual {LLVMDeclaration*} results {
         value setup = LLVMFunction(llvmModule, setupName(model), null,
-                "private", [ptr(i64)]);
+                [ptr(i64)]);
         assert(is LLVMValue<PtrType<I64Type>> vtable = setup.arguments.first);
         value results = ArrayList<LLVMDeclaration>{setup};
         variable value offset = 0;
+
+        setup.private = true;
 
         for (member in model.members) {
             if (member.\iactual || !(member.\iformal || member.\idefault)) {

@@ -40,6 +40,12 @@ import org.bytedeco.javacpp {
         llvmSetAlignment=\iLLVMSetAlignment,
         llvmGetParam=\iLLVMGetParam,
         llvmTypeOf=\iLLVMTypeOf,
+        llvmSetLinkage=\iLLVMSetLinkage,
+        llvmGetLinkage=\iLLVMGetLinkage,
+
+        /* LLVMLinkage, */
+        llvmPrivateLinkage=\iLLVMPrivateLinkage,
+        llvmExternalLinkage=\iLLVMExternalLinkage,
 
         llvmWriteBitcodeToFile=\iLLVMWriteBitcodeToFile
     }
@@ -60,6 +66,9 @@ object llvmLibrary {
         llvmInitializeNativeDisassembler();
         llvmInitializeNativeTarget();
     }
+
+    shared Integer privateLinkage = llvmPrivateLinkage;
+    shared Integer externalLinkage = llvmExternalLinkage;
 
     shared LLVMTypeRef int64Type()
         => llvmInt64Type();
@@ -128,6 +137,10 @@ object llvmLibrary {
         => llvmGetParam(ref, idx);
     shared LLVMTypeRef typeOf(LLVMValueRef ref)
         => llvmTypeOf(ref);
+    shared void setLinkage(LLVMValueRef ref, Integer linkage)
+        => llvmSetLinkage(ref, linkage);
+    shared Integer getLinkage(LLVMValueRef ref)
+        => llvmGetLinkage(ref);
 
     shared void writeBitcodeToFile(LLVMModuleRef ref, String path)
         => llvmWriteBitcodeToFile(ref, path);

@@ -11,7 +11,7 @@ abstract class CallableScope(LLVMModule mod, DeclarationModel model,
         extends Scope(mod, destroyer) {
     shared actual
         default LLVMFunction<PtrType<I64Type>?,[PtrType<I64Type>*]> body
-            = LLVMFunction(mod, namer(model), ptr(i64), "",
+            = LLVMFunction(mod, namer(model), ptr(i64),
                 if (!model.toplevel)
                 then [ptr(i64)]
                 else []);
@@ -109,7 +109,7 @@ class SetterScope(LLVMModule mod, SetterModel model,
         extends CallableScope(mod, model, setterDispatchName, destroyer) {
     shared actual LLVMFunction<PtrType<I64Type>,
     [PtrType<I64Type>]|[PtrType<I64Type>*]> body
-            = LLVMFunction(mod, setterDispatchName(model), ptr(i64), "",
+            = LLVMFunction(mod, setterDispatchName(model), ptr(i64),
                 if (!model.toplevel)
                 then [ptr(i64), ptr(i64)]
                 else [ptr(i64)]);

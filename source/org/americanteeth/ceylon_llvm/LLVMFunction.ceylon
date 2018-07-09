@@ -22,7 +22,6 @@ class LLVMFunction<out Ret, in Args>(
     shared LLVMModule llvmModule,
     shared actual String name,
     shared Ret&LLVMType? returnType,
-    shared String modifiers,
     Args argumentTypes)
         extends Func<Ret,Args>(*funcArgs(llvmModule, returnType, name,
                             argumentTypes))
@@ -556,6 +555,12 @@ class LLVMFunction<out Ret, in Args>(
                                   bitcast ``v`` to ``t``");
         return result;
     }
+
+    "Private linkage"
+    shared Boolean private => llvm.getLinkage(ref) == llvm.privateLinkage;
+    assign private
+        => llvm.setLinkage(ref,
+                private then llvm.privateLinkage else llvm.externalLinkage);
 }
 
 "Any LLVM Function"
