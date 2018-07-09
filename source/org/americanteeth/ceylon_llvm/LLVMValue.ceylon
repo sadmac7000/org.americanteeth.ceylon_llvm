@@ -88,13 +88,6 @@ LLVMValue<T> undef<T>(T t) given T satisfies LLVMType
         identifier = "undef";
     };
 
-"Constructor for LLVM local values"
-LLVMValue<T> loc<T>(T t, String ident, LLVMValueRef? r = null)
-        given T satisfies LLVMType
-    => object extends LLVMValue<T>(t, r else llvm.undef(t.ref)) {
-        identifier = ident;
-    };
-
 "Constructor for constant arrays"
 LLVMValue<ArrayType<T>> constArray<T>(T ty, [LLVMValue<T>*] elements)
         given T satisfies LLVMType

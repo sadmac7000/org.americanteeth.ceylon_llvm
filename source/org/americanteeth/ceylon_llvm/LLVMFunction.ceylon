@@ -1,7 +1,20 @@
+import org.bytedeco.javacpp {
+    LLVM { LLVMValueRef }
+}
+
 import ceylon.collection {
     ArrayList,
     HashSet,
     HashMap
+}
+
+[FuncType<Ret,Args>, LLVMValueRef] funcArgs<out Ret, in Args>(
+            LLVMModule mod, Ret&LLVMType? returnType, String name,
+            Args argumentTypes)
+        given Args satisfies [LLVMType*] {
+    value ft = FuncType(returnType, argumentTypes);
+    value ref = mod.refForFunction(name, ft);
+    return [ft, ref];
 }
 
 "An LLVM function declaration."
@@ -11,8 +24,12 @@ class LLVMFunction<out Ret, in Args>(
     shared Ret&LLVMType? returnType,
     shared String modifiers,
     Args argumentTypes)
+        extends Func<Ret,Args>(*funcArgs(llvmModule, returnType, name,
+                            argumentTypes))
         satisfies LLVMDeclaration
         given Args satisfies [LLVMType*] {
+    identifier = name;
+
     "Counter for auto-naming temporary registers."
     variable value nextTemporary = 0;
 
@@ -25,17 +42,17 @@ class LLVMFunction<out Ret, in Args>(
     "Full LLVM type of this function"
     shared AnyLLVMFunctionType llvmType = FuncType(returnType, argumentTypes);
 
-    "Our LLVM library function"
-    value llvmFunction = llvmModule.addFunction(name, llvmType);
+    "Memoization for arguments"
+    variable [AnyLLVMValue*]? arguments_ = null;
 
     "Argument values"
-    shared [LLVMValue<LLVMType>*] arguments = argumentTypes.keys.collect((i) {
-        assert(exists t = argumentTypes[i]);
-        return loc(t, "arg", llvm.getParam(llvmFunction.ref, i));
-    });
-
-    "The argument list as a single code string."
-    shared String argList => ", ".join(arguments.map(Object.string));
+    shared [AnyLLVMValue*] arguments
+        => arguments_ else argumentTypes.keys.collect((i) {
+            assert(exists t = argumentTypes[i]);
+            return object extends AnyLLVMValue(t, llvm.getParam(outer.ref, i)) {
+                identifier = "arg";
+            };
+        });
 
     "Memoization of constructorPriority."
     variable Integer? constructorPriority_ = null;
@@ -264,18 +281,9 @@ class LLVMFunction<out Ret, in Args>(
         return ret;
     }
 
-    "Function body as a single code string."
-    value body => "\n  ".join(blocks);
-
     "Note that a declaration is required for this function."
     shared void declaration(String name, LLVMType declaration)
             => declarationList.put(name, declaration);
-
-    string => "define ``modifiers`` `` returnType else "void" `` @``name``(``
-    argList``) {
-                   br ``entryPoint``
-                 ``body``
-               }";
 
     "Mark a value in this block to track variable definitions."
     shared void mark(Object key, AnyLLVMValue val) {

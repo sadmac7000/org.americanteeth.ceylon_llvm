@@ -123,7 +123,5 @@ String positionName(ClassModel model, InterfaceModel iface)
 
 String frameName = ".frame";
 
-Ptr<I64Type> frameRegister = loc(ptr(i64), frameName);
-
 String memberName(ClassOrInterfaceModel model, String method)
     => "``declarationName(model)``.``method``";

@@ -152,12 +152,8 @@ class LLVMModule satisfies Destroyable {
             identifier = "@``name``";
         };
 
-    shared Func<R,A> addFunction<R,A>(String name, FuncType<R,A> t)
-            given A satisfies [LLVMType*]
-        => object extends Func<R,A>(t,
-                llvm.addFunction(outer.ref, name, t.ref)) {
-            identifier = "@``name``";
-        };
+    shared LLVMValueRef refForFunction(String name, AnyLLVMFunctionType t)
+        => llvm.addFunction(ref, name, t.ref);
 
     string => llvm.printModuleToString(ref);
 }
