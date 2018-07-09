@@ -57,7 +57,7 @@ class I1(I1Type t, LLVMValueRef r) => LLVMValue<I1Type>(t, r);
 final class I1Lit(Integer val) extends I1(i1, llvm.constInt(i1.ref, val)) {}
 
 "An LLVM Null value"
-Ptr<I64Type> llvmNull = LLVMValue(ptr(i64), llvm.constNull(ptr(i64).ref));
+Ptr<I64Type> llvmNull = ptr(i64).instance(llvm.constNull(ptr(i64).ref));
 
 "Constructor for LLVM 'undef' value"
 LLVMValue<T> undef<T>(T t) given T satisfies LLVMType
@@ -66,7 +66,7 @@ LLVMValue<T> undef<T>(T t) given T satisfies LLVMType
 "Constructor for constant arrays"
 LLVMValue<ArrayType<T>> constArray<T>(T ty, [LLVMValue<T>*] elements)
         given T satisfies LLVMType
-    => LLVMValue(ArrayType<T>(ty, elements.size),
+    => ArrayType<T>(ty, elements.size).instance(
             llvm.constArray(ty.ref, elements.collect((x) => x.ref)));
 
 "Interface for global values"

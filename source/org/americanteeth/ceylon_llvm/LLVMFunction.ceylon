@@ -536,7 +536,7 @@ class LLVMFunction<out Ret, in Args>(
     shared [AnyLLVMValue*] arguments
         => arguments_ else argumentTypes.keys.collect((i) {
             assert(exists t = argumentTypes[i]);
-            return LLVMValue(t, llvm.getParam(ref, i));
+            return t.instance(llvm.getParam(ref, i));
         });
 }
 
