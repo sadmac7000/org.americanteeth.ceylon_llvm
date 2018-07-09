@@ -14,8 +14,7 @@ abstract class LLVMValue<out T>(shared actual T type,
         satisfies ValueInterface<T>
         given T satisfies LLVMType {
     shared formal String identifier;
-    shared String typeName = type.name;
-    string => "``typeName`` ``identifier``";
+    string => llvm.printValueToString(ref);
     hash => string.hash;
 
     shared actual Boolean equals(Object other)

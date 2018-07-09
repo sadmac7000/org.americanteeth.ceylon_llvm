@@ -24,6 +24,7 @@ import org.bytedeco.javacpp {
         llvmVoidType=\iLLVMVoidType,
         llvmLabelType=\iLLVMLabelType,
         llvmArrayType=\iLLVMArrayType,
+        llvmPrintTypeToString=\iLLVMPrintTypeToString,
 
         LLVMValueRef,
         llvmConstInt=\iLLVMConstInt,
@@ -42,6 +43,7 @@ import org.bytedeco.javacpp {
         llvmTypeOf=\iLLVMTypeOf,
         llvmSetLinkage=\iLLVMSetLinkage,
         llvmGetLinkage=\iLLVMGetLinkage,
+        llvmPrintValueToString=\iLLVMPrintValueToString,
 
         /* LLVMLinkage, */
         llvmPrivateLinkage=\iLLVMPrivateLinkage,
@@ -87,6 +89,8 @@ object llvmLibrary {
     shared LLVMTypeRef intType(Integer bits) => llvmIntType(bits);
     shared LLVMTypeRef arrayType(LLVMTypeRef element, Integer size)
         => llvmArrayType(element, size);
+    shared String printTypeToString(LLVMTypeRef ref)
+        => llvmPrintTypeToString(ref).getString();
 
     shared String printModuleToString(LLVMModuleRef ref)
         => llvmPrintModuleToString(ref).getString();
@@ -141,6 +145,8 @@ object llvmLibrary {
         => llvmSetLinkage(ref, linkage);
     shared Integer getLinkage(LLVMValueRef ref)
         => llvmGetLinkage(ref);
+    shared String printValueToString(LLVMValueRef ref)
+        => llvmPrintValueToString(ref).getString();
 
     shared void writeBitcodeToFile(LLVMModuleRef ref, String path)
         => llvmWriteBitcodeToFile(ref, path);

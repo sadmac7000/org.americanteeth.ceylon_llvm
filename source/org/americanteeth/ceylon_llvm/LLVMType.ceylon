@@ -3,8 +3,8 @@ import org.bytedeco.javacpp {
 }
 
 "An LLVM type"
-abstract class LLVMType(shared String name, shared LLVMTypeRef ref) {
-    string = name;
+abstract class LLVMType(shared LLVMTypeRef ref) {
+    string = llvm.printTypeToString(ref);
     hash = string.hash;
 
     shared actual Boolean equals(Object other) {
@@ -14,7 +14,7 @@ abstract class LLVMType(shared String name, shared LLVMTypeRef ref) {
 
 "An LLVM Pointer type"
 class PtrType<out T>(shared T targetType)
-        extends LLVMType("``targetType``*", llvm.pointerType(targetType.ref))
+        extends LLVMType(llvm.pointerType(targetType.ref))
         given T satisfies LLVMType {}
 
 "Alias supertype of all LLVM Pointer types"
@@ -22,8 +22,7 @@ alias AnyLLVMPointerType => PtrType<LLVMType>;
 
 "An LLVM Function type"
 class FuncType<out Ret, in Args>(shared Ret&LLVMType? returnType, Args args)
-        extends LLVMType("`` returnType else "void" ``(``",".join(args)``)",
-                        llvm.functionType(returnType?.ref,
+        extends LLVMType(llvm.functionType(returnType?.ref,
                             args.collect((x) => x.ref)))
         given Args satisfies [LLVMType*] {
     shared [LLVMType*] argumentTypes = args;
@@ -34,18 +33,16 @@ alias AnyLLVMFunctionType => FuncType<Anything,Nothing>;
 
 "Struct type"
 class StructType<Items>(shared Items items)
-        extends LLVMType("type {``",".join(items)``}",
-                        llvm.structType(items.collect((x) => x.ref)))
+        extends LLVMType(llvm.structType(items.collect((x) => x.ref)))
         given Items satisfies [LLVMType*] {}
 
 "Array type"
 class ArrayType<Item>(shared Item item, shared Integer size)
-        extends LLVMType("[``size`` x ``item``]",
-                        llvm.arrayType(item.ref, size))
+        extends LLVMType(llvm.arrayType(item.ref, size))
         given Item satisfies LLVMType {}
 
 "LLVM Label type base class"
-abstract class LabelType() of label extends LLVMType("label", llvm.labelType) {}
+abstract class LabelType() of label extends LLVMType(llvm.labelType) {}
 
 "LLVM Label type instance"
 object label extends LabelType() {}
@@ -56,7 +53,7 @@ PtrType<T> ptr<T>(T targetType) given T satisfies LLVMType
 
 "An LLVM Integer type"
 abstract class IntegerType(Integer bits, LLVMTypeRef? ref = null)
-        extends LLVMType("i``bits``", ref else llvm.intType(bits)) {}
+        extends LLVMType(ref else llvm.intType(bits)) {}
 
 "i64 LLVM type base class"
 abstract class I64Type() of i64 extends IntegerType(64, llvm.i64Type) {}
