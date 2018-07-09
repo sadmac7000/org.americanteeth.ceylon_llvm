@@ -29,20 +29,21 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
         LLVMGlobal(sizeName(model), I64Lit(0))
     ];
 
-    value basicParameters = parameterListToLLVMValues(model.parameterList);
+    value basicParameters = parameterListToLLVMTypes(model.parameterList);
 
     "Constructor arguments."
-    [AnyLLVMValue*] arguments {
+    [LLVMType*] argumentTypes {
         value prepend =
             if (!model.toplevel)
-            then [contextRegister, frameRegister]
-            else [frameRegister];
+            then [ptr(i64), ptr(i64)]
+            else [ptr(i64)];
 
         return prepend.append(basicParameters);
     }
 
     shared actual LLVMFunction body
-            = LLVMFunction(mod, initializerName(model), null, "", arguments);
+            = LLVMFunction(mod, initializerName(model), null, "",
+                    argumentTypes);
 
     "The allocation offset for this item"
     shared actual I64 getAllocationOffset(Integer slot, LLVMFunction func) {
@@ -57,7 +58,7 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
     LLVMDeclaration directConstructor() {
         value fullParameters = if (model.toplevel)
             then basicParameters
-            else [contextRegister].append(basicParameters);
+            else [ptr(i64)].append(basicParameters);
         value directConstructor = LLVMFunction(llvmModule,
                 declarationName(model), ptr(i64), "", fullParameters);
         value size = directConstructor.load(directConstructor.global(i64,
@@ -72,7 +73,7 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
                     vtableName(model))));
         directConstructor.store(frame, vt, I64Lit(1));
 
-        directConstructor.callVoid(initializerName(model), *arguments);
+        directConstructor.callVoid(initializerName(model), *body.arguments);
 
         directConstructor.ret(frame);
 

@@ -10,16 +10,13 @@ class LLVMFunction(
     shared actual String name,
     shared LLVMType? returnType,
     shared String modifiers,
-    shared [AnyLLVMValue*] arguments)
+    [LLVMType*] argumentTypes)
         satisfies LLVMDeclaration {
     "Counter for auto-naming temporary registers."
     variable value nextTemporary = 0;
 
     "List of declarations"
     value declarationList = HashMap<String,LLVMType>();
-
-    "Types of the arguments"
-    value argumentTypes = arguments.collect((x) => x.type);
 
     "Public list of declarations"
     shared actual {<String->LLVMType>*} declarationsNeeded => declarationList;
@@ -29,6 +26,12 @@ class LLVMFunction(
 
     "Our LLVM library function"
     value llvmFunction = llvmModule.addFunction(name, llvmType);
+
+    "Argument values"
+    shared [LLVMValue<LLVMType>*] arguments = argumentTypes.keys.collect((i) {
+        assert(exists t = argumentTypes[i]);
+        return loc(t, "arg", llvm.getParam(llvmFunction.ref, i));
+    });
 
     "The argument list as a single code string."
     shared String argList => ", ".join(arguments.map(Object.string));

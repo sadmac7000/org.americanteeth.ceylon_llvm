@@ -34,9 +34,9 @@ class UnitScope(LLVMModule mod) extends Scope(mod, (Anything x) => null) {
 
     LLVMFunction setterFor(ValueModel model) {
         value setter = LLVMFunction(llvmModule, setterName(model), ptr(i64), "",
-                [loc(ptr(i64), ".value")]);
-        value valueReg = setter.register(ptr(i64), ".value");
-        setter.storeGlobal(declarationName(model), valueReg);
+                [ptr(i64)]);
+        assert(exists arg = setter.arguments.first);
+        setter.storeGlobal(declarationName(model), arg);
         return setter;
     }
 

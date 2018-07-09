@@ -23,8 +23,8 @@ class InterfaceScope(LLVMModule mod, InterfaceModel model,
 
     shared actual {LLVMDeclaration*} results {
         value setup = LLVMFunction(llvmModule, setupName(model), null,
-                "private", [loc(ptr(i64), ".vtable")]);
-        value vtable = setup.register(ptr(i64), ".vtable");
+                "private", [ptr(i64)]);
+        assert(is LLVMValue<PtrType<I64Type>> vtable = setup.arguments.first);
         value results = ArrayList<LLVMDeclaration>{setup};
         variable value offset = 0;
 
@@ -37,10 +37,8 @@ class InterfaceScope(LLVMModule mod, InterfaceModel model,
 
             if (is FunctionModel member) {
                 value argTypes =
-                    parameterListToLLVMValues(member.firstParameterList)
-                        .map((x) => x.type)
-                        .follow(ptr(i64))
-                        .sequence();
+                    parameterListToLLVMTypes(member.firstParameterList)
+                        .withTrailing(ptr(i64));
                 value funcType = FuncType(ptr(i64), argTypes);
                 value func = setup.global(funcType, dispatchName(member));
                 setup.store(vtable, setup.toI64(func), I64Lit(memberOffset));

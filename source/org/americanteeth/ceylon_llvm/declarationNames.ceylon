@@ -121,10 +121,8 @@ String resolverName(ClassModel|TypeDeclaration dec)
 String positionName(ClassModel model, InterfaceModel iface)
     => "``declarationName(model)``$position.``declarationName(iface)``";
 
-String contextName = ".context";
 String frameName = ".frame";
 
-Ptr<I64Type> contextRegister = loc(ptr(i64), contextName);
 Ptr<I64Type> frameRegister = loc(ptr(i64), frameName);
 
 String memberName(ClassOrInterfaceModel model, String method)

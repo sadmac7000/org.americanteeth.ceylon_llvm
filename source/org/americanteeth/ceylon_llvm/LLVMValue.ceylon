@@ -89,9 +89,9 @@ LLVMValue<T> undef<T>(T t) given T satisfies LLVMType
     };
 
 "Constructor for LLVM local values"
-LLVMValue<T> loc<T>(T t, String ident)
+LLVMValue<T> loc<T>(T t, String ident, LLVMValueRef? r = null)
         given T satisfies LLVMType
-    => object extends LLVMValue<T>(t, llvm.undef(t.ref)) { /* FIXME: Undef */
+    => object extends LLVMValue<T>(t, r else llvm.undef(t.ref)) {
         identifier = ident;
     };
 

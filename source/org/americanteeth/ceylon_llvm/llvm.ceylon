@@ -37,6 +37,7 @@ import org.bytedeco.javacpp {
         llvmSetSection=\iLLVMSetSection,
         llvmGetAlignment=\iLLVMGetAlignment,
         llvmSetAlignment=\iLLVMSetAlignment,
+        llvmGetParam=\iLLVMGetParam,
 
         llvmWriteBitcodeToFile=\iLLVMWriteBitcodeToFile
     }
@@ -119,6 +120,8 @@ object llvmLibrary {
         => llvmSetAlignment(ref, alignment);
     shared LLVMValueRef constArray(LLVMTypeRef ty, [LLVMValueRef*] elements)
         => LLVM.constArray(ty, createJavaObjectArray(elements));
+    shared LLVMValueRef getParam(LLVMValueRef ref, Integer idx)
+        => llvmGetParam(ref, idx);
 
     shared void writeBitcodeToFile(LLVMModuleRef ref, String path)
         => llvmWriteBitcodeToFile(ref, path);

@@ -8,9 +8,9 @@ LLVMFunction llvmFunctionForCeylonFunction(LLVMModule mod, FunctionModel model,
         String(FunctionModel) namer = declarationName)
     => LLVMFunction(mod, namer(model), ptr(i64), "",
                 if (!model.toplevel)
-                then [loc(ptr(i64), ".context"),
-                    *parameterListToLLVMValues(model.firstParameterList)]
-                else parameterListToLLVMValues(model.firstParameterList));
+                then parameterListToLLVMTypes(model.firstParameterList)
+                         .withLeading(ptr(i64))
+                else parameterListToLLVMTypes(model.firstParameterList));
 
 "The scope of a function"
 class FunctionScope(LLVMModule mod, FunctionModel model,

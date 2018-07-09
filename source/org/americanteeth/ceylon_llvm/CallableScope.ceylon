@@ -12,7 +12,7 @@ abstract class CallableScope(LLVMModule mod, DeclarationModel model,
     shared actual default LLVMFunction body
             = LLVMFunction(mod, namer(model), ptr(i64), "",
                 if (!model.toplevel)
-                then [contextRegister]
+                then [ptr(i64)]
                 else []);
 
     shared actual Boolean owns(DeclarationModel d)
@@ -28,7 +28,8 @@ abstract class CallableScope(LLVMModule mod, DeclarationModel model,
         }
 
         variable DeclarationModel? visitedContainer = containingDeclaration(model);
-        variable Ptr<I64Type> context = body.register(ptr(i64), contextName);
+        assert(is Ptr<I64Type> start_context = body.arguments.first);
+        variable Ptr<I64Type> context = start_context;
 
         function isMatch(DeclarationModel v)
             => if (sup || container is InterfaceModel)
@@ -82,9 +83,11 @@ abstract class CallableScope(LLVMModule mod, DeclarationModel model,
             body.assignTo(frameName).call(ptr(i64), "malloc",
                     I64Lit(totalBlocks * 8));
 
+            assert(is Ptr<I64Type> context = body.arguments.first);
+
             if (!model.toplevel) {
                 body.store(body.register(ptr(i64), frameName),
-                    body.toI64(body.register(ptr(i64), contextName)));
+                    body.toI64(context));
             }
         }
 
@@ -106,6 +109,6 @@ class SetterScope(LLVMModule mod, SetterModel model,
     shared actual LLVMFunction body
             = LLVMFunction(mod, setterDispatchName(model), ptr(i64), "",
                 if (!model.toplevel)
-                then [contextRegister, loc(ptr(i64), model.name)]
-                else [loc(ptr(i64), model.name)]);
+                then [ptr(i64), ptr(i64)]
+                else [ptr(i64)]);
 }
