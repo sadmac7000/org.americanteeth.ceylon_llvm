@@ -22,14 +22,14 @@ interface CodeWriter {
     shared formal PackageModel languagePackage;
     shared formal LLVMModule llvmModule;
 
-    shared GetterScope getterScope(ValueModel model)
-        => push(GetterScope(llvmModule, model, pop));
-    shared SetterScope setterScope(SetterModel model)
-        => push(SetterScope(llvmModule, model, pop));
+    shared CallableScope getterScope(ValueModel model)
+        => push(makeGetterScope(llvmModule, model, pop));
+    shared CallableScope setterScope(SetterModel model)
+        => push(makeSetterScope(llvmModule, model, pop));
     shared ConstructorScope constructorScope(ClassModel model)
         => push(ConstructorScope(llvmModule, model, pop));
-    shared FunctionScope functionScope(FunctionModel model)
-        => push(FunctionScope(llvmModule, model, pop));
+    shared CallableScope functionScope(FunctionModel model)
+        => push(makeFunctionScope(llvmModule, model, pop));
     shared InterfaceScope interfaceScope(InterfaceModel model)
         => push(InterfaceScope(llvmModule, model, pop));
 

@@ -12,12 +12,7 @@ import org.eclipse.ceylon.model.typechecker.model {
 "Scope of an interface."
 class InterfaceScope(LLVMModule mod, InterfaceModel model,
             Anything(Scope) destroyer)
-        extends Scope(mod, destroyer) {
-    shared actual Nothing body {
-        "Interfaces are not backed by a function body."
-        assert(false);
-    }
-
+        extends Scope(mod, null, destroyer) {
     shared actual Boolean owns(DeclarationModel d)
         => if (exists c = d.container, c == model) then true else false;
 

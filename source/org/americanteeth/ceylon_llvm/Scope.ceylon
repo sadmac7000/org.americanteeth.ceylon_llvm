@@ -9,9 +9,17 @@ import org.eclipse.ceylon.model.typechecker.model {
 }
 
 "A scope containing instructions"
-abstract class Scope(shared LLVMModule llvmModule, Anything(Scope) destroyer)
+abstract class Scope(shared LLVMModule llvmModule,
+        AnyLLVMFunction? bodyFunc, Anything(Scope) destroyer)
     of CallableScope | UnitScope | InterfaceScope
         satisfies Obtainable {
+
+    shared AnyLLVMFunction body {
+        "Interfaces don't have a body."
+        assert(exists bodyFunc);
+        return bodyFunc;
+    }
+
     value mutators = ArrayList<LLVMDeclaration>();
     value allocations = HashMap<FunctionOrValueModel,Integer>();
     variable value allocationBlock = 0;
@@ -172,7 +180,6 @@ abstract class Scope(shared LLVMModule llvmModule, Anything(Scope) destroyer)
         assert (false);
     }
 
-    shared formal AnyLLVMFunction body;
     shared default void initFrame() {}
 
     shared default {LLVMDeclaration*} results {

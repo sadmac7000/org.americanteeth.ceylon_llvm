@@ -10,10 +10,19 @@ import ceylon.interop.java {
  out of the way of any C libraries that might get linked with us."
 Integer constructorPriorityOffset = 65536;
 
+[LLVMType*] constructorArgumentTypes(ClassModel model)
+    => (if (!model.toplevel)
+        then [ptr(i64), ptr(i64)]
+        else [ptr(i64)])
+       .append(parameterListToLLVMTypes(model.parameterList));
+
 "Scope of a class body"
 class ConstructorScope(LLVMModule mod, ClassModel model,
             Anything(Scope) destroyer)
-        extends CallableScope(mod, model, initializerName, destroyer) {
+        extends CallableScope(mod, model,
+                LLVMFunction(mod, initializerName(model), null,
+                    constructorArgumentTypes(model)),
+                destroyer) {
     value parent = model.extendedType?.declaration;
     shared actual void initFrame() {}
 
@@ -29,21 +38,6 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
         LLVMGlobal(sizeName(model), I64Lit(0))
     ];
 
-    value basicParameters = parameterListToLLVMTypes(model.parameterList);
-
-    "Constructor arguments."
-    [LLVMType*] argumentTypes {
-        value prepend =
-            if (!model.toplevel)
-            then [ptr(i64), ptr(i64)]
-            else [ptr(i64)];
-
-        return prepend.append(basicParameters);
-    }
-
-    shared actual LLVMFunction<PtrType<I64Type>?,[PtrType<I64Type>*]> body
-            = LLVMFunction(mod, initializerName(model), null, argumentTypes);
-
     "The allocation offset for this item"
     shared actual I64 getAllocationOffset(Integer slot, AnyLLVMFunction func) {
         value shift = if (exists parent)
@@ -55,9 +49,7 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
 
     "Our direct-call constructor that allocates the new object with malloc"
     LLVMDeclaration directConstructor() {
-        value fullParameters = if (model.toplevel)
-            then basicParameters
-            else [ptr(i64)].append(basicParameters);
+        value fullParameters = body.arguments.rest.collect((x) => x.type);
         value directConstructor = LLVMFunction(llvmModule,
                 declarationName(model), ptr(i64), fullParameters);
         value size = directConstructor.load(directConstructor.global(i64,

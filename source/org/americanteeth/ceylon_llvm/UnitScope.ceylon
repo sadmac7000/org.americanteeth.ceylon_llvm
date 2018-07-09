@@ -14,15 +14,17 @@ import org.eclipse.ceylon.model.typechecker.model {
  inheritance depth."
 Integer toplevelConstructorPriority = constructorPriorityOffset + 65535;
 
+AnyLLVMFunction unitScopeBody(LLVMModule mod) {
+    value body = LLVMFunction(mod, "__ceylon_constructor", null, []);
+    body.private = true;
+    return body;
+}
+
 "The outermost scope of the compilation unit"
-class UnitScope(LLVMModule mod) extends Scope(mod, (Anything x) => null) {
+class UnitScope(LLVMModule mod)
+        extends Scope(mod, unitScopeBody(mod), (Anything x) => null) {
     value globalVariables = ArrayList<AnyLLVMGlobal>();
     value mutators = ArrayList<LLVMDeclaration>();
-
-    shared actual LLVMFunction<Null,[]> body
-            = LLVMFunction(mod, "__ceylon_constructor", null, []);
-
-    body.private = true;
 
     shared actual Boolean owns(DeclarationModel d) => d.toplevel;
 

@@ -1,21 +1,15 @@
 import org.eclipse.ceylon.model.typechecker.model {
     ValueModel=Value,
     DeclarationModel=Declaration,
+    FunctionModel=Function,
     InterfaceModel=Interface,
     SetterModel=Setter,
     ClassOrInterfaceModel=ClassOrInterface
 }
 
-abstract class CallableScope(LLVMModule mod, DeclarationModel model,
-        String(DeclarationModel) namer, Anything(Scope) destroyer)
-        extends Scope(mod, destroyer) {
-    shared actual
-        default LLVMFunction<PtrType<I64Type>?,[PtrType<I64Type>*]> body
-            = LLVMFunction(mod, namer(model), ptr(i64),
-                if (!model.toplevel)
-                then [ptr(i64)]
-                else []);
-
+class CallableScope(LLVMModule mod, DeclarationModel model,
+        AnyLLVMFunction bodyFunc, Anything(Scope) destroyer)
+        extends Scope(mod, bodyFunc, destroyer) {
     shared actual Boolean owns(DeclarationModel d)
         => if (exists c = containingDeclaration(d), c == model)
             then true
@@ -99,18 +93,38 @@ abstract class CallableScope(LLVMModule mod, DeclarationModel model,
 }
 
 "Scope of a getter method"
-class GetterScope(LLVMModule mod, ValueModel model,
-            Anything(Scope) destroyer)
-        extends CallableScope(mod, model, getterDispatchName, destroyer) {}
+CallableScope makeGetterScope(LLVMModule mod, ValueModel model,
+        Anything(Scope) destroyer)
+    => CallableScope(mod, model,
+        LLVMFunction(mod, getterDispatchName(model), ptr(i64),
+            if (!model.toplevel)
+            then [ptr(i64)]
+            else []),
+        destroyer);
 
 "Scope of a setter method"
-class SetterScope(LLVMModule mod, SetterModel model,
-            Anything(Scope) destroyer)
-        extends CallableScope(mod, model, setterDispatchName, destroyer) {
-    shared actual LLVMFunction<PtrType<I64Type>,
-    [PtrType<I64Type>]|[PtrType<I64Type>*]> body
-            = LLVMFunction(mod, setterDispatchName(model), ptr(i64),
+CallableScope makeSetterScope(LLVMModule mod, SetterModel model,
+        Anything(Scope) destroyer)
+    => CallableScope(mod, model,
+        LLVMFunction(mod, setterDispatchName(model), ptr(i64),
+            if (!model.toplevel)
+            then [ptr(i64), ptr(i64)]
+            else [ptr(i64)]),
+        destroyer);
+
+"Construct an LLVM function with the approprate signature for a given Ceylon
+ function."
+LLVMFunction<PtrType<I64Type>,[PtrType<I64Type>*]>
+    llvmFunctionForCeylonFunction(LLVMModule mod, FunctionModel model,
+        String(FunctionModel) namer = declarationName)
+    => LLVMFunction(mod, namer(model), ptr(i64),
                 if (!model.toplevel)
-                then [ptr(i64), ptr(i64)]
-                else [ptr(i64)]);
-}
+                then parameterListToLLVMTypes(model.firstParameterList)
+                         .withLeading(ptr(i64))
+                else parameterListToLLVMTypes(model.firstParameterList));
+
+"The scope of a function"
+CallableScope makeFunctionScope(LLVMModule mod, FunctionModel model,
+        Anything(Scope) destroyer)
+    => CallableScope(mod, model,
+            llvmFunctionForCeylonFunction(mod, model, dispatchName), destroyer);
