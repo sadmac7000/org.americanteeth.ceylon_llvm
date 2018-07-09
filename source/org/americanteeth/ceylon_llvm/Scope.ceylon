@@ -133,10 +133,8 @@ abstract class Scope(shared LLVMModule llvmModule,
         if (exists startValue) {
             value slotOffset = getAllocationOffset(newPosition, body);
 
-            body.store(
-                body.register(ptr(i64), frameName),
-                body.toI64(startValue),
-                slotOffset);
+            assert(exists frame = body.getMarked(ptr(i64), frameName));
+            body.store(frame, body.toI64(startValue), slotOffset);
         }
 
         mutators.add(getterFor(declaration));

@@ -71,19 +71,10 @@ class LLVMFunction<out Ret, in Args>(
         shared String tag = ".l`` nextTemporaryLabel++ ``";
     }
 
-    "Register value objects for this function."
-    class Register<T>(T type, String? regNameIn)
-            extends LLVMValue<T>(type, llvm.undef(type.ref)) /* FIXME: undef */
-            given T satisfies LLVMType {}
-
-    "Register names to be used ahead of the temp names"
-    value regNames = ArrayList<String>();
-
     "Get a register for a given type"
-    shared LLVMValue<T> register<T>(T type, String? regNameIn = regNames
-            .deleteLast())
+    shared LLVMValue<T> register<T>(T type)
             given T satisfies LLVMType
-            => Register(type, regNameIn);
+            => LLVMValue(type, llvm.undef(type.ref));
 
     "An LLVM logical block."
     class Block() {
@@ -290,12 +281,6 @@ class LLVMFunction<out Ret, in Args>(
         }
 
         return currentBlock.getMarked<T>(type, key);
-    }
-
-    "Set the next register name to be assigned"
-    shared LLVMFunction<Ret,Args> assignTo(String regName) {
-        regNames.add(regName);
-        return this;
     }
 
     "Access a global from this function"

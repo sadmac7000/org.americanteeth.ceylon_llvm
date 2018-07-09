@@ -56,8 +56,9 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
                 sizeName(model)));
         value bytes = directConstructor.mul(size, 8);
 
-        value frame = directConstructor.assignTo(frameName).call(ptr(i64),
+        value frame = directConstructor.call(ptr(i64),
                 "malloc", bytes);
+        directConstructor.mark(frameName, frame);
 
         value vt = directConstructor.toI64(
             directConstructor.load(directConstructor.global(ptr(i64),

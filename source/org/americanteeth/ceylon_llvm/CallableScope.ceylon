@@ -19,7 +19,7 @@ class CallableScope(LLVMModule mod, DeclarationModel model,
      current frame and following the context pointers."
     Ptr<I64Type>? climbContextStackTo(DeclarationModel container, Boolean sup) {
         if (model == container) {
-            return body.register(ptr(i64), frameName);
+            return body.getMarked(ptr(i64), frameName);
         }
 
         variable DeclarationModel? visitedContainer = containingDeclaration(model);
@@ -48,7 +48,7 @@ class CallableScope(LLVMModule mod, DeclarationModel model,
     shared actual Ptr<I64Type>? getContextFor(DeclarationModel declaration,
             Boolean sup) {
         if (is ValueModel declaration, allocates(declaration)) {
-            return body.register(ptr(i64), frameName);
+            return body.getMarked(ptr(i64), frameName);
         }
 
         value container = containingDeclaration(declaration);
@@ -73,16 +73,16 @@ class CallableScope(LLVMModule mod, DeclarationModel model,
             else allocatedBlocks;
 
         if (totalBlocks == 0) {
-            body.assignTo(frameName).bitcast(llvmNull, ptr(i64));
+            body.mark(frameName, body.bitcast(llvmNull, ptr(i64)));
         } else {
-            body.assignTo(frameName).call(ptr(i64), "malloc",
-                    I64Lit(totalBlocks * 8));
+            body.mark(frameName, body.call(ptr(i64), "malloc",
+                    I64Lit(totalBlocks * 8)));
 
             assert(is Ptr<I64Type> context = body.arguments.first);
 
             if (!model.toplevel) {
-                body.store(body.register(ptr(i64), frameName),
-                    body.toI64(context));
+                assert(exists frame = body.getMarked(ptr(i64), frameName));
+                body.store(frame, body.toI64(context));
             }
         }
 

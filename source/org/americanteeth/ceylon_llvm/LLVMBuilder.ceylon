@@ -222,7 +222,9 @@ class LLVMBuilder(String module_name,
         value parameter = model.parameter;
 
         try(setterScope(model)) {
-            scope.allocate(parameter.model, scope.body.register(ptr(i64), parameter.name));
+            value reg = scope.body.register(ptr(i64));
+            scope.body.mark(parameter.name, reg);
+            scope.allocate(parameter.model, reg);
             that.definition.visit(this);
         }
     }
@@ -260,8 +262,9 @@ class LLVMBuilder(String module_name,
         try (constructorScope(tc.declarationModel)) {
             if (exists parameterList = model.parameterList) {
                 for (parameter in CeylonList(parameterList.parameters)) {
-                    scope.allocate(parameter.model,
-                            scope.body.register(ptr(i64), parameter.name));
+                    value reg = scope.body.register(ptr(i64));
+                    scope.body.mark(parameter.name, reg);
+                    scope.allocate(parameter.model, reg);
                 }
             }
 
@@ -281,8 +284,8 @@ class LLVMBuilder(String module_name,
             arguments.add(argument.transform(expressionTransformer));
         }
 
-        scope.body.callVoid(initializerName(te.declaration),
-            scope.body.register(ptr(i64), frameName), *arguments);
+        assert(exists frame = scope.body.getMarked(ptr(i64), frameName));
+        scope.body.callVoid(initializerName(te.declaration), frame, *arguments);
     }
 
     shared actual void visitLazySpecifier(LazySpecifier that)
@@ -345,8 +348,9 @@ class LLVMBuilder(String module_name,
 
         try (functionScope(tc.declarationModel)) {
             for (parameter in CeylonList(firstParameterList.parameters)) {
-                scope.allocate(parameter.model, scope.body.register(ptr(i64),
-                            parameter.name));
+                value reg = scope.body.register(ptr(i64));
+                scope.body.mark(parameter.name, reg);
+                scope.allocate(parameter.model, reg);
             }
 
             that.definition?.visit(this);

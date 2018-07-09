@@ -233,7 +233,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
 
 "Dispatch from a vtable."
 void vtDispatch(FunctionOrValueModel model, AnyLLVMFunction func, Integer selector) {
-    value context = func.register(ptr(i64), ".context");
+    assert(is Ptr<I64Type> context = func.arguments.first);
     value vtable = func.toPtr(func.load(context, I64Lit(1)), i64);
     value vtPosition = func.loadGlobal(i64, vtPositionName(model.refinedDeclaration));
     value container = containingDeclaration(model.refinedDeclaration);
