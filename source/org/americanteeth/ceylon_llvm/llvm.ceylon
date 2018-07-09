@@ -172,8 +172,7 @@ class LLVMModule satisfies Destroyable {
 
     shared LLVMGlobalValue<T> addGlobal<T>(T ty, String name)
             given T satisfies LLVMType
-        => object extends LLVMValue<T>(ty, llvm.addGlobal(outer.ref, ty.ref, name))
-                satisfies LLVMGlobalValue<T> {};
+        => LLVMGlobalValue(ty, llvm.addGlobal(ref, ty.ref, name));
 
     shared LLVMValueRef refForFunction(String name, AnyLLVMFunctionType t) {
         if (exists old = llvm.getNamedFunction(ref, name)) {

@@ -39,13 +39,6 @@ class LLVMFunction<out Ret, in Args>(
     "Memoization for arguments"
     variable [AnyLLVMValue*]? arguments_ = null;
 
-    "Argument values"
-    shared [AnyLLVMValue*] arguments
-        => arguments_ else argumentTypes.keys.collect((i) {
-            assert(exists t = argumentTypes[i]);
-            return object extends AnyLLVMValue(t, llvm.getParam(outer.ref, i)) {};
-        });
-
     "Memoization of constructorPriority."
     variable Integer? constructorPriority_ = null;
 
@@ -538,6 +531,13 @@ class LLVMFunction<out Ret, in Args>(
     assign private
         => llvm.setLinkage(ref,
                 private then llvm.privateLinkage else llvm.externalLinkage);
+
+    "Argument values"
+    shared [AnyLLVMValue*] arguments
+        => arguments_ else argumentTypes.keys.collect((i) {
+            assert(exists t = argumentTypes[i]);
+            return LLVMValue(t, llvm.getParam(ref, i));
+        });
 }
 
 "Any LLVM Function"

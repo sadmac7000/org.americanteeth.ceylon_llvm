@@ -2,16 +2,8 @@ import org.bytedeco.javacpp {
     LLVM { LLVMValueRef }
 }
 
-interface ValueInterface<out T>
-        given T satisfies LLVMType {
-    shared formal T type;
-    shared formal LLVMValueRef ref;
-}
-
 "An LLVM typed value"
-abstract class LLVMValue<out T>(shared actual T type,
-                                shared actual LLVMValueRef ref)
-        satisfies ValueInterface<T>
+class LLVMValue<out T>(shared T type, shared LLVMValueRef ref)
         given T satisfies LLVMType {
     string => llvm.printValueToString(ref);
     hash => string.hash;
@@ -21,68 +13,65 @@ abstract class LLVMValue<out T>(shared actual T type,
 }
 
 "Alias supertype of all values"
-abstract class AnyLLVMValue(LLVMType t, LLVMValueRef r)
+class AnyLLVMValue(LLVMType t, LLVMValueRef r)
     => LLVMValue<LLVMType>(t, r);
 
 "An LLVM pointer value"
-abstract class Ptr<out T>(PtrType<T> t, LLVMValueRef r)
+class Ptr<out T>(PtrType<T> t, LLVMValueRef r)
         given T satisfies LLVMType
     => LLVMValue<PtrType<T>>(t, r);
 
 "An LLVM Function"
-abstract class Func<out Ret, in Args>(FuncType<Ret,Args> f, LLVMValueRef r)
+class Func<out Ret, in Args>(FuncType<Ret,Args> f, LLVMValueRef r)
         given Args satisfies [LLVMType*]
     => LLVMValue<FuncType<Ret,Args>>(f, r);
 
 "An LLVM label"
-abstract class Label(LabelType t, LLVMValueRef r)
+class Label(LabelType t, LLVMValueRef r)
     => LLVMValue<LabelType>(t, r);
 
 "An LLVM 64-bit integer value"
-abstract class I64(I64Type t, LLVMValueRef r)
+class I64(I64Type t, LLVMValueRef r)
     => LLVMValue<I64Type>(t, r);
 
 "A literal LLVM i64"
 final class I64Lit(Integer val) extends I64(i64, llvm.constInt(i64.ref, val)) {}
 
 "An LLVM 32-bit integer value"
-abstract class I32(I32Type t, LLVMValueRef r)
-        => LLVMValue<I32Type>(t, r);
+class I32(I32Type t, LLVMValueRef r) => LLVMValue<I32Type>(t, r);
 
 "A literal LLVM i32"
 final class I32Lit(Integer val) extends I32(i32, llvm.constInt(i32.ref, val)) {}
 
 "An LLVM 8-bit integer value"
-abstract class I8(I8Type t, LLVMValueRef r)
-        => LLVMValue<I8Type>(t, r);
+class I8(I8Type t, LLVMValueRef r) => LLVMValue<I8Type>(t, r);
 
 "A literal LLVM i8"
 final class I8Lit(Integer|Byte val) extends I8(i8, llvm.constInt(i8.ref,
             if (is Integer val) then val else val.unsigned)) {}
 
 "An LLVM 1-bit integer value"
-abstract class I1(I1Type t, LLVMValueRef r)
-        => LLVMValue<I1Type>(t, r);
+class I1(I1Type t, LLVMValueRef r) => LLVMValue<I1Type>(t, r);
 
 "A literal LLVM i1"
 final class I1Lit(Integer val) extends I1(i1, llvm.constInt(i1.ref, val)) {}
 
 "An LLVM Null value"
-object llvmNull extends Ptr<I64Type>(ptr(i64), llvm.constNull(ptr(i64).ref)) {}
+Ptr<I64Type> llvmNull = LLVMValue(ptr(i64), llvm.constNull(ptr(i64).ref));
 
 "Constructor for LLVM 'undef' value"
 LLVMValue<T> undef<T>(T t) given T satisfies LLVMType
-    => object extends LLVMValue<T>(t, llvm.undef(t.ref)) {};
+    => LLVMValue(t, llvm.undef(t.ref));
 
 "Constructor for constant arrays"
 LLVMValue<ArrayType<T>> constArray<T>(T ty, [LLVMValue<T>*] elements)
         given T satisfies LLVMType
-    => object extends LLVMValue<ArrayType<T>>(ArrayType<T>(ty, elements.size),
-            llvm.constArray(ty.ref, elements.collect((x) => x.ref))) {};
+    => LLVMValue(ArrayType<T>(ty, elements.size),
+            llvm.constArray(ty.ref, elements.collect((x) => x.ref)));
 
 "Interface for global values"
-interface LLVMGlobalValue<T>
-        satisfies ValueInterface<T>
+class LLVMGlobalValue<T>(T ty, LLVMValueRef r)
+        extends LLVMValue<T>(ty, r)
         given T satisfies LLVMType {
     "Whether this is a constant value"
     shared Boolean constant => llvm.isGlobalConstant(ref);
@@ -92,7 +81,7 @@ interface LLVMGlobalValue<T>
 
     "Initial value for this variable"
     shared LLVMValue<T> initializer
-        => object extends LLVMValue<T>(outer.type, llvm.getInitializer(outer.ref)) {};
+        => LLVMValue(type, llvm.getInitializer(ref));
     assign initializer {
         llvm.setInitializer(ref, initializer.ref);
     }
