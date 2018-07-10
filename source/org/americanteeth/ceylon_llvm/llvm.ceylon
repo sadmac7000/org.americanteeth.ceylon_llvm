@@ -49,6 +49,7 @@ import org.bytedeco.javacpp {
         LLVMBasicBlockRef,
         llvmAppendBasicBlock=\iLLVMAppendBasicBlock,
         llvmBasicBlockAsValue=\iLLVMBasicBlockAsValue,
+        llvmGetBasicBlockTerminator=\iLLVMGetBasicBlockTerminator,
 
         /* LLVMLinkage, */
         llvmPrivateLinkage=\iLLVMPrivateLinkage,
@@ -160,6 +161,8 @@ object llvmLibrary {
         => llvmAppendBasicBlock(fn, name);
     shared LLVMValueRef basicBlockAsValue(LLVMBasicBlockRef bb)
         => llvmBasicBlockAsValue(bb);
+    shared LLVMValueRef? getBasicBlockTerminator(LLVMBasicBlockRef bb)
+        => llvmGetBasicBlockTerminator(bb);
 
     shared void writeBitcodeToFile(LLVMModuleRef ref, String path)
         => llvmWriteBitcodeToFile(ref, path);

@@ -97,10 +97,6 @@ class LLVMFunction<out Ret, in Args>(
         "List of instructions."
         value instructions_ = ArrayList<String>();
 
-        "Whether we've had a terminating instruction.
-         Updated from outside the class."
-        variable value terminated_ = false;
-
         "Marked values."
         value marks = HashMap<Object,AnyLLVMValue>();
 
@@ -147,8 +143,8 @@ class LLVMFunction<out Ret, in Args>(
             predecessors.add(predecessor);
         }
 
-        "Read accessor for terminated_."
-        shared Boolean terminated => terminated_;
+        "Whether we've had a terminating instruction yet"
+        shared Boolean terminated => llvm.getBasicBlockTerminator(ref) exists;
 
         "Accessor for instructions with appended default return."
         shared [String*] instructions =>
@@ -194,7 +190,6 @@ class LLVMFunction<out Ret, in Args>(
         shared void terminate({AnyLLVMFunction.Block*} successors) {
             "Block should not be terminated twice."
             assert (!terminated);
-            terminated_ = true;
 
             for (successor in successors) {
                 successor.addPredecessor(this);
