@@ -401,22 +401,11 @@ class LLVMFunction<out Ret, in Args>(
 
     "Load from a pointer"
     shared LLVMValue<T> load<T>(Ptr<T> ptr, I64? off = null)
-            given T satisfies LLVMType {
-        if (exists off) {
-            return load(offset(ptr, off));
-        }
-
-        value result = register(ptr.type.targetType);
-
-        if (llvmVersion[1] < 7) {
-            currentBlock.instruction("``result`` = load ``ptr``");
-        } else {
-            currentBlock.instruction("``result`` = \
-                                      load ``result.type``, ``ptr``");
-        }
-
-        return result;
-    }
+            given T satisfies LLVMType
+        => if (exists off)
+           then load(offset(ptr, off))
+           else LLVMValue(ptr.type.targetType,
+                   llvm.buildLoad(llvmBuilder, ptr.ref, tempName()));
 
     "Load from a global variable."
     shared LLVMValue<T> loadGlobal<T>(T t, String name)
@@ -427,9 +416,9 @@ class LLVMFunction<out Ret, in Args>(
     shared void store<T>(Ptr<T> ptr, LLVMValue<T> val, I64? off = null)
             given T satisfies LLVMType {
         if (exists off) {
-            store(offset(ptr, off), val);
+           store(offset(ptr, off), val);
         } else {
-            currentBlock.instruction("store ``val``, ``ptr``");
+            llvm.buildStore(llvmBuilder, val.ref, ptr.ref);
         }
     }
 
