@@ -112,7 +112,7 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
     shared Boolean showIR => showIR_;
 
     option { longName = "show-ir"; }
-    description {"Show generated IR for each compilation unit"}
+    description ("Show generated IR for each compilation unit")
     assign showIR { showIR_ = showIR; }
 
     variable String? triple_ = null;
