@@ -26,6 +26,7 @@ import org.bytedeco.javacpp {
         llvmArrayType=\iLLVMArrayType,
         llvmPrintTypeToString=\iLLVMPrintTypeToString,
         llvmGetTypeKind=\iLLVMGetTypeKind,
+        llvmGetElementType=\iLLVMGetElementType,
 
         /* LLVMTypeKind */
         llvmPointerTypeKind=\iLLVMPointerTypeKind,
@@ -104,19 +105,11 @@ LLVMTypeKind toTypeKind(Integer val) {
 }
 
 "Namespace object for LLVM library functions."
-object llvmLibrary {
-    variable value initialized = false;
-
-    shared void initialize() {
-        if (initialized) {
-            return;
-        }
-
-        llvmInitializeNativeAsmPrinter();
-        llvmInitializeNativeAsmParser();
-        llvmInitializeNativeDisassembler();
-        llvmInitializeNativeTarget();
-    }
+object llvm {
+    llvmInitializeNativeAsmPrinter();
+    llvmInitializeNativeAsmParser();
+    llvmInitializeNativeDisassembler();
+    llvmInitializeNativeTarget();
 
     shared Integer privateLinkage = llvmPrivateLinkage;
     shared Integer externalLinkage = llvmExternalLinkage;
@@ -142,6 +135,8 @@ object llvmLibrary {
         => llvmPrintTypeToString(ref).getString();
     shared LLVMTypeKind getTypeKind(LLVMTypeRef ty)
         => toTypeKind(llvmGetTypeKind(ty));
+    shared LLVMTypeRef getElementType(LLVMTypeRef ty)
+        => llvmGetElementType(ty);
 
     shared String printModuleToString(LLVMModuleRef ref)
         => llvmPrintModuleToString(ref).getString();
@@ -253,6 +248,7 @@ object llvmLibrary {
         => llvmWriteBitcodeToFile(ref, path);
 }
 
+"Wrapper object for LLVM Module"
 class LLVMModule satisfies Destroyable {
     LLVMModuleRef ref;
 
@@ -291,9 +287,4 @@ class LLVMModule satisfies Destroyable {
     }
 
     string => llvm.printModuleToString(ref);
-}
-
-\IllvmLibrary llvm {
-    llvmLibrary.initialize();
-    return llvmLibrary;
 }
