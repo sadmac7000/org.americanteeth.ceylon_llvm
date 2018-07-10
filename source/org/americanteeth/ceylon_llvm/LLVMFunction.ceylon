@@ -74,8 +74,11 @@ class LLVMFunction<out Ret, in Args>(
         then "ret ``returnType`` null"
         else "ret void";
 
-    "Counter for auto-naming labels."
-    variable value nextTemporaryLabel = 0;
+    "Counter for auto-generated names"
+    variable value nextTemporary = 0;
+
+    "Auto-generated temporary name"
+    String tempName() => "v``nextTemporary++``";
 
     "List of marks in this function."
     value marks = HashSet<Object>();
@@ -85,11 +88,14 @@ class LLVMFunction<out Ret, in Args>(
             given T satisfies LLVMType
             => LLVMValue(type, llvm.undef(type.ref));
 
+    "Our LLVM Instruction builder"
+    value llvmBuilder = llvm.createBuilder();
+
     "An LLVM logical block."
     class Block() {
         "Our LLVM lib reference for this block."
         shared LLVMBasicBlockRef ref =
-            llvm.appendBasicBlock(funcRef, "l``nextTemporaryLabel++``");
+            llvm.appendBasicBlock(funcRef, tempName());
 
         "The jump label at the start of this block."
         shared Label label = Label(labelType, llvm.basicBlockAsValue(ref));
@@ -103,32 +109,8 @@ class LLVMFunction<out Ret, in Args>(
         "Blocks that jump to this block."
         value predecessors = HashSet<AnyLLVMFunction.Block>();
 
-        "Phi node."
-        class Phi<out T>(shared Object key, shared LLVMValue<T> val,
-                shared Block owner)
-            given T satisfies LLVMType
-        {
-            value results = ArrayList<String>();
-
-            void addResult(LLVMValue<T> val, AnyLLVMFunction.Block predecessor)
-                => results.add("[``val``, \
-                                ``predecessor.label``]");
-
-            shared void notePredecessor(AnyLLVMFunction.Block predecessor) {
-                value val = predecessor.getMarked(this.val.type, key);
-
-                addResult(val, predecessor);
-            }
-
-            string => if (results.empty)
-                then "``val`` = bitcast ``val.type`` \
-                      undef to ``val.type``"
-                else "``val`` = phi ``val.type`` "
-                    + ", ".join(results);
-        }
-
         "Phi'd values."
-        value phis = HashMap<Object,Phi<LLVMType>>();
+        value phis = HashMap<Object,AnyLLVMValue>();
 
         "Mark that another block jumps to this block."
         shared void addPredecessor(AnyLLVMFunction.Block predecessor) {
@@ -137,7 +119,9 @@ class LLVMFunction<out Ret, in Args>(
             }
 
             for (key->phi in phis) {
-                phi.notePredecessor(predecessor);
+                llvm.addIncoming(phi.ref,
+                        [predecessor.getMarked(phi.type, key).ref],
+                        [predecessor.ref]);
             }
 
             predecessors.add(predecessor);
@@ -174,16 +158,22 @@ class LLVMFunction<out Ret, in Args>(
                 return m;
             }
 
-            value ret = register(t);
-            marks[key] = ret;
-            value phi = Phi(key, ret, this);
+            llvm.positionBuilder(llvmBuilder, ref,
+                    llvm.getFirstInstruction(ref));
+            value phi = LLVMValue(t, llvm.buildPhi(llvmBuilder,
+                        t.ref, tempName()));
+            llvm.positionBuilder(llvmBuilder, ref);
+
+            marks[key] = phi;
             phis[key] = phi;
 
-            for (predecessor in predecessors) {
-                phi.notePredecessor(predecessor);
-            }
+            value predecessorRefs = predecessors.collect((x) => x.ref);
+            value predecessorVals = predecessors.collect(
+                    (x) => x.getMarked(t, key).ref);
 
-            return phi.val;
+            llvm.addIncoming(phi.ref, predecessorVals, predecessorRefs);
+
+            return phi;
         }
 
         "Mark that we've had a terminating instruction."
@@ -199,6 +189,8 @@ class LLVMFunction<out Ret, in Args>(
 
     "The logical block we are currently adding instructions to."
     variable value currentBlock = Block();
+
+    llvm.positionBuilder(llvmBuilder, currentBlock.ref);
 
     "Instructions in the body of this function that perform the main business
      logic."
@@ -227,6 +219,7 @@ class LLVMFunction<out Ret, in Args>(
         assert (exists newBlock = candidates.first);
 
         currentBlock = newBlock;
+        llvm.positionBuilder(llvmBuilder, currentBlock.ref);
     }
 
     "The entry point for the function."

@@ -50,6 +50,12 @@ import org.bytedeco.javacpp {
         llvmAppendBasicBlock=\iLLVMAppendBasicBlock,
         llvmBasicBlockAsValue=\iLLVMBasicBlockAsValue,
         llvmGetBasicBlockTerminator=\iLLVMGetBasicBlockTerminator,
+        llvmGetFirstInstruction=\iLLVMGetFirstInstruction,
+
+        LLVMBuilderRef,
+        llvmCreateBuilder=\iLLVMCreateBuilder,
+        llvmPositionBuilder=\iLLVMPositionBuilder,
+        llvmBuildPhi=\iLLVMBuildPhi,
 
         /* LLVMLinkage, */
         llvmPrivateLinkage=\iLLVMPrivateLinkage,
@@ -163,6 +169,26 @@ object llvmLibrary {
         => llvmBasicBlockAsValue(bb);
     shared LLVMValueRef? getBasicBlockTerminator(LLVMBasicBlockRef bb)
         => llvmGetBasicBlockTerminator(bb);
+    shared LLVMValueRef? getFirstInstruction(LLVMBasicBlockRef bb)
+        => llvmGetFirstInstruction(bb);
+
+    shared LLVMBuilderRef createBuilder() => llvmCreateBuilder();
+    shared void positionBuilder(LLVMBuilderRef builder,
+            LLVMBasicBlockRef bb, LLVMValueRef? instr = null)
+        => llvmPositionBuilder(builder, bb, instr);
+    shared LLVMValueRef buildPhi(LLVMBuilderRef builder, LLVMTypeRef ty,
+            String name)
+        => llvmBuildPhi(builder, ty, name);
+
+    shared void addIncoming(LLVMValueRef phi,
+            [LLVMValueRef*] values,
+            [LLVMBasicBlockRef*] blocks) {
+        "Must have the same number of values and blocks"
+        assert(values.size == blocks.size);
+
+        LLVM.addIncoming(phi, createJavaObjectArray(values),
+                createJavaObjectArray(blocks));
+    }
 
     shared void writeBitcodeToFile(LLVMModuleRef ref, String path)
         => llvmWriteBitcodeToFile(ref, path);

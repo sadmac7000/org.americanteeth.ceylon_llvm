@@ -30,4 +30,10 @@ class LLVM {
 
     return LLVMStructType(new PointerPointer(items), items.length, pack_i);
   }
+
+  public static void addIncoming(LLVMValueRef phi, LLVMValueRef[] values,
+      LLVMBasicBlockRef[] blocks) {
+    LLVMAddIncoming(phi, new PointerPointer(values),
+        new PointerPointer(blocks), blocks.length);
+  }
 }
