@@ -42,26 +42,8 @@ class LLVMBuilder(String module_name,
 
     shared actual void destroy(Throwable? error) => llvmModule.destroy(error);
 
-    "The run() method"
-    variable FunctionModel? runSymbol_ = null;
-
-    "Accessor for runSymbol_"
-    FunctionModel? runSymbol => runSymbol_;
-
-    "Writer for runSymbol_"
-    assign runSymbol {
-        "Units should only have one run symbol."
-        assert(! runSymbol_ exists);
-
-        runSymbol_ = runSymbol;
-
-        //llvmModule.addAlias("__ceylon_run", declarationName(runSymbol));
-    }
-    /*"Emitted LLVM for the run() method alias"
-    String runSymbolAlias
-            => if (exists r = runSymbol)
-            then "@__ceylon_run = alias i64*(),i64*()* @``declarationName(r)``\n"
-            else "";*/
+    "Whether we've found the entry point"
+    variable Boolean foundRunSymbol = false;
 
     "The code we are outputting"
     value output = LLVMUnit();
@@ -323,11 +305,6 @@ class LLVMBuilder(String module_name,
             return;
         }
 
-        if (tc.declarationModel.name == "run",
-            tc.declarationModel.container is PackageModel) {
-            runSymbol = tc.declarationModel;
-        }
-
         /* TODO: Support multiple parameter lists */
         if (that.parameterLists.size > 1) {
             try(functionScope(tc.declarationModel)) {
@@ -354,6 +331,16 @@ class LLVMBuilder(String module_name,
             }
 
             that.definition?.visit(this);
+
+            if (tc.declarationModel.name == "run",
+                tc.declarationModel.container is PackageModel) {
+
+                "Can only have one run symbol"
+                assert(! foundRunSymbol);
+                foundRunSymbol = true;
+
+                llvmModule.addAlias(scope.body, "__ceylon_run");
+            }
         }
     }
 

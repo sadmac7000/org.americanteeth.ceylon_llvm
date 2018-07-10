@@ -44,6 +44,7 @@ import org.bytedeco.javacpp {
         llvmSetLinkage=\iLLVMSetLinkage,
         llvmGetLinkage=\iLLVMGetLinkage,
         llvmPrintValueToString=\iLLVMPrintValueToString,
+        llvmAddAlias=\iLLVMAddAlias,
 
         /* LLVMLinkage, */
         llvmPrivateLinkage=\iLLVMPrivateLinkage,
@@ -147,6 +148,9 @@ object llvmLibrary {
         => llvmGetLinkage(ref);
     shared String printValueToString(LLVMValueRef ref)
         => llvmPrintValueToString(ref).getString();
+    shared LLVMValueRef llvmAddAlias(LLVMModuleRef ref, LLVMTypeRef ty,
+            LLVMValueRef aliasee, String name)
+        => llvmAddAlias(ref, ty, aliasee, name);
 
     shared void writeBitcodeToFile(LLVMModuleRef ref, String path)
         => llvmWriteBitcodeToFile(ref, path);
@@ -173,6 +177,11 @@ class LLVMModule satisfies Destroyable {
     shared LLVMGlobalValue<T> addGlobal<T>(T ty, String name)
             given T satisfies LLVMType
         => LLVMGlobalValue(ty, llvm.addGlobal(ref, ty.ref, name));
+
+    shared LLVMGlobalValue<T> addAlias<T>(LLVMValue<T> val, String name)
+            given T satisfies LLVMType
+        => LLVMGlobalValue(val.type,
+                llvmAddAlias(ref, val.type.ref, val.ref, name));
 
     shared LLVMValueRef refForFunction(String name, AnyLLVMFunctionType t) {
         if (exists old = llvm.getNamedFunction(ref, name)) {
