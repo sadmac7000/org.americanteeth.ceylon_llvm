@@ -10,19 +10,38 @@ import ceylon.interop.java {
  out of the way of any C libraries that might get linked with us."
 Integer constructorPriorityOffset = 65536;
 
-[LLVMType*] constructorArgumentTypes(ClassModel model)
-    => (if (!model.toplevel)
-        then [ptr(i64), ptr(i64)]
-        else [ptr(i64)])
-       .append(parameterListToLLVMTypes(model.parameterList));
+"Function that acts as the main body of the constructor"
+AnyLLVMFunction constructorBodyFunc(LLVMModule mod, ClassModel model) {
+    Integer frameIdx;
+    [LLVMType*] types;
+
+    if (model.toplevel) {
+        frameIdx = 0;
+        types = [ptr(i64)];
+    } else {
+        frameIdx = 1;
+        types = [ptr(i64), ptr(i64)];
+
+    }
+
+    value ret = llvmFunction(mod, initializerName(model), null, types);
+
+    assert(exists frame = ret.arguments[frameIdx]);
+    ret.mark(frameName, frame);
+
+    if (frameIdx == 1){
+        assert(exists context = ret.arguments[0]);
+        ret.mark(contextName, context);
+    }
+
+    return ret;
+}
 
 "Scope of a class body"
 class ConstructorScope(LLVMModule mod, ClassModel model,
             Anything(Scope) destroyer)
-        extends CallableScope(mod, model,
-                llvmFunction(mod, initializerName(model), null,
-                    constructorArgumentTypes(model)),
-                destroyer) {
+        extends CallableScope(mod, model, constructorBodyFunc(mod, model),
+                        destroyer) {
     value parent = model.extendedType?.declaration;
     shared actual void initFrame() {}
 
