@@ -491,11 +491,13 @@ class LLVMFunction<out Ret, in Args>(
     "Branch on the given conditional"
     shared Label[2] branch(I1 condition, Label? t_in = null,
             Label? f_in = null) {
-        Label t = t_in else newBlock();
-        Label f = f_in else newBlock();
-        currentBlock.instruction("br ``condition``, ``t``, ``f``");
-        currentBlock.terminate({t,f}.map(findBlock).coalesced);
-        return [t, f];
+        value t_in_block = if (exists t_in) then findBlock(t_in) else null;
+        value f_in_block = if (exists f_in) then findBlock(f_in) else null;
+        value t = t_in_block else newBlockIntern();
+        value f = f_in_block else newBlockIntern();
+        llvm.buildCondBr(llvmBuilder, condition.ref, t.ref, f.ref);
+        currentBlock.terminate([t, f]);
+        return [t.label, f.label];
     }
 
     "LLVM bitcast cast"
