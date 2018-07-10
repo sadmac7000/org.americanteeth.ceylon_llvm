@@ -178,9 +178,6 @@ class LLVMFunction<out Ret, in Args>(
 
         "Mark that we've had a terminating instruction."
         shared void terminate({AnyLLVMFunction.Block*} successors) {
-            "Block should not be terminated twice."
-            assert (!terminated);
-
             for (successor in successors) {
                 successor.addPredecessor(this);
             }
