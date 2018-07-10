@@ -374,7 +374,7 @@ class LLVMFunction<out Ret, in Args>(
 
     "Add an 'unreachable' instruction."
     shared void unreachable() {
-        currentBlock.instruction("unreachable");
+        llvm.buildUnreachable(llvmBuilder);
         currentBlock.terminate({});
     }
 
