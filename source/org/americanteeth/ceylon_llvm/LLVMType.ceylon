@@ -59,13 +59,13 @@ class ArrayType<Item>(shared Item item, shared Integer size)
 }
 
 "LLVM Label type base class"
-abstract class LabelType() of label extends LLVMType(llvm.labelType) {
+abstract class LabelType() of labelType extends LLVMType(llvm.labelType) {
     shared actual LLVMValue<LabelType> instance(LLVMValueRef ref)
         => LLVMValue<LabelType>(this, ref);
 }
 
 "LLVM Label type instance"
-object label extends LabelType() {}
+object labelType extends LabelType() {}
 
 "Abbreviated constructor for pointer types"
 PtrType<T> ptr<T>(T targetType) given T satisfies LLVMType

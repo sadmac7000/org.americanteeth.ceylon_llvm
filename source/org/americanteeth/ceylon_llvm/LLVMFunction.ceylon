@@ -80,11 +80,6 @@ class LLVMFunction<out Ret, in Args>(
     "List of marks in this function."
     value marks = HashSet<Object>();
 
-    "An LLVM label for this function."
-    class FuncLabel() extends Label(label, llvm.undef(label.ref)) { /* FIXME: undef */
-        shared String tag = ".l`` nextTemporaryLabel++ ``";
-    }
-
     "Get a register for a given type"
     shared LLVMValue<T> register<T>(T type)
             given T satisfies LLVMType
@@ -97,7 +92,7 @@ class LLVMFunction<out Ret, in Args>(
             llvm.appendBasicBlock(funcRef, "l``nextTemporaryLabel++``");
 
         "The jump label at the start of this block."
-        shared FuncLabel label = FuncLabel();
+        shared Label label = Label(labelType, llvm.basicBlockAsValue(ref));
 
         "List of instructions."
         value instructions_ = ArrayList<String>();
@@ -168,16 +163,13 @@ class LLVMFunction<out Ret, in Args>(
             instructions_.add(instruction);
         }
 
-        value phiNodes => phis.items.collect(Object.string);
-
-        string => "``label.tag``:\n    "
-                + "\n    ".join(phiNodes.append(instructions));
-
+        "Mark a value in this block."
         shared void mark(Object key, AnyLLVMValue val) {
             assert(!terminated);
             marks[key] = val;
         }
 
+        "Get a previously marked value from this block."
         shared LLVMValue<T> getMarked<T>(T t, Object key)
                 given T satisfies LLVMType {
             if (exists m = marks[key]) {
