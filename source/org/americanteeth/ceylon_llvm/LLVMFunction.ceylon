@@ -350,14 +350,8 @@ class LLVMFunction<out Ret, in Args>(
     }
 
     "Add a return statement to this block"
-    shared void ret<T>(LLVMValue<T>? val)
-            given T satisfies LLVMType {
-        if (exists val) {
-            currentBlock.instruction("ret ``val``");
-        } else {
-            currentBlock.instruction("ret void");
-        }
-
+    shared void ret<T>(LLVMValue<T>? val) given T satisfies LLVMType {
+        llvm.buildRet(llvmBuilder, val?.ref);
         currentBlock.terminate({});
     }
 
