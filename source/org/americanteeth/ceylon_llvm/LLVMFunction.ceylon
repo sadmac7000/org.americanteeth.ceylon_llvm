@@ -225,12 +225,15 @@ class LLVMFunction<out Ret, in Args>(
     "The entry point for the function."
     shared variable Label entryPoint = block;
 
-    "Create a new block."
-    shared Label newBlock() {
+    "Create a new block. Return the raw block."
+    Block newBlockIntern() {
         value newBlock = Block();
         blocks.add(newBlock);
-        return newBlock.label;
+        return newBlock;
     }
+
+    "Create a new block."
+    shared Label newBlock() => newBlockIntern().label;
 
     "Split the current block at the insert position. In essence, insert a label
      at the current position."
@@ -239,14 +242,16 @@ class LLVMFunction<out Ret, in Args>(
             return block;
         }
 
-        value ret = newBlock();
+        value ret = newBlockIntern();
 
         if (! currentBlock.terminated) {
-            jump(ret);
+            /* TODO: Reassess whether this is an error */
+            jump(ret.label);
         }
 
-        block = ret;
-        return ret;
+        currentBlock = ret;
+        llvm.positionBuilder(llvmBuilder, ret.ref);
+        return ret.label;
     }
 
     "Note that a declaration is required for this function."
