@@ -284,14 +284,8 @@ class LLVMFunction<out Ret, in Args>(
     }
 
     "Access a global from this function"
-    shared Ptr<T> global<T>(T t, String name) given T satisfies LLVMType {
-        value ret = object extends Ptr<T>(ptr(t), llvm.undef(ptr(t).ref)) {}; /* FIXME: undef */
-        if (name.startsWith(".str")) {
-            return ret;
-        }
-        declaration(name, t);
-        return ret;
-    }
+    shared Ptr<T> global<T>(T t, String name) given T satisfies LLVMType
+        => llvmModule.lookupGlobal(t, name);
 
     "Emit a call instruction for a function pointer"
     LLVMValue<R>? doCallPtr<R>(Boolean tail, Ptr<FuncType<R,Nothing>> func,

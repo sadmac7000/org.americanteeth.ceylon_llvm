@@ -50,6 +50,7 @@ import org.bytedeco.javacpp {
         llvmGetLinkage=\iLLVMGetLinkage,
         llvmPrintValueToString=\iLLVMPrintValueToString,
         llvmAddAlias=\iLLVMAddAlias,
+        llvmGetNamedGlobal=\iLLVMGetNamedGlobal,
 
         LLVMBasicBlockRef,
         llvmAppendBasicBlock=\iLLVMAppendBasicBlock,
@@ -196,6 +197,8 @@ object llvm {
     shared LLVMValueRef addAlias(LLVMModuleRef ref, LLVMTypeRef ty,
             LLVMValueRef aliasee, String name)
         => llvmAddAlias(ref, ty, aliasee, name);
+    shared LLVMValueRef? getNamedGlobal(LLVMModuleRef ref, String name)
+        => llvmGetNamedGlobal(ref, name);
 
     shared LLVMBasicBlockRef appendBasicBlock(LLVMValueRef fn, String name)
         => llvmAppendBasicBlock(fn, name);
@@ -270,6 +273,15 @@ class LLVMModule satisfies Destroyable {
     shared LLVMGlobalValue<T> addGlobal<T>(T ty, String name)
             given T satisfies LLVMType
         => LLVMGlobalValue(ty, llvm.addGlobal(ref, ty.ref, name));
+
+    shared Ptr<T> lookupGlobal<T>(T ty, String name)
+            given T satisfies LLVMType {
+        if (exists globalRef = llvm.getNamedGlobal(ref, name)) {
+            return Ptr(ptr(ty), globalRef);
+        }
+
+        return Ptr(ptr(ty), llvm.addGlobal(ref, ty.ref, name));
+    }
 
     shared LLVMGlobalValue<T> addAlias<T>(LLVMValue<T> val, String name)
             given T satisfies LLVMType
