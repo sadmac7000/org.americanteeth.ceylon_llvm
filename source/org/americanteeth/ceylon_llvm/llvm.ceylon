@@ -56,6 +56,11 @@ import org.bytedeco.javacpp {
         llvmCreateBuilder=\iLLVMCreateBuilder,
         llvmPositionBuilder=\iLLVMPositionBuilder,
         llvmBuildPhi=\iLLVMBuildPhi,
+        llvmBuildRetVoid=\iLLVMBuildRetVoid,
+        llvmBuildRet=\iLLVMBuildRet,
+        llvmBuildBr=\iLLVMBuildBr,
+        llvmBuildCondBr=\iLLVMBuildCondBr,
+        llvmBuildUnreachable=\iLLVMBuildUnreachable,
 
         /* LLVMLinkage, */
         llvmPrivateLinkage=\iLLVMPrivateLinkage,
@@ -179,6 +184,20 @@ object llvmLibrary {
     shared LLVMValueRef buildPhi(LLVMBuilderRef builder, LLVMTypeRef ty,
             String name)
         => llvmBuildPhi(builder, ty, name);
+    shared void buildRet(LLVMBuilderRef builder, LLVMValueRef? ret) {
+        if (exists ret) {
+            llvmBuildRet(builder, ret);
+        } else {
+            llvmBuildRetVoid(builder);
+        }
+    }
+    shared void buildBr(LLVMBuilderRef builder, LLVMBasicBlockRef target)
+        => llvmBuildBr(builder, target);
+    shared void buildCondBr(LLVMBuilderRef builder, LLVMValueRef cond,
+            LLVMBasicBlockRef t, LLVMBasicBlockRef f)
+        => llvmBuildCondBr(builder, cond, t, f);
+    shared void buildUnreachable(LLVMBuilderRef builder)
+        => llvmBuildUnreachable(builder);
 
     shared void addIncoming(LLVMValueRef phi,
             [LLVMValueRef*] values,
