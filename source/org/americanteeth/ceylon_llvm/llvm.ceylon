@@ -25,6 +25,10 @@ import org.bytedeco.javacpp {
         llvmLabelType=\iLLVMLabelType,
         llvmArrayType=\iLLVMArrayType,
         llvmPrintTypeToString=\iLLVMPrintTypeToString,
+        llvmGetTypeKind=\iLLVMGetTypeKind,
+
+        /* LLVMTypeKind */
+        llvmPointerTypeKind=\iLLVMPointerTypeKind,
 
         LLVMValueRef,
         llvmConstInt=\iLLVMConstInt,
@@ -74,6 +78,32 @@ import org.bytedeco.javacpp {
 import ceylon.interop.java { createJavaObjectArray }
 import java.lang { ObjectArray }
 
+"Enum class to package LLVMTypeKind values"
+class LLVMTypeKind {
+    shared Integer val;
+
+    shared new pointerTypeKind {
+        val = llvmPointerTypeKind;
+    }
+
+    hash => val.hash;
+    equals(Object other)
+        => if (is LLVMTypeKind other)
+           then other.val == val
+           else false;
+}
+
+"Convert integers to LLVMTypeKind"
+LLVMTypeKind toTypeKind(Integer val) {
+    if (val == LLVMTypeKind.pointerTypeKind.val) {
+        return LLVMTypeKind.pointerTypeKind;
+    }
+
+    "No valid type kind found"
+    assert(false);
+}
+
+"Namespace object for LLVM library functions."
 object llvmLibrary {
     variable value initialized = false;
 
@@ -110,6 +140,8 @@ object llvmLibrary {
         => llvmArrayType(element, size);
     shared String printTypeToString(LLVMTypeRef ref)
         => llvmPrintTypeToString(ref).getString();
+    shared LLVMTypeKind getTypeKind(LLVMTypeRef ty)
+        => toTypeKind(llvmGetTypeKind(ty));
 
     shared String printModuleToString(LLVMModuleRef ref)
         => llvmPrintModuleToString(ref).getString();
