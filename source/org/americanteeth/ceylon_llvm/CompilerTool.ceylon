@@ -34,6 +34,7 @@ import org.eclipse.ceylon.common {
 
 import org.eclipse.ceylon.common.tool {
     argument,
+    option,
     optionArgument,
     description
 }
@@ -107,6 +108,12 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
     argument { argumentName = "moduleOrFile"; multiplicity = "*"; }
     assign moduleOrFile { moduleOrFile_ = moduleOrFile; }
 
+    variable Boolean showIR_ = false;
+    shared Boolean showIR => showIR_;
+
+    option { longName = "show-ir"; }
+    assign showIR { showIR_ = showIR; }
+
     variable String? triple_ = null;
     shared JString? triple => if (exists t = triple_)
         then javaString(t) else null;
@@ -166,6 +173,11 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
             try (bld = LLVMBuilder(phasedUnit.unit.fullPath, triple_,
                         mod.languageModule.rootPackage)) {
                 unit.visit(bld);
+
+                if (showIR) {
+                    print(bld);
+                }
+
                 bld.writeBitcodeFile(file);
             }
 
