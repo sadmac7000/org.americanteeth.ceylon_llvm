@@ -488,8 +488,9 @@ class LLVMFunction<out Ret, in Args>(
 
     "Jump to the given label."
     shared void jump(Label l) {
-        currentBlock.instruction("br ``l``");
+        "Jump target should exist."
         assert(exists b = findBlock(l));
+        llvm.buildBr(llvmBuilder, b.ref);
         currentBlock.terminate({b});
     }
 
