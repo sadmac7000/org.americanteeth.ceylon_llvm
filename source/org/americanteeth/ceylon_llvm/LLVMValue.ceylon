@@ -71,7 +71,7 @@ LLVMValue<ArrayType<T>> constArray<T>(T ty, [LLVMValue<T>*] elements)
 
 "Interface for global values"
 class LLVMGlobalValue<T>(T ty, LLVMValueRef r)
-        extends LLVMValue<T>(ty, r)
+        extends Ptr<T>(ptr(ty), r)
         given T satisfies LLVMType {
     "Whether this is a constant value"
     shared Boolean constant => llvm.isGlobalConstant(ref);
@@ -81,7 +81,7 @@ class LLVMGlobalValue<T>(T ty, LLVMValueRef r)
 
     "Initial value for this variable"
     shared LLVMValue<T> initializer
-        => LLVMValue(type, llvm.getInitializer(ref));
+        => LLVMValue(type.targetType, llvm.getInitializer(ref));
     assign initializer {
         llvm.setInitializer(ref, initializer.ref);
     }
@@ -96,5 +96,15 @@ class LLVMGlobalValue<T>(T ty, LLVMValueRef r)
     shared Integer alignment => llvm.getAlignment(ref);
     assign alignment {
         llvm.setAlignment(ref, alignment);
+    }
+
+    "Validate this global and return it."
+    shared LLVMGlobalValue<T> validated {
+        value gotType = llvm.typeOf(ref);
+
+        "LLVMGlobalValue's value should match its type."
+        assert(llvm.getElementType(gotType) == ty.ref);
+
+        return this;
     }
 }

@@ -206,7 +206,8 @@ shared class CompilerTool() extends OutputRepoUsingTool(null) {
                     m.target = t;
                 }
 
-                value model = m.addGlobal(ArrayType(i8, byteValues.size), "model");
+                value model = m.lookupGlobal(ArrayType(i8, byteValues.size),
+                        "model");
                 model.constant = true;
                 model.section = "ceylon.module";
                 model.alignment = 1;

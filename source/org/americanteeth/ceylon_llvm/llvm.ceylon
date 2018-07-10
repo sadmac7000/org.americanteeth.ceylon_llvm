@@ -270,23 +270,14 @@ class LLVMModule satisfies Destroyable {
     shared void writeBitcodeFile(String path)
         => llvm.writeBitcodeToFile(ref, path);
 
-    shared LLVMGlobalValue<T> addGlobal<T>(T ty, String name)
+    shared LLVMGlobalValue<T> lookupGlobal<T>(T ty, String name)
             given T satisfies LLVMType
-        => LLVMGlobalValue(ty, llvm.addGlobal(ref, ty.ref, name));
+        => LLVMGlobalValue(ty, llvm.getNamedGlobal(ref, name)
+                else llvm.addGlobal(ref, ty.ref, name)).validated;
 
-    shared Ptr<T> lookupGlobal<T>(T ty, String name)
-            given T satisfies LLVMType {
-        if (exists globalRef = llvm.getNamedGlobal(ref, name)) {
-            return Ptr(ptr(ty), globalRef);
-        }
-
-        return Ptr(ptr(ty), llvm.addGlobal(ref, ty.ref, name));
-    }
-
-    shared LLVMGlobalValue<T> addAlias<T>(LLVMValue<T> val, String name)
+    shared LLVMValue<T> addAlias<T>(LLVMValue<T> val, String name)
             given T satisfies LLVMType
-        => LLVMGlobalValue(val.type,
-                llvm.addAlias(ref, val.type.ref, val.ref, name));
+        => LLVMValue(val.type, llvm.addAlias(ref, val.type.ref, val.ref, name));
 
     shared LLVMValueRef refForFunction(String name, AnyLLVMFunctionType t) {
         if (exists old = llvm.getNamedFunction(ref, name)) {
