@@ -121,7 +121,9 @@ String resolverName(ClassModel|TypeDeclaration dec)
 String positionName(ClassModel model, InterfaceModel iface)
     => "``declarationName(model)``$position.``declarationName(iface)``";
 
+String contextName = ".context";
 String frameName = ".frame";
+String valueName = ".value";
 
 String memberName(ClassOrInterfaceModel model, String method)
     => "``declarationName(model)``.``method``";
