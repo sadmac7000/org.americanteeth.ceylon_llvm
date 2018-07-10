@@ -198,7 +198,7 @@ object llvmLibrary {
         => llvmGetLinkage(ref);
     shared String printValueToString(LLVMValueRef ref)
         => llvmPrintValueToString(ref).getString();
-    shared LLVMValueRef llvmAddAlias(LLVMModuleRef ref, LLVMTypeRef ty,
+    shared LLVMValueRef addAlias(LLVMModuleRef ref, LLVMTypeRef ty,
             LLVMValueRef aliasee, String name)
         => llvmAddAlias(ref, ty, aliasee, name);
 
@@ -278,7 +278,7 @@ class LLVMModule satisfies Destroyable {
     shared LLVMGlobalValue<T> addAlias<T>(LLVMValue<T> val, String name)
             given T satisfies LLVMType
         => LLVMGlobalValue(val.type,
-                llvmAddAlias(ref, val.type.ref, val.ref, name));
+                llvm.addAlias(ref, val.type.ref, val.ref, name));
 
     shared LLVMValueRef refForFunction(String name, AnyLLVMFunctionType t) {
         if (exists old = llvm.getNamedFunction(ref, name)) {
