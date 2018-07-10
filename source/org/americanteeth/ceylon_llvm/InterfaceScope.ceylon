@@ -17,7 +17,7 @@ class InterfaceScope(LLVMModule mod, InterfaceModel model,
         => if (exists c = d.container, c == model) then true else false;
 
     shared actual {LLVMDeclaration*} results {
-        value setup = LLVMFunction(llvmModule, setupName(model), null,
+        value setup = llvmFunction(llvmModule, setupName(model), null,
                 [ptr(i64)]);
         assert(is LLVMValue<PtrType<I64Type>> vtable = setup.arguments.first);
         value results = ArrayList<LLVMDeclaration>{setup};

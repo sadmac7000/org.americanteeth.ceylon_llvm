@@ -20,7 +20,7 @@ Integer constructorPriorityOffset = 65536;
 class ConstructorScope(LLVMModule mod, ClassModel model,
             Anything(Scope) destroyer)
         extends CallableScope(mod, model,
-                LLVMFunction(mod, initializerName(model), null,
+                llvmFunction(mod, initializerName(model), null,
                     constructorArgumentTypes(model)),
                 destroyer) {
     value parent = model.extendedType?.declaration;
@@ -50,7 +50,7 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
     "Our direct-call constructor that allocates the new object with malloc"
     LLVMDeclaration directConstructor() {
         value fullParameters = body.arguments.rest.collect((x) => x.type);
-        value directConstructor = LLVMFunction(llvmModule,
+        value directConstructor = llvmFunction(llvmModule,
                 declarationName(model), ptr(i64), fullParameters);
         value size = directConstructor.load(directConstructor.global(i64,
                 sizeName(model)));

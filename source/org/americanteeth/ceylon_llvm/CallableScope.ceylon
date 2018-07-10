@@ -96,7 +96,7 @@ class CallableScope(LLVMModule mod, DeclarationModel model,
 CallableScope makeGetterScope(LLVMModule mod, ValueModel model,
         Anything(Scope) destroyer)
     => CallableScope(mod, model,
-        LLVMFunction(mod, getterDispatchName(model), ptr(i64),
+        llvmFunction(mod, getterDispatchName(model), ptr(i64),
             if (!model.toplevel)
             then [ptr(i64)]
             else []),
@@ -106,7 +106,7 @@ CallableScope makeGetterScope(LLVMModule mod, ValueModel model,
 CallableScope makeSetterScope(LLVMModule mod, SetterModel model,
         Anything(Scope) destroyer)
     => CallableScope(mod, model,
-        LLVMFunction(mod, setterDispatchName(model), ptr(i64),
+        llvmFunction(mod, setterDispatchName(model), ptr(i64),
             if (!model.toplevel)
             then [ptr(i64), ptr(i64)]
             else [ptr(i64)]),
@@ -117,7 +117,7 @@ CallableScope makeSetterScope(LLVMModule mod, SetterModel model,
 LLVMFunction<PtrType<I64Type>,[PtrType<I64Type>*]>
     llvmFunctionForCeylonFunction(LLVMModule mod, FunctionModel model,
         String(FunctionModel) namer = declarationName)
-    => LLVMFunction(mod, namer(model), ptr(i64),
+    => llvmFunction(mod, namer(model), ptr(i64),
                 if (!model.toplevel)
                 then parameterListToLLVMTypes(model.firstParameterList)
                          .withLeading(ptr(i64))

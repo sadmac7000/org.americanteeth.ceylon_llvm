@@ -1,5 +1,8 @@
 import org.bytedeco.javacpp {
-    LLVM { LLVMValueRef }
+    LLVM {
+        LLVMValueRef,
+        LLVMBasicBlockRef
+    }
 }
 
 import ceylon.collection {
@@ -18,13 +21,24 @@ import ceylon.collection {
 }
 
 "An LLVM function declaration."
+LLVMFunction<Ret,Args> llvmFunction<out Ret, in Args>(
+    LLVMModule llvmModule,
+    String name,
+    Ret&LLVMType? returnType,
+    Args argumentTypes)
+        given Args satisfies [LLVMType*]
+    => LLVMFunction(llvmModule, name, returnType, argumentTypes,
+                    *funcArgs(llvmModule, returnType, name, argumentTypes));
+
+"Add an inheritance layer so we can intercept arguments."
 class LLVMFunction<out Ret, in Args>(
     shared LLVMModule llvmModule,
     shared actual String name,
     shared Ret&LLVMType? returnType,
-    Args argumentTypes)
-        extends Func<Ret,Args>(*funcArgs(llvmModule, returnType, name,
-                            argumentTypes))
+    Args argumentTypes,
+    FuncType<Ret,Args> ty,
+    LLVMValueRef funcRef)
+        extends Func<Ret,Args>(ty, funcRef)
         satisfies LLVMDeclaration
         given Args satisfies [LLVMType*] {
     "List of declarations"
@@ -78,6 +92,10 @@ class LLVMFunction<out Ret, in Args>(
 
     "An LLVM logical block."
     class Block() {
+        "Our LLVM lib reference for this block."
+        shared LLVMBasicBlockRef ref =
+            llvm.appendBasicBlock(funcRef, "l``nextTemporaryLabel++``");
+
         "The jump label at the start of this block."
         shared FuncLabel label = FuncLabel();
 

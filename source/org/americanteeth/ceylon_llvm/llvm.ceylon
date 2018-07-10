@@ -46,6 +46,9 @@ import org.bytedeco.javacpp {
         llvmPrintValueToString=\iLLVMPrintValueToString,
         llvmAddAlias=\iLLVMAddAlias,
 
+        LLVMBasicBlockRef,
+        llvmAppendBasicBlock=\iLLVMAppendBasicBlock,
+
         /* LLVMLinkage, */
         llvmPrivateLinkage=\iLLVMPrivateLinkage,
         llvmExternalLinkage=\iLLVMExternalLinkage,
@@ -152,6 +155,9 @@ object llvmLibrary {
             LLVMValueRef aliasee, String name)
         => llvmAddAlias(ref, ty, aliasee, name);
 
+    shared LLVMBasicBlockRef appendBasicBlock(LLVMValueRef fn, String name)
+        => llvmAppendBasicBlock(fn, name);
+
     shared void writeBitcodeToFile(LLVMModuleRef ref, String path)
         => llvmWriteBitcodeToFile(ref, path);
 }
@@ -200,4 +206,3 @@ class LLVMModule satisfies Destroyable {
     llvmLibrary.initialize();
     return llvmLibrary;
 }
-

@@ -66,9 +66,9 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
 [AnyLLVMFunction, AnyLLVMFunction, LLVMGlobal<I64Type>*] vtSetupFunction(
         LLVMModule mod, ClassModel model) {
     value parent = model.extendedType?.declaration;
-    value ret = LLVMFunction(mod, setupName(model), null, []);
+    value ret = llvmFunction(mod, setupName(model), null, []);
     value interfaceResolver =
-        LLVMFunction(mod, resolverName(model), i64, [ptr(i64)]);
+        llvmFunction(mod, resolverName(model), i64, [ptr(i64)]);
     value originalSatisfiers = getOriginalSatisfiers(model);
     value ifacePositions = HashMap<InterfaceModel,I64>();
     value ifacePositionStorage = ArrayList<LLVMGlobal<I64Type>>();
@@ -269,14 +269,14 @@ AnyLLVMFunction vtDispatchFunction(LLVMModule mod, FunctionModel model) {
 }
 
 AnyLLVMFunction vtDispatchGetter(LLVMModule mod, ValueModel model) {
-    value func = LLVMFunction(mod, getterName(model), ptr(i64),
+    value func = llvmFunction(mod, getterName(model), ptr(i64),
                 if (!model.toplevel) then [ptr(i64)] else []);
     vtDispatch(model, func, 0);
     return func;
 }
 
 AnyLLVMFunction vtDispatchSetter(LLVMModule mod, ValueModel model) {
-    value func = LLVMFunction(mod, setterName(model), ptr(i64),
+    value func = llvmFunction(mod, setterName(model), ptr(i64),
                 if (!model.toplevel)
                 then [ptr(i64), ptr(i64)]
                 else [ptr(i64)]);
