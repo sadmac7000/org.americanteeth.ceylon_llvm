@@ -88,7 +88,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
         value vtParentSizeBytes = ret.mul(vtParentSize, 8);
         if (exists parent) {
             value parentVtable = ret.loadGlobal(ptr(i64), vtableName(parent));
-            ret.callVoid("llvm.memcpy.p0i64.p0i64.i64", vtable,
+            ret.call(null, "llvm.memcpy.p0i64.p0i64.i64", vtable,
                     parentVtable, vtParentSizeBytes, I32Lit(8), I1Lit(0));
         }
         return vtable;
@@ -128,7 +128,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
                 resolverName(parent), ifaceTarget);
         interfaceResolver.ret(parentInterfaceResolution);
     } else {
-        interfaceResolver.callVoid("abort");
+        interfaceResolver.call(null, "abort");
         interfaceResolver.unreachable();
     }
 
@@ -149,7 +149,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
 
     for (iface->pos in ifacePositions) {
         value ifaceVtable = ret.offset(vtable, pos);
-        ret.callVoid(setupName(iface), ifaceVtable);
+        ret.call(null, setupName(iface), ifaceVtable);
     }
 
     "Resolve the VT position of an interface."
@@ -157,7 +157,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
         /* We use the load address of the vtable size to identify the
          * interface. */
         value targetVt = ret.global(i64, vtSizeName(container));
-        value result = ret.call(i64, resolverName(model), targetVt);
+        value result = ret.callPtr(interfaceResolver, targetVt);
 
         ifacePositions.put(container, result);
         return result;
@@ -245,8 +245,8 @@ void vtDispatch(FunctionOrValueModel model, AnyLLVMFunction func, Integer select
                     interfaceResolverPosition), interfaceResolverType);
         value location =
             func.global(i64, vtSizeName(container));
-        assert(exists correction = func.callPtr(resolver, location));
-        correctedPosition = func.add(vtPosition, correction);
+        correctedPosition = func.add(vtPosition,
+                func.callPtr(resolver, location));
     } else {
         correctedPosition = vtPosition;
     }

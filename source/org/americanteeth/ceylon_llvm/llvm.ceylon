@@ -51,6 +51,7 @@ import org.bytedeco.javacpp {
         llvmPrintValueToString=\iLLVMPrintValueToString,
         llvmAddAlias=\iLLVMAddAlias,
         llvmGetNamedGlobal=\iLLVMGetNamedGlobal,
+        llvmSetTailCall=\iLLVMSetTailCall,
 
         LLVMBasicBlockRef,
         llvmAppendBasicBlock=\iLLVMAppendBasicBlock,
@@ -230,6 +231,8 @@ object llvm {
         => llvmAddAlias(ref, ty, aliasee, name);
     shared LLVMValueRef? getNamedGlobal(LLVMModuleRef ref, String name)
         => llvmGetNamedGlobal(ref, name);
+    shared void setTailCall(LLVMValueRef ref, Boolean isit)
+        => llvmSetTailCall(ref, isit then 1 else 0);
 
     shared LLVMBasicBlockRef appendBasicBlock(LLVMValueRef fn, String name)
         => llvmAppendBasicBlock(fn, name);
@@ -294,6 +297,9 @@ object llvm {
     shared LLVMValueRef buildSelect(LLVMBuilderRef builder, LLVMValueRef cond,
             LLVMValueRef t, LLVMValueRef f, String name)
         => llvmBuildSelect(builder, cond, t, f, name);
+    shared LLVMValueRef buildCall(LLVMBuilderRef builder, LLVMValueRef fn,
+            [LLVMValueRef*] args, String name)
+        => LLVM.buildCall(builder, fn, createJavaObjectArray(args), name);
 
     shared void addIncoming(LLVMValueRef phi,
             [LLVMValueRef*] values,

@@ -42,4 +42,10 @@ class LLVM {
     return LLVMBuildGEP(builder, ptr, new PointerPointer(indices),
         indices.length, name);
   }
+
+  public static LLVMValueRef buildCall(LLVMBuilderRef builder, LLVMValueRef fn,
+      LLVMValueRef[] args, String name) {
+    return LLVMBuildCall(builder, fn, new PointerPointer(args), args.length,
+        name);
+  }
 }

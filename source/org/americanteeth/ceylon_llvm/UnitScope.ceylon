@@ -55,9 +55,10 @@ class UnitScope(LLVMModule mod)
         mutators.add(getterFor(declaration));
 
         if (declaration.\ivariable) {
-            mutators.add(setterFor(declaration));
+            value setter = setterFor(declaration);
+            mutators.add(setter);
             if (exists startValue) {
-                body.call(ptr(i64), setterName(declaration), startValue);
+                body.callPtr(setter, startValue);
             }
         } else if (exists startValue){
             body.storeGlobal(declarationName(declaration), startValue);

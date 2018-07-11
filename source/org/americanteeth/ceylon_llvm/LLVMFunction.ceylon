@@ -288,60 +288,38 @@ class LLVMFunction<out Ret, in Args>(
         => llvmModule.lookupGlobal(t, name);
 
     "Emit a call instruction for a function pointer"
-    LLVMValue<R>? doCallPtr<R>(Boolean tail, Ptr<FuncType<R,Nothing>> func,
-        AnyLLVMValue* args) {
-        value argList = ", ".join(args);
-        value retType = func.type.targetType.returnType;
-        value ret = retType?.string else "void";
-        value tailString =
-            if (tail)
-            then "tail "
-            else "";
-        value reg =
-            if (exists retType)
-            then register(retType)
-            else null;
-        value assignment =
-            if (exists reg)
-            then "``reg`` = "
-            else "";
+    LLVMValue<R>|<R&Null> doCallPtr<R>(Boolean tail,
+            Ptr<FuncType<R,Nothing>> func, AnyLLVMValue* args) {
+        value call = llvm.buildCall(llvmBuilder, func.ref,
+                args.collect((x) => x.ref), tempName());
 
-        currentBlock.instruction(
-            "``assignment````tailString``call ``ret`` \
-             ``func``(``argList``)");
-        return reg;
+        if (tail) {
+            llvm.setTailCall(call, true);
+        }
+
+        if (exists r = func.type.targetType.returnType) {
+            return LLVMValue(r, call);
+        }
+
+        assert(is R&Null n = null);
+        return n;
     }
 
     "Emit a call instruction for a function pointer"
-    shared LLVMValue<R>? callPtr<R>(Ptr<FuncType<R,Nothing>> func,
-        AnyLLVMValue* args)
+    shared LLVMValue<R>|<R&Null> callPtr<R>(Ptr<FuncType<R,Nothing>> func,
+            AnyLLVMValue* args)
         => doCallPtr(false, func, *args);
 
     "Emit a call instruction for a function pointer"
     shared void tailCallPtr(Ptr<AnyLLVMFunctionType> func, AnyLLVMValue* args)
         => ret(doCallPtr(true, func, *args));
 
-    "Emit a call instruction returning void"
-    shared void callVoid(String name, AnyLLVMValue* args) {
-        value argList = ", ".join(args);
-
-        currentBlock.instruction("call void @``name``(``argList``)");
-        declaration(name, FuncType(null, args.collect((x) => x.type)));
-    }
-
     "Emit a call instruction"
-    shared LLVMValue<T> call<T>(T type, String name, AnyLLVMValue* args)
-            given T satisfies LLVMType {
-        value argList = ", ".join(args);
-
-        value result = register(type);
-
-        currentBlock.instruction("``result`` = \
-                                  call ``type`` @``name``(``argList``)");
-        declaration(name, FuncType(type, args.collect((x) => x.type)));
-
-        return result;
-    }
+    shared LLVMValue<T>|<T&Null> call<T>(T&LLVMType? type, String name,
+                AnyLLVMValue* args)
+        => callPtr(llvmModule.lookupGlobal(
+                    FuncType(type, args.collect((x) => x.type)), name),
+                *args);
 
     "Add a return statement to this block"
     shared void ret<T>(LLVMValue<T>? val) given T satisfies LLVMType {

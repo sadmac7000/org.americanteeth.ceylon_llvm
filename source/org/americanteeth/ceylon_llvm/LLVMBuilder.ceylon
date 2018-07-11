@@ -30,6 +30,8 @@ class LLVMBuilder(String module_name,
     "The LLVM Module we will build our code in"
     shared actual LLVMModule llvmModule = LLVMModule.withName(module_name);
 
+    value abort = llvmModule.lookupGlobal(FuncType(null, []), "abort");
+
     if (exists target) {
         llvmModule.target = target;
     }
@@ -268,7 +270,8 @@ class LLVMBuilder(String module_name,
         }
 
         assert(exists frame = scope.body.getMarked(ptr(i64), frameName));
-        scope.body.callVoid(initializerName(te.declaration), frame, *arguments);
+        scope.body.call(null, initializerName(te.declaration), frame,
+                *arguments);
     }
 
     shared actual void visitLazySpecifier(LazySpecifier that)
@@ -420,7 +423,7 @@ class LLVMBuilder(String module_name,
 
     shared actual void visitThrow(Throw that) {
         /* TODO: Support exception handling */
-        scope.body.callVoid("abort");
+        scope.body.callPtr(abort);
         scope.body.unreachable();
     }
 
@@ -434,7 +437,7 @@ class LLVMBuilder(String module_name,
         scope.body.block = falseBlock;
 
         /* TODO: Throw an exception when we have those */
-        scope.body.callVoid("abort");
+        scope.body.callPtr(abort);
         scope.body.unreachable();
 
         scope.body.block = trueBlock;

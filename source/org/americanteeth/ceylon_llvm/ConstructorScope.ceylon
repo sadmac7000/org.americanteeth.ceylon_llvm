@@ -100,7 +100,7 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
                     vtableName(model))));
         directConstructor.store(frame, vt, I64Lit(1));
 
-        directConstructor.callVoid(initializerName(model), *body.arguments);
+        directConstructor.callPtr(body, *body.arguments);
 
         directConstructor.ret(frame);
 
