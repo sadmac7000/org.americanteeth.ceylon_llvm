@@ -3,7 +3,8 @@ import org.eclipse.ceylon.model.typechecker.model {
 }
 
 import ceylon.interop.java {
-    CeylonIterable
+    CeylonIterable,
+    CeylonList
 }
 
 "Floor value for constructor function priorities. We use this just to be well
@@ -24,7 +25,8 @@ AnyLLVMFunction constructorBodyFunc(LLVMModule mod, ClassModel model) {
 
     }
 
-    value ret = llvmFunction(mod, initializerName(model), null, types);
+    value ret = llvmFunction(mod, initializerName(model), null,
+            types.append(parameterListToLLVMTypes(model.parameterList)));
 
     assert(exists frame = ret.arguments[frameIdx]);
     ret.mark(frameName, frame);
@@ -32,6 +34,20 @@ AnyLLVMFunction constructorBodyFunc(LLVMModule mod, ClassModel model) {
     if (frameIdx == 1){
         assert(exists context = ret.arguments[0]);
         ret.mark(contextName, context);
+    }
+
+    [String*] names;
+
+    if (exists p = model.parameterList) {
+        names = CeylonList(p.parameters).collect((x) => x.name);
+    } else {
+        return ret;
+    }
+
+
+    for ([name, arg] in zipPairs(names,
+                ret.arguments.sublistFrom(frameIdx + 1))) {
+        ret.mark(name, arg);
     }
 
     return ret;

@@ -7,6 +7,10 @@ import org.eclipse.ceylon.model.typechecker.model {
     ClassOrInterfaceModel=ClassOrInterface
 }
 
+import ceylon.interop.java {
+    CeylonList
+}
+
 class CallableScope(LLVMModule mod, DeclarationModel model,
         AnyLLVMFunction bodyFunc, Anything(Scope) destroyer)
         extends Scope(mod, bodyFunc, destroyer) {
@@ -104,24 +108,48 @@ CallableScope makeGetterScope(LLVMModule mod, ValueModel model,
 
 "Scope of a setter method"
 CallableScope makeSetterScope(LLVMModule mod, SetterModel model,
-        Anything(Scope) destroyer)
-    => CallableScope(mod, model,
-        llvmFunction(mod, setterDispatchName(model), ptr(i64),
+        Anything(Scope) destroyer) {
+    value func = llvmFunction(mod, setterDispatchName(model), ptr(i64),
             if (!model.toplevel)
             then [ptr(i64), ptr(i64)]
-            else [ptr(i64)]),
-        destroyer);
+            else [ptr(i64)]);
+
+    assert(exists reg = func.arguments.last);
+    func.mark(model.parameter.name, reg);
+    return CallableScope(mod, model, func, destroyer);
+}
 
 "Construct an LLVM function with the approprate signature for a given Ceylon
  function."
 LLVMFunction<PtrType<I64Type>,[PtrType<I64Type>*]>
     llvmFunctionForCeylonFunction(LLVMModule mod, FunctionModel model,
-        String(FunctionModel) namer = declarationName)
-    => llvmFunction(mod, namer(model), ptr(i64),
-                if (!model.toplevel)
-                then parameterListToLLVMTypes(model.firstParameterList)
-                         .withLeading(ptr(i64))
-                else parameterListToLLVMTypes(model.firstParameterList));
+        String(FunctionModel) namer = declarationName) {
+    value ret = llvmFunction(mod, namer(model), ptr(i64),
+            if (!model.toplevel)
+            then parameterListToLLVMTypes(model.firstParameterList)
+                    .withLeading(ptr(i64))
+            else parameterListToLLVMTypes(model.firstParameterList));
+
+    value args = ret.arguments;
+    value names = CeylonList(model.firstParameterList.parameters)
+        .collect((x) => x.name);
+
+    [AnyLLVMValue*] mapArgs;
+
+    if (args.size == names.size) {
+        mapArgs = args;
+    } else {
+        mapArgs = args.rest;
+        assert(exists ctx = args.first);
+        ret.mark(contextName, ctx);
+    }
+
+    for ([name, arg] in zipPairs(names, mapArgs)) {
+        ret.mark(name, arg);
+    }
+
+    return ret;
+}
 
 "The scope of a function"
 CallableScope makeFunctionScope(LLVMModule mod, FunctionModel model,

@@ -204,8 +204,9 @@ class LLVMBuilder(String module_name,
         value parameter = model.parameter;
 
         try(setterScope(model)) {
-            value reg = scope.body.register(ptr(i64));
-            scope.body.mark(parameter.name, reg);
+            "Setter scope should have a parameter argument"
+            assert(exists reg = scope.body.getMarked(ptr(i64),
+                        model.parameter.name));
             scope.allocate(parameter.model, reg);
             that.definition.visit(this);
         }
@@ -244,8 +245,8 @@ class LLVMBuilder(String module_name,
         try (constructorScope(tc.declarationModel)) {
             if (exists parameterList = model.parameterList) {
                 for (parameter in CeylonList(parameterList.parameters)) {
-                    value reg = scope.body.register(ptr(i64));
-                    scope.body.mark(parameter.name, reg);
+                    assert(exists reg = scope.body.getMarked(ptr(i64),
+                                parameter.name));
                     scope.allocate(parameter.model, reg);
                 }
             }
@@ -325,8 +326,8 @@ class LLVMBuilder(String module_name,
 
         try (functionScope(tc.declarationModel)) {
             for (parameter in CeylonList(firstParameterList.parameters)) {
-                value reg = scope.body.register(ptr(i64));
-                scope.body.mark(parameter.name, reg);
+                assert(exists reg = scope.body.getMarked(ptr(i64),
+                            parameter.name));
                 scope.allocate(parameter.model, reg);
             }
 
