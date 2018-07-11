@@ -69,6 +69,12 @@ import org.bytedeco.javacpp {
         llvmBuildUnreachable=\iLLVMBuildUnreachable,
         llvmBuildLoad=\iLLVMBuildLoad,
         llvmBuildStore=\iLLVMBuildStore,
+        llvmBuildOr=\iLLVMBuildOr,
+        llvmBuildAdd=\iLLVMBuildAdd,
+        llvmBuildMul=\iLLVMBuildMul,
+        llvmBuildIntToPtr=\iLLVMBuildIntToPtr,
+        llvmBuildPtrToInt=\iLLVMBuildPtrToInt,
+        llvmBuildBitCast=\iLLVMBuildBitCast,
 
         /* LLVMLinkage, */
         llvmPrivateLinkage=\iLLVMPrivateLinkage,
@@ -236,6 +242,27 @@ object llvm {
     shared void buildStore(LLVMBuilderRef builder, LLVMValueRef val,
             LLVMValueRef ptr)
         => llvmBuildStore(builder, val, ptr);
+    shared LLVMValueRef buildOr(LLVMBuilderRef builder, LLVMValueRef a,
+            LLVMValueRef b, String name)
+        => llvmBuildOr(builder, a, b, name);
+    shared LLVMValueRef buildAdd(LLVMBuilderRef builder, LLVMValueRef a,
+            LLVMValueRef b, String name)
+        => llvmBuildAdd(builder, a, b, name);
+    shared LLVMValueRef buildMul(LLVMBuilderRef builder, LLVMValueRef a,
+            LLVMValueRef b, String name)
+        => llvmBuildMul(builder, a, b, name);
+    shared LLVMValueRef buildGEP(LLVMBuilderRef builder, LLVMValueRef ptr,
+            [LLVMValueRef+] indices, String name)
+        => LLVM.buildGEP(builder, ptr, createJavaObjectArray(indices), name);
+    shared LLVMValueRef buildIntToPtr(LLVMBuilderRef builder, LLVMValueRef val,
+            LLVMTypeRef ty, String name)
+        => llvmBuildIntToPtr(builder, val, ty, name);
+    shared LLVMValueRef buildPtrToInt(LLVMBuilderRef builder, LLVMValueRef val,
+            LLVMTypeRef ty, String name)
+        => llvmBuildPtrToInt(builder, val, ty, name);
+    shared LLVMValueRef buildBitCast(LLVMBuilderRef builder, LLVMValueRef val,
+            LLVMTypeRef ty, String name)
+        => llvmBuildBitCast(builder, val, ty, name);
 
     shared void addIncoming(LLVMValueRef phi,
             [LLVMValueRef*] values,

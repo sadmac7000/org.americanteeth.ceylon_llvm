@@ -351,11 +351,8 @@ class LLVMFunction<out Ret, in Args>(
 
     "Add a bitwise or instruction."
     shared LLVMValue<T> or<T>(T type, LLVMValue<T> a, LLVMValue<T> b)
-            given T satisfies LLVMType {
-        value ret = register(type);
-        currentBlock.instruction("``ret`` = or ``a``, ``b``");
-        return ret;
-    }
+            given T satisfies LLVMType
+        => LLVMValue(type, llvm.buildOr(llvmBuilder, a.ref, b.ref, tempName()));
 
     "Add an 'unreachable' instruction."
     shared void unreachable() {
@@ -363,35 +360,24 @@ class LLVMFunction<out Ret, in Args>(
         currentBlock.terminate({});
     }
 
-    "Add an integer operation instruction to this block"
-    I64 intOp(String op, I64|Integer a, I64|Integer b) {
-        value ret = register(i64);
-        currentBlock.instruction("``ret`` = ``op`` ``a``, ``b``");
-        return ret;
-    }
+    LLVMValueRef asI64Ref(I64|Integer val)
+        => if (is Integer val) then I64Lit(val).ref else val.ref;
 
     "Add an add instruction to this block"
-    shared I64 add(I64|Integer a, I64|Integer b) => intOp("add", a, b);
+    shared I64 add(I64|Integer a, I64|Integer b)
+        => LLVMValue(i64, llvm.buildAdd(llvmBuilder,
+                    asI64Ref(a), asI64Ref(b), tempName()));
 
     "Add a mul instruction to this block"
-    shared I64 mul(I64|Integer a, I64|Integer b) => intOp("mul", a, b);
+    shared I64 mul(I64|Integer a, I64|Integer b)
+        => LLVMValue(i64, llvm.buildMul(llvmBuilder,
+                    asI64Ref(a), asI64Ref(b), tempName()));
 
     "Offset a pointer"
     shared Ptr<T> offset<T>(Ptr<T> ptr, I64 amount)
-            given T satisfies LLVMType {
-        value result = register(ptr.type);
-
-        if (llvmVersion[1] < 7) {
-            currentBlock.instruction(
-                "``result`` = getelementptr ``ptr``, ``amount``");
-        } else {
-            currentBlock.instruction(
-                "``result`` = getelementptr ``ptr.type.targetType``, \
-                 ``ptr``, ``amount``");
-        }
-
-        return result;
-    }
+            given T satisfies LLVMType
+        => LLVMValue(ptr.type, llvm.buildGEP(llvmBuilder, ptr.ref, [amount.ref],
+                    tempName()));
 
     "Load from a pointer"
     shared LLVMValue<T> load<T>(Ptr<T> ptr, I64? off = null)
@@ -423,20 +409,14 @@ class LLVMFunction<out Ret, in Args>(
 
     "Cast an I64 to a Ptr<I64>"
     shared Ptr<T> toPtr<T>(I64 p, T t)
-            given T satisfies LLVMType {
-        value result = register(ptr(t));
-        currentBlock.instruction("``result`` = inttoptr ``p`` \
-                                  to ``result.type``");
-        return result;
-    }
+            given T satisfies LLVMType
+        => LLVMValue(ptr(t), llvm.buildIntToPtr(llvmBuilder, p.ref, ptr(t).ref,
+                    tempName()));
 
     "Cast a Ptr<I64> to an I64"
-    shared I64 toI64<T>(Ptr<T> ptr) given T satisfies LLVMType {
-        value result = register(i64);
-        currentBlock.instruction("``result`` = ptrtoint ``ptr`` \
-                                  to ``result.type``");
-        return result;
-    }
+    shared I64 toI64<T>(Ptr<T> p) given T satisfies LLVMType
+        => LLVMValue(i64, llvm.buildPtrToInt(llvmBuilder, p.ref, i64.ref,
+                    tempName()));
 
     "Compare two values and see if they are equal."
     shared I1 compareEq<T>(T a, T b)
@@ -485,11 +465,9 @@ class LLVMFunction<out Ret, in Args>(
 
     "LLVM bitcast cast"
     shared LLVMValue<T> bitcast<T>(AnyLLVMValue v, T t)
-            given T satisfies LLVMType {
-        value result = register(t);
-        currentBlock.instruction("``result`` = bitcast ``v`` to ``t``");
-        return result;
-    }
+            given T satisfies LLVMType
+        => LLVMValue(t, llvm.buildBitCast(llvmBuilder, v.ref, t.ref,
+                    tempName()));
 
     "Private linkage"
     shared Boolean private => llvm.getLinkage(ref) == llvm.privateLinkage;

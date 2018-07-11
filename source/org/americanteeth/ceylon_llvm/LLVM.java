@@ -36,4 +36,10 @@ class LLVM {
     LLVMAddIncoming(phi, new PointerPointer(values),
         new PointerPointer(blocks), blocks.length);
   }
+
+  public static LLVMValueRef buildGEP(LLVMBuilderRef builder, LLVMValueRef ptr,
+      LLVMValueRef[] indices, String name) {
+    return LLVMBuildGEP(builder, ptr, new PointerPointer(indices),
+        indices.length, name);
+  }
 }
