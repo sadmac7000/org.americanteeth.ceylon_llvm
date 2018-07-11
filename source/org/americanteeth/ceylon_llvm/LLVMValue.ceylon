@@ -5,6 +5,12 @@ import org.bytedeco.javacpp {
 "An LLVM typed value"
 class LLVMValue<out T>(shared T type, shared LLVMValueRef ref)
         given T satisfies LLVMType {
+    /* I have performance misgivings about this? I'm treating JNI calls as
+     * expensive mentally. It's probably fine.
+     */
+    "LLVMValue should get type object that matches its value ref"
+    assert(type.ref == llvm.typeOf(ref));
+
     string => llvm.printValueToString(ref);
     hash => string.hash;
 
