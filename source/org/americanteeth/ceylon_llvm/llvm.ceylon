@@ -75,6 +75,12 @@ import org.bytedeco.javacpp {
         llvmBuildIntToPtr=\iLLVMBuildIntToPtr,
         llvmBuildPtrToInt=\iLLVMBuildPtrToInt,
         llvmBuildBitCast=\iLLVMBuildBitCast,
+        llvmBuildICmp=\iLLVMBuildICmp,
+        llvmBuildSelect=\iLLVMBuildSelect,
+
+        /* LLVMIntPredicate */
+        llvmIntEQ=\iLLVMIntEQ,
+        llvmIntNE=\iLLVMIntNE,
 
         /* LLVMLinkage, */
         llvmPrivateLinkage=\iLLVMPrivateLinkage,
@@ -109,6 +115,25 @@ LLVMTypeKind toTypeKind(Integer val) {
 
     "No valid type kind found"
     assert(false);
+}
+
+"Enum Class to packate LLVMIntPredicate values"
+class LLVMIntPredicate {
+    shared Integer val;
+
+    shared new intEQ {
+        val = llvmIntEQ;
+    }
+
+    shared new intNE {
+        val = llvmIntEQ;
+    }
+
+    hash => val.hash;
+    equals(Object other)
+        => if (is LLVMIntPredicate other)
+           then other.val == val
+           else false;
 }
 
 "Namespace object for LLVM library functions."
@@ -263,6 +288,12 @@ object llvm {
     shared LLVMValueRef buildBitCast(LLVMBuilderRef builder, LLVMValueRef val,
             LLVMTypeRef ty, String name)
         => llvmBuildBitCast(builder, val, ty, name);
+    shared LLVMValueRef buildICmp(LLVMBuilderRef builder, LLVMIntPredicate op,
+            LLVMValueRef a, LLVMValueRef b, String name)
+        => llvmBuildICmp(builder, op.val, a, b, name);
+    shared LLVMValueRef buildSelect(LLVMBuilderRef builder, LLVMValueRef cond,
+            LLVMValueRef t, LLVMValueRef f, String name)
+        => llvmBuildSelect(builder, cond, t, f, name);
 
     shared void addIncoming(LLVMValueRef phi,
             [LLVMValueRef*] values,

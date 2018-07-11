@@ -420,28 +420,22 @@ class LLVMFunction<out Ret, in Args>(
 
     "Compare two values and see if they are equal."
     shared I1 compareEq<T>(T a, T b)
-            given T satisfies AnyLLVMValue {
-        value result = register(i1);
-        currentBlock.instruction("``result`` = icmp eq ``a``, ``b``");
-        return result;
-    }
+            given T satisfies AnyLLVMValue
+        => LLVMValue(i1, llvm.buildICmp(llvmBuilder, LLVMIntPredicate.intEQ,
+                    a.ref, b.ref, tempName()));
 
     "Compare two values and see if they are not equal."
     shared I1 compareNE<T>(T a, T b)
-            given T satisfies AnyLLVMValue {
-        value result = register(i1);
-        currentBlock.instruction("``result`` = icmp ne ``a``, ``b``");
-        return result;
-    }
+            given T satisfies AnyLLVMValue
+        => LLVMValue(i1, llvm.buildICmp(llvmBuilder, LLVMIntPredicate.intNE,
+                    a.ref, b.ref, tempName()));
 
+    "Return one of two values based on a truth value"
     shared LLVMValue<T> select<T>(I1 selector, T type,
             LLVMValue<T> a, LLVMValue<T> b)
-            given T satisfies LLVMType {
-        value result = register(type);
-        currentBlock.instruction("`` result`` = \
-                                  select ``selector``, ``a``, ``b``");
-        return result;
-    }
+            given T satisfies LLVMType
+        => LLVMValue(type, llvm.buildSelect(llvmBuilder, selector.ref,
+                    a.ref, b.ref, tempName()));
 
     "Jump to the given label."
     shared void jump(Label l) {
