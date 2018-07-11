@@ -38,7 +38,7 @@ class LLVMFunction<out Ret, in Args>(
     Args argumentTypes,
     FuncType<Ret,Args> ty,
     LLVMValueRef funcRef)
-        extends Func<Ret,Args>(ty, funcRef)
+        extends Ptr<FuncType<Ret,Args>>(ptr(ty), funcRef)
         satisfies LLVMDeclaration
         given Args satisfies [LLVMType*] {
     "List of declarations"
