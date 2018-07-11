@@ -13,9 +13,10 @@ abstract class LLVMType(shared LLVMTypeRef ref) {
     shared default LLVMValue<LLVMType> instance(LLVMValueRef ref)
         => LLVMValue<LLVMType>(this, ref);
 
-    shared actual Boolean equals(Object other) {
-        return other is LLVMType && other.string==string;
-    }
+    shared actual Boolean equals(Object other)
+        => if (is LLVMType other)
+           then other.ref==ref
+           else false;
 }
 
 "An LLVM Pointer type"
