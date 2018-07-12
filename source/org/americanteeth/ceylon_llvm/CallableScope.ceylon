@@ -14,6 +14,9 @@ import ceylon.interop.java {
 class CallableScope(LLVMModule mod, DeclarationModel model,
         AnyLLVMFunction bodyFunc, Anything(Scope) destroyer)
         extends Scope(mod, bodyFunc, destroyer) {
+    value frame = bodyFunc.call(ptr(i64), "malloc", I64Lit(0));
+    bodyFunc.mark(frameName, frame);
+
     shared actual Boolean owns(DeclarationModel d)
         => if (exists c = containingDeclaration(d), c == model)
             then true
@@ -67,31 +70,28 @@ class CallableScope(LLVMModule mod, DeclarationModel model,
     "Add instructions to initialize the frame object"
     shared actual default void initFrame() {
         value block = body.block;
-        value entryPoint = body.entryPoint;
+        body.beginPrepending();
 
-        body.block = body.newBlock();
-
-        value totalBlocks =
-            if (!model.toplevel)
-            then allocatedBlocks + 1
-            else allocatedBlocks;
+        value totalBlocks = if (!model.toplevel)
+                            then allocatedBlocks + 1
+                            else allocatedBlocks;
 
         if (totalBlocks == 0) {
-            body.mark(frameName, body.bitcast(llvmNull, ptr(i64)));
+            body.replaceMark(frameName, body.bitcast(llvmNull, ptr(i64)));
         } else {
-            body.mark(frameName, body.call(ptr(i64), "malloc",
-                    I64Lit(totalBlocks * 8)));
+            value entryBlock = body.block;
+            value newFrame =
+                body.call(ptr(i64), "malloc", I64Lit(totalBlocks * 8));
+            body.replaceMark(frameName, newFrame);
 
             assert(is Ptr<I64Type> context = body.arguments.first);
+            body.moveCursor(entryBlock, 1);
 
             if (!model.toplevel) {
-                assert(exists frame = body.getMarked(ptr(i64), frameName));
-                body.store(frame, body.toI64(context));
+                body.store(newFrame, body.toI64(context));
             }
         }
 
-        body.jump(entryPoint);
-        body.entryPoint = body.block;
         body.block = block;
     }
 }

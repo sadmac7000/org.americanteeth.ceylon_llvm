@@ -41,12 +41,6 @@ class LLVMFunction<out Ret, in Args>(
         extends Ptr<FuncType<Ret,Args>>(ptr(ty), funcRef)
         satisfies LLVMDeclaration
         given Args satisfies [LLVMType*] {
-    "List of declarations"
-    value declarationList = HashMap<String,LLVMType>();
-
-    "Public list of declarations"
-    shared actual {<String->LLVMType>*} declarationsNeeded => declarationList;
-
     "Full LLVM type of this function"
     shared AnyLLVMFunctionType llvmType = FuncType(returnType, argumentTypes);
 
@@ -68,12 +62,6 @@ class LLVMFunction<out Ret, in Args>(
     shared void makeConstructor(Integer priority)
             => constructorPriority_ = priority;
 
-    "A default return statement, in case none is provided."
-    value stubReturn =
-        if (exists returnType)
-        then "ret ``returnType`` null"
-        else "ret void";
-
     "Counter for auto-generated names"
     variable value nextTemporary = 0;
 
@@ -83,11 +71,7 @@ class LLVMFunction<out Ret, in Args>(
     "List of marks in this function."
     value marks = HashSet<Object>();
 
-    "Get a register for a given type"
-    shared LLVMValue<T> register<T>(T type)
-            given T satisfies LLVMType
-            => LLVMValue(type, llvm.undef(type.ref));
-
+    /* TODO: call dispose on this eventually */
     "Our LLVM Instruction builder"
     value llvmBuilder = llvm.createBuilder();
 
@@ -100,9 +84,6 @@ class LLVMFunction<out Ret, in Args>(
         "The jump label at the start of this block."
         shared Label label = Label(labelType, llvm.basicBlockAsValue(ref));
 
-        "List of instructions."
-        value instructions_ = ArrayList<String>();
-
         "Marked values."
         value marks = HashMap<Object,AnyLLVMValue>();
 
@@ -111,6 +92,14 @@ class LLVMFunction<out Ret, in Args>(
 
         "Phi'd values."
         value phis = HashMap<Object,AnyLLVMValue>();
+
+        "If the given key is marking the value `old` point it to `val`"
+        shared void replaceMark(Object key, AnyLLVMValue old,
+                AnyLLVMValue val) {
+            if (exists m = marks[key], m == old) {
+                marks[key] = val;
+            }
+        }
 
         "Mark that another block jumps to this block."
         shared void addPredecessor(AnyLLVMFunction.Block predecessor) {
@@ -130,21 +119,11 @@ class LLVMFunction<out Ret, in Args>(
         "Whether we've had a terminating instruction yet"
         shared Boolean terminated => llvm.getBasicBlockTerminator(ref) exists;
 
-        "Accessor for instructions with appended default return."
-        shared [String*] instructions =>
-            if (terminated)
-            then instructions_.sequence()
-            else instructions_.sequence().withTrailing(stubReturn);
-
-        "Add an instruction to this logical block."
-        shared void instruction(String instruction) {
-            "Block should not have instructions after termination."
-            assert (!terminated);
-            instructions_.add(instruction);
-        }
-
         "Mark a value in this block."
         shared void mark(Object key, AnyLLVMValue val) {
+            if (terminated) {
+                print(llvm.printValueToString(funcRef));
+            }
             assert(!terminated);
             marks[key] = val;
         }
@@ -219,8 +198,38 @@ class LLVMFunction<out Ret, in Args>(
         llvm.positionBuilder(llvmBuilder, currentBlock.ref);
     }
 
-    "The entry point for the function."
-    shared variable Label entryPoint = block;
+    "Start adding instructions to the beginning of the function"
+    shared void beginPrepending() {
+        assert(exists block = llvm.getEntryBasicBlock(funcRef));
+        value inst = llvm.getFirstInstruction(block);
+        llvm.positionBuilder(llvmBuilder, block, inst);
+    }
+
+    "Move the insertion cursor to the given block and instruction"
+    shared void moveCursor(Label lbl, variable Integer index) {
+        assert(exists value bl = findBlock(lbl));
+        variable LLVMValueRef? inst = llvm.getFirstInstruction(bl.ref);
+
+        while (index > 0, exists i = inst) {
+            inst = llvm.getNextInstruction(i);
+            index -= 1;
+        }
+        llvm.positionBuilder(llvmBuilder, bl.ref, inst);
+    }
+
+    "Change a mark in this block and any other blocks that match it.
+     Replace uses of the marked value with the new value and delete the old
+     instruction."
+    shared void replaceMark(Object marker, AnyLLVMValue val) {
+        assert(exists old = getMarked(val.type, marker));
+
+        for (block in blocks) {
+            block.replaceMark(marker, old, val);
+        }
+
+        llvm.replaceAllUsesWith(old.ref, val.ref);
+        llvm.instructionEraseFromParent(old.ref);
+    }
 
     "Create a new block. Return the raw block."
     Block newBlockIntern() {
@@ -235,7 +244,7 @@ class LLVMFunction<out Ret, in Args>(
     "Split the current block at the insert position. In essence, insert a label
      at the current position."
     shared Label splitBlock() {
-        if (currentBlock.instructions.empty) {
+        if (! llvm.getFirstInstruction(currentBlock.ref) exists) {
             return block;
         }
 
@@ -250,10 +259,6 @@ class LLVMFunction<out Ret, in Args>(
         llvm.positionBuilder(llvmBuilder, ret.ref);
         return ret.label;
     }
-
-    "Note that a declaration is required for this function."
-    shared void declaration(String name, LLVMType declaration)
-            => declarationList.put(name, declaration);
 
     "Mark a value in this block to track variable definitions."
     shared void mark(Object key, AnyLLVMValue val) {

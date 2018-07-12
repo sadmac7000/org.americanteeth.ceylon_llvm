@@ -5,6 +5,8 @@ import org.bytedeco.javacpp {
         llvmInitializeNativeDisassembler=\iLLVMInitializeNativeDisassembler,
         llvmInitializeNativeTarget=\iLLVMInitializeNativeTarget,
 
+        llvmInstructionEraseFromParent=\iLLVMInstructionEraseFromParent,
+
         LLVMModuleRef,
         llvmModuleCreateWithName=\iLLVMModuleCreateWithName,
         llvmPrintModuleToString=\iLLVMPrintModuleToString,
@@ -52,12 +54,15 @@ import org.bytedeco.javacpp {
         llvmAddAlias=\iLLVMAddAlias,
         llvmGetNamedGlobal=\iLLVMGetNamedGlobal,
         llvmSetTailCall=\iLLVMSetTailCall,
+        llvmReplaceAllUsesWith=\iLLVMReplaceAllUsesWith,
+        llvmGetNextInstruction=\iLLVMGetNextInstruction,
 
         LLVMBasicBlockRef,
         llvmAppendBasicBlock=\iLLVMAppendBasicBlock,
         llvmBasicBlockAsValue=\iLLVMBasicBlockAsValue,
         llvmGetBasicBlockTerminator=\iLLVMGetBasicBlockTerminator,
         llvmGetFirstInstruction=\iLLVMGetFirstInstruction,
+        llvmGetEntryBasicBlock=\iLLVMGetEntryBasicBlock,
 
         LLVMBuilderRef,
         llvmCreateBuilder=\iLLVMCreateBuilder,
@@ -147,6 +152,9 @@ object llvm {
     shared Integer privateLinkage = llvmPrivateLinkage;
     shared Integer externalLinkage = llvmExternalLinkage;
 
+    shared void instructionEraseFromParent(LLVMValueRef ref)
+        => llvmInstructionEraseFromParent(ref);
+
     shared LLVMTypeRef int64Type()
         => llvmInt64Type();
     shared LLVMTypeRef pointerType(LLVMTypeRef t)
@@ -233,6 +241,10 @@ object llvm {
         => llvmGetNamedGlobal(ref, name);
     shared void setTailCall(LLVMValueRef ref, Boolean isit)
         => llvmSetTailCall(ref, isit then 1 else 0);
+    shared void replaceAllUsesWith(LLVMValueRef old, LLVMValueRef n)
+        => llvmReplaceAllUsesWith(old, n);
+    shared LLVMValueRef? getNextInstruction(LLVMValueRef prev)
+        => llvmGetNextInstruction(prev);
 
     shared LLVMBasicBlockRef appendBasicBlock(LLVMValueRef fn, String name)
         => llvmAppendBasicBlock(fn, name);
@@ -242,6 +254,8 @@ object llvm {
         => llvmGetBasicBlockTerminator(bb);
     shared LLVMValueRef? getFirstInstruction(LLVMBasicBlockRef bb)
         => llvmGetFirstInstruction(bb);
+    shared LLVMBasicBlockRef? getEntryBasicBlock(LLVMValueRef func)
+        => llvmGetEntryBasicBlock(func);
 
     shared LLVMBuilderRef createBuilder() => llvmCreateBuilder();
     shared void positionBuilder(LLVMBuilderRef builder,
