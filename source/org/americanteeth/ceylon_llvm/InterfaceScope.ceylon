@@ -16,11 +16,10 @@ class InterfaceScope(LLVMModule mod, InterfaceModel model,
     shared actual Boolean owns(DeclarationModel d)
         => if (exists c = d.container, c == model) then true else false;
 
-    shared actual {LLVMDeclaration*} results {
+    shared actual void finalize() {
         value setup = llvmFunction(llvmModule, setupName(model), null,
                 [ptr(i64)]);
         assert(is LLVMValue<PtrType<I64Type>> vtable = setup.arguments.first);
-        value results = ArrayList<LLVMDeclaration>{setup};
         variable value offset = 0;
 
         setup.private = true;
@@ -58,12 +57,10 @@ class InterfaceScope(LLVMModule mod, InterfaceModel model,
                 }
             }
 
-            results.add(LLVMGlobal(vtPositionName(member),
-                        I64Lit(memberOffset)));
+            mod.lookupGlobal(i64, vtPositionName(member)).initializer =
+                I64Lit(memberOffset);
         }
 
-        results.add(LLVMGlobal(vtSizeName(model), I64Lit(offset)));
-
-        return results;
+        mod.lookupGlobal(i64, vtSizeName(model)).initializer = I64Lit(offset);
     }
 }

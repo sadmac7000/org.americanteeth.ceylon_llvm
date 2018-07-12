@@ -23,9 +23,6 @@ AnyLLVMFunction unitScopeBody(LLVMModule mod) {
 "The outermost scope of the compilation unit"
 class UnitScope(LLVMModule mod)
         extends Scope(mod, unitScopeBody(mod), (Anything x) => null) {
-    value globalVariables = ArrayList<AnyLLVMGlobal>();
-    value mutators = ArrayList<LLVMDeclaration>();
-
     shared actual Boolean owns(DeclarationModel d) => d.toplevel;
 
     LLVMFunction<PtrType<I64Type>,[]> getterFor(ValueModel model) {
@@ -51,12 +48,12 @@ class UnitScope(LLVMModule mod)
 
         value name = declarationName(declaration);
 
-        globalVariables.add(LLVMGlobal(name, llvmNull));
-        mutators.add(getterFor(declaration));
+        mod.lookupGlobal(ptr(i64), name).initializer = llvmNull;
+        getterFor(declaration);
 
         if (declaration.\ivariable) {
             value setter = setterFor(declaration);
-            mutators.add(setter);
+
             if (exists startValue) {
                 body.callPtr(setter, startValue);
             }
@@ -65,12 +62,6 @@ class UnitScope(LLVMModule mod)
         }
     }
 
-    shared actual {LLVMDeclaration*} results {
-        value superResults = super.results;
-
-        assert (is AnyLLVMFunction s = superResults.first);
-        s.makeConstructor(toplevelConstructorPriority);
-
-        return globalVariables.chain(superResults).chain(mutators);
-    }
+    shared actual void finalize()
+        => body.makeConstructor(toplevelConstructorPriority);
 }

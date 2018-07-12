@@ -68,7 +68,7 @@ class CallableScope(LLVMModule mod, DeclarationModel model,
     }
 
     "Add instructions to initialize the frame object"
-    shared actual default void initFrame() {
+    shared actual default void finalize() {
         value block = body.block;
         body.beginPrepending();
 

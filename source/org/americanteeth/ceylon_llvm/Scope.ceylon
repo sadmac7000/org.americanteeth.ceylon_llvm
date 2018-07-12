@@ -20,7 +20,6 @@ abstract class Scope(shared LLVMModule llvmModule,
         return bodyFunc;
     }
 
-    value mutators = ArrayList<LLVMDeclaration>();
     value allocations = HashMap<FunctionOrValueModel,Integer>();
     variable value allocationBlock = 0;
     value loopContextStack = ArrayList<LoopContext>();
@@ -46,9 +45,6 @@ abstract class Scope(shared LLVMModule llvmModule,
         assert(exists l = loopContextStack.last);
         body.jump(l.continuePoint);
     }
-
-    shared actual void obtain() {}
-    shared actual void release(Throwable? exc) => destroyer(this);
 
     shared Integer allocatedBlocks => allocationBlock;
 
@@ -137,10 +133,10 @@ abstract class Scope(shared LLVMModule llvmModule,
             body.store(frame, body.toI64(startValue), slotOffset);
         }
 
-        mutators.add(getterFor(declaration));
+        getterFor(declaration);
 
         if (declaration.\ivariable) {
-            mutators.add(setterFor(declaration));
+            setterFor(declaration);
         }
     }
 
@@ -178,10 +174,12 @@ abstract class Scope(shared LLVMModule llvmModule,
         assert (false);
     }
 
-    shared default void initFrame() {}
+    shared default void finalize() {}
 
-    shared default {LLVMDeclaration*} results {
-        initFrame();
-        return { body, *mutators };
+    shared actual void obtain() {}
+    shared actual void release(Throwable? exc) {
+        finalize();
+        destroyer(this);
     }
+
 }

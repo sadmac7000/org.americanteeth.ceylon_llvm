@@ -59,19 +59,15 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
         extends CallableScope(mod, model, constructorBodyFunc(mod, model),
                         destroyer) {
     value parent = model.extendedType?.declaration;
-    shared actual void initFrame() {}
 
-    "Our vtPosition variables that store the vtable offsets in the binary"
-    {AnyLLVMGlobal*} vtPositions = CeylonIterable(model.members)
-        .select((x) => (x.\iformal || x.\idefault) && !x.\iactual)
-        .map((x) => LLVMGlobal(vtPositionName(x), I64Lit(0)));
+    for (pos in CeylonIterable(model.members)
+            .select((x) => (x.\iformal || x.\idefault) && !x.\iactual)) {
+        mod.lookupGlobal(i64, vtPositionName(pos)).initializer = I64Lit(0);
+    }
 
-    "Global variables that se up the vtable"
-    {LLVMDeclaration+} globals = [
-        LLVMGlobal(vtSizeName(model), I64Lit(0)),
-        LLVMGlobal(vtableName(model), llvmNull),
-        LLVMGlobal(sizeName(model), I64Lit(0))
-    ];
+    mod.lookupGlobal(i64, vtSizeName(model)).initializer = I64Lit(0);
+    mod.lookupGlobal(ptr(i64), vtableName(model)).initializer = llvmNull;
+    mod.lookupGlobal(i64, sizeName(model)).initializer = I64Lit(0);
 
     "The allocation offset for this item"
     shared actual I64 getAllocationOffset(Integer slot, AnyLLVMFunction func) {
@@ -83,7 +79,7 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
     }
 
     "Our direct-call constructor that allocates the new object with malloc"
-    LLVMDeclaration directConstructor() {
+    void directConstructor() {
         value fullParameters = body.arguments.rest.collect((x) => x.type);
         value directConstructor = llvmFunction(llvmModule,
                 declarationName(model), ptr(i64), fullParameters);
@@ -103,13 +99,10 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
         directConstructor.callPtr(body, *body.arguments);
 
         directConstructor.ret(frame);
-
-        return directConstructor;
     }
 
-    shared actual default {LLVMDeclaration*} results {
-        let ([setupFunction, interfaceResolver, *positions]
-                = vtSetupFunction(llvmModule, model));
+    shared actual void finalize() {
+        value setupFunction = vtSetupFunction(llvmModule, model);
 
         assert (exists priority = declarationOrder[model]);
         setupFunction.makeConstructor(priority + constructorPriorityOffset);
@@ -121,10 +114,6 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
         value size = setupFunction.add(parentSize, allocatedBlocks);
         setupFunction.store(sizeGlobal, size);
 
-        return super.results
-            .chain { setupFunction, interfaceResolver, directConstructor() }
-            .chain(vtPositions)
-            .chain(positions)
-            .chain(globals);
+        directConstructor();
     }
 }

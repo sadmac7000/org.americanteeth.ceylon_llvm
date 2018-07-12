@@ -63,15 +63,13 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
 }
 
 "Get the vtable setup function and interface resolver function for a given class."
-[AnyLLVMFunction, AnyLLVMFunction, LLVMGlobal<I64Type>*] vtSetupFunction(
-        LLVMModule mod, ClassModel model) {
+AnyLLVMFunction vtSetupFunction(LLVMModule mod, ClassModel model) {
     value parent = model.extendedType?.declaration;
     value ret = llvmFunction(mod, setupName(model), null, []);
     value interfaceResolver =
         llvmFunction(mod, resolverName(model), i64, [ptr(i64)]);
     value originalSatisfiers = getOriginalSatisfiers(model);
     value ifacePositions = HashMap<InterfaceModel,I64>();
-    value ifacePositionStorage = ArrayList<LLVMGlobal<I64Type>>();
 
     ret.private = true;
 
@@ -107,8 +105,8 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
 
         value positionName = package.positionName(model, iface);
 
+        mod.lookupGlobal(i64, positionName).initializer = I64Lit(0);
         ret.storeGlobal(positionName, vtSize);
-        ifacePositionStorage.add(LLVMGlobal(positionName, I64Lit(0)));
 
         vtSize = ret.add(vtSize, ifSize);
 
@@ -228,7 +226,7 @@ AnyLLVMFunctionType llvmTypeOf(FunctionModel func) {
         setVtEntry(member);
     }
 
-    return [ret, interfaceResolver, *ifacePositionStorage];
+    return ret;
 }
 
 "Dispatch from a vtable."

@@ -31,13 +31,12 @@ LLVMFunction<Ret,Args> llvmFunction<out Ret, in Args>(
 "Add an inheritance layer so we can intercept arguments."
 class LLVMFunction<out Ret, in Args>(
     shared LLVMModule llvmModule,
-    shared actual String name,
+    shared String name,
     shared Ret&LLVMType? returnType,
     Args argumentTypes,
     FuncType<Ret,Args> ty,
     LLVMValueRef funcRef)
         extends Ptr<FuncType<Ret,Args>>(ptr(ty), funcRef)
-        satisfies LLVMDeclaration
         given Args satisfies [LLVMType*] {
     "Full LLVM type of this function"
     shared AnyLLVMFunctionType llvmType = FuncType(returnType, argumentTypes);

@@ -38,10 +38,6 @@ class LLVMBuilder(String module_name,
 
     string => llvmModule.string;
 
-    "Write an LLVM bitcode file"
-    shared void writeBitcodeFile(String path)
-        => llvmModule.writeBitcodeFile(path);
-
     shared actual void destroy(Throwable? error) => llvmModule.destroy(error);
 
     "Whether we've found the entry point"
@@ -69,6 +65,12 @@ class LLVMBuilder(String module_name,
 
         "We did not pop the scope we expected"
         assert(scope == check);
+    }
+
+    "Write an LLVM bitcode file"
+    shared void writeBitcodeFile(String path) {
+        unitScope.finalize();
+        llvmModule.writeBitcodeFile(path);
     }
 
     variable ExpressionTransformer? expressionTransformer_ = null;
