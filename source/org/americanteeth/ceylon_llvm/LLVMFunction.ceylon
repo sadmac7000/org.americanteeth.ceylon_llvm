@@ -11,14 +11,9 @@ import ceylon.collection {
     HashMap
 }
 
-[FuncType<Ret,Args>, LLVMValueRef] funcArgs<out Ret, in Args>(
-            LLVMModule mod, Ret&LLVMType? returnType, String name,
-            Args argumentTypes)
-        given Args satisfies [LLVMType*] {
-    value ft = FuncType(returnType, argumentTypes);
-    value ref = mod.refForFunction(name, ft);
-    return [ft, ref];
-}
+"Type of entries in the constructor list."
+StructType<[I32Type,PtrType<FuncType<Null,[]>>]> constructorType
+    = StructType([i32,ptr(FuncType<Null,[]>(null,[]))]);
 
 "An LLVM function declaration."
 LLVMFunction<Ret,Args> llvmFunction<out Ret, in Args>(
@@ -26,9 +21,12 @@ LLVMFunction<Ret,Args> llvmFunction<out Ret, in Args>(
     String name,
     Ret&LLVMType? returnType,
     Args argumentTypes)
-        given Args satisfies [LLVMType*]
-    => LLVMFunction(llvmModule, name, returnType, argumentTypes,
-                    *funcArgs(llvmModule, returnType, name, argumentTypes));
+        given Args satisfies [LLVMType*] {
+    value ft = FuncType(returnType, argumentTypes);
+    value ref = llvmModule.refForFunction(name, ft);
+
+    return LLVMFunction(llvmModule, name, returnType, argumentTypes, ft, ref);
+}
 
 "Add an inheritance layer so we can intercept arguments."
 class LLVMFunction<out Ret, in Args>(
@@ -47,20 +45,19 @@ class LLVMFunction<out Ret, in Args>(
     "Memoization for arguments"
     variable [AnyLLVMValue*]? arguments_ = null;
 
-    "Memoization of constructorPriority."
-    variable Integer? constructorPriority_ = null;
-
-    "If set, this function will be run as a 'constructor' by the linker. The
-     value is a priority that determines what order such functions are run
-     in if multiple are declared."
-    shared Integer? constructorPriority => constructorPriority_;
-
-    "Is this a constructor? (In the LLVM/system linker sense)."
-    shared Boolean isConstructor => constructorPriority_ exists;
+    "Whether makeConstructor has been called."
+    variable value isConstructor = false;
 
     "Make this function a constructor (In the LLVM/system linker sense)."
-    shared void makeConstructor(Integer priority)
-            => constructorPriority_ = priority;
+    shared void makeConstructor(Integer priority) {
+        "Should not call makeConstructor twice"
+        assert(! isConstructor);
+        isConstructor = true;
+
+        value entry = llvm.constStruct([I32Lit(priority).ref,funcRef], false);
+        llvmModule.appendGlobalArray(constructorType,
+                "llvm.global_ctors", LLVMValue(constructorType, entry));
+    }
 
     "Counter for auto-generated names"
     variable value nextTemporary = 0;

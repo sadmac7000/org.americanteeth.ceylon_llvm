@@ -47,9 +47,6 @@ class LLVMBuilder(String module_name,
     "Whether we've found the entry point"
     variable Boolean foundRunSymbol = false;
 
-    "The code we are outputting"
-    value output = LLVMUnit();
-
     "Top-level scope of the compilation unit"
     shared Scope unitScope = UnitScope(llvmModule);
 
@@ -72,10 +69,6 @@ class LLVMBuilder(String module_name,
 
         "We did not pop the scope we expected"
         assert(scope == check);
-
-        for (result in scope.results) {
-            output.append(result);
-        }
     }
 
     variable ExpressionTransformer? expressionTransformer_ = null;
@@ -186,10 +179,10 @@ class LLVMBuilder(String module_name,
         }
 
         if (model.\iformal || model.\idefault) {
-            output.append(vtDispatchGetter(llvmModule, model));
+            vtDispatchGetter(llvmModule, model);
 
             if (model.\ivariable) {
-                output.append(vtDispatchSetter(llvmModule, model));
+                vtDispatchSetter(llvmModule, model);
             }
         }
     }
@@ -320,7 +313,7 @@ class LLVMBuilder(String module_name,
         value firstParameterList = tc.declarationModel.firstParameterList;
 
         if (tc.declarationModel.\iformal || tc.declarationModel.\idefault) {
-            output.append(vtDispatchFunction(llvmModule, tc.declarationModel));
+            vtDispatchFunction(llvmModule, tc.declarationModel);
         }
 
         if (tc.declarationModel.\iformal) {

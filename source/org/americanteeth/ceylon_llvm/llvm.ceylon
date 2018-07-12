@@ -29,9 +29,11 @@ import org.bytedeco.javacpp {
         llvmPrintTypeToString=\iLLVMPrintTypeToString,
         llvmGetTypeKind=\iLLVMGetTypeKind,
         llvmGetElementType=\iLLVMGetElementType,
+        llvmGetArrayLength=\iLLVMGetArrayLength,
 
         /* LLVMTypeKind */
         llvmPointerTypeKind=\iLLVMPointerTypeKind,
+        llvmArrayTypeKind=\iLLVMArrayTypeKind,
 
         LLVMValueRef,
         llvmConstInt=\iLLVMConstInt,
@@ -92,6 +94,8 @@ import org.bytedeco.javacpp {
         llvmPrivateLinkage=\iLLVMPrivateLinkage,
         llvmExternalLinkage=\iLLVMExternalLinkage,
 
+        llvmGetElementAsConstant=\iLLVMGetElementAsConstant,
+
         llvmWriteBitcodeToFile=\iLLVMWriteBitcodeToFile
     }
 }
@@ -106,6 +110,10 @@ class LLVMTypeKind {
         val = llvmPointerTypeKind;
     }
 
+    shared new arrayTypeKind {
+        val = llvmArrayTypeKind;
+    }
+
     hash => val.hash;
     equals(Object other)
         => if (is LLVMTypeKind other)
@@ -117,6 +125,8 @@ class LLVMTypeKind {
 LLVMTypeKind toTypeKind(Integer val) {
     if (val == LLVMTypeKind.pointerTypeKind.val) {
         return LLVMTypeKind.pointerTypeKind;
+    } else if (val == LLVMTypeKind.arrayTypeKind.val) {
+        return LLVMTypeKind.arrayTypeKind;
     }
 
     "No valid type kind found"
@@ -178,6 +188,8 @@ object llvm {
         => toTypeKind(llvmGetTypeKind(ty));
     shared LLVMTypeRef getElementType(LLVMTypeRef ty)
         => llvmGetElementType(ty);
+    shared Integer getArrayLength(LLVMTypeRef ty)
+        => llvmGetArrayLength(ty);
 
     shared String printModuleToString(LLVMModuleRef ref)
         => llvmPrintModuleToString(ref).getString();
@@ -245,6 +257,8 @@ object llvm {
         => llvmReplaceAllUsesWith(old, n);
     shared LLVMValueRef? getNextInstruction(LLVMValueRef prev)
         => llvmGetNextInstruction(prev);
+    shared LLVMValueRef constStruct([LLVMValueRef*] elements, Boolean packed)
+        => LLVM.constStruct(createJavaObjectArray(elements), packed);
 
     shared LLVMBasicBlockRef appendBasicBlock(LLVMValueRef fn, String name)
         => llvmAppendBasicBlock(fn, name);
@@ -325,6 +339,9 @@ object llvm {
                 createJavaObjectArray(blocks));
     }
 
+    shared LLVMValueRef getElementAsConstant(LLVMValueRef ref, Integer idx)
+        => llvmGetElementAsConstant(ref, idx);
+
     shared void writeBitcodeToFile(LLVMModuleRef ref, String path)
         => llvmWriteBitcodeToFile(ref, path);
 }
@@ -352,6 +369,41 @@ class LLVMModule satisfies Destroyable {
             given T satisfies LLVMType
         => LLVMGlobalValue(ty, llvm.getNamedGlobal(ref, name)
                 else llvm.addGlobal(ref, ty.ref, name)).validated;
+
+    shared void appendGlobalArray<T>(T ty, String name, LLVMValue<T> add)
+            given T satisfies LLVMType {
+        value globalRef = llvm.getNamedGlobal(ref, name);
+
+        if (! exists globalRef) {
+            value newRef = llvm.addGlobal(ref, ty.ref, name);
+            value newArray = llvm.constArray(ty.ref, [add.ref]);
+            llvm.setInitializer(newRef, newArray);
+            return;
+        }
+
+        value arrayPtrType = llvm.typeOf(globalRef);
+
+        "Expect to find an array pointer"
+        assert(llvm.getTypeKind(arrayPtrType) == LLVMTypeKind.pointerTypeKind);
+
+        value arrayType = llvm.typeOf(llvm.getInitializer(globalRef));
+
+        "Expect to find an array"
+        assert(llvm.getTypeKind(arrayType) == LLVMTypeKind.arrayTypeKind);
+
+        value elementType = llvm.getElementType(arrayType);
+
+        "Expect to find an array of the given type."
+        assert(elementType == ty.ref);
+
+        value len = llvm.getArrayLength(arrayType);
+        value values = (0:len).collect(
+                (x) => llvm.getElementAsConstant(globalRef, x))
+            .withTrailing(add.ref);
+        value newArray = llvm.constArray(elementType, values);
+
+        llvm.setInitializer(globalRef, newArray);
+    }
 
     shared LLVMValue<T> addAlias<T>(LLVMValue<T> val, String name)
             given T satisfies LLVMType

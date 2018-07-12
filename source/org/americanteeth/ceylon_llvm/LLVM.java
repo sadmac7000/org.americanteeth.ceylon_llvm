@@ -48,4 +48,15 @@ class LLVM {
     return LLVMBuildCall(builder, fn, new PointerPointer(args), args.length,
         name);
   }
+
+  public static LLVMValueRef constStruct(LLVMValueRef[] values,
+      boolean pack) {
+    int pack_i = 0;
+
+    if (pack) {
+      pack_i = 1;
+    }
+
+    return LLVMConstStruct(new PointerPointer(values), values.length, pack_i);
+  }
 }
