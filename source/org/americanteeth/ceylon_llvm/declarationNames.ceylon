@@ -123,7 +123,6 @@ String positionName(ClassModel model, InterfaceModel iface)
 
 String contextName = ".context";
 String frameName = ".frame";
-String valueName = ".value";
 
 String memberName(ClassOrInterfaceModel model, String method)
     => "``declarationName(model)``.``method``";
