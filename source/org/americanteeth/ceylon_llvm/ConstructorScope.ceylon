@@ -72,7 +72,7 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
     "The allocation offset for this item"
     shared actual I64 getAllocationOffset(Integer slot, AnyLLVMFunction func) {
         value shift = if (exists parent)
-            then func.load(func.global(i64, sizeName(parent)))
+            then func.loadGlobal(i64, sizeName(parent))
             else I64Lit(0);
         value ret = func.add(shift, slot);
         return ret;
@@ -83,8 +83,7 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
         value fullParameters = body.arguments.rest.collect((x) => x.type);
         value directConstructor = llvmFunction(llvmModule,
                 declarationName(model), ptr(i64), fullParameters);
-        value size = directConstructor.load(directConstructor.global(i64,
-                sizeName(model)));
+        value size = directConstructor.loadGlobal(i64, sizeName(model));
         value bytes = directConstructor.mul(size, 8);
 
         value frame = directConstructor.call(ptr(i64),
@@ -92,8 +91,7 @@ class ConstructorScope(LLVMModule mod, ClassModel model,
         directConstructor.mark(frameName, frame);
 
         value vt = directConstructor.toI64(
-            directConstructor.load(directConstructor.global(ptr(i64),
-                    vtableName(model))));
+            directConstructor.loadGlobal(ptr(i64), vtableName(model)));
         directConstructor.store(frame, vt, I64Lit(1));
 
         directConstructor.callPtr(body, *body.arguments);
