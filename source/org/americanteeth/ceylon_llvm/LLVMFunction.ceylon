@@ -129,8 +129,15 @@ class LLVMFunction<out Ret, in Args>(
                 given T satisfies LLVMType {
             if (exists m = marks[key]) {
                 "Mark should be retrieved with the same type it was set as."
-                assert(is LLVMValue<T> m);
-                return m;
+                assert(m.type == t);
+
+                if (is LLVMValue<T> m) {
+                    return m;
+                }
+
+                value replace = LLVMValue(t, m.ref);
+                marks[key] = replace;
+                return replace;
             }
 
             llvm.positionBuilder(llvmBuilder, ref,
