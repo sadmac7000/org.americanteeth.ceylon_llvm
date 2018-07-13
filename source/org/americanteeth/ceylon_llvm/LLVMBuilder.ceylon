@@ -235,7 +235,7 @@ class LLVMBuilder(String module_name,
             return;
         }
 
-        if (! model.parameterList exists) {
+        if (model.hasConstructors()) {
             return; /* TODO: Support advanced constructors */
         }
 
