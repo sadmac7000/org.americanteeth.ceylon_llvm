@@ -117,9 +117,6 @@ class LLVMFunction<out Ret, in Args>(
 
         "Mark a value in this block."
         shared void mark(Object key, AnyLLVMValue val) {
-            if (terminated) {
-                print(llvm.printValueToString(funcRef));
-            }
             assert(!terminated);
             marks[key] = val;
         }
